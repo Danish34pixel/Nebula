@@ -1,0 +1,172 @@
+21: import { apiUrl, postForm, postJson } from "../../config/api";
+53: ...prev,
+57: setErrors((prev) => ({ ...prev, [name]: "" }));
+62: const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+68: let result = await ImagePicker.launchImageLibraryAsync({
+72: quality: 0.7,
+75: if (!result.canceled) {
+76: const asset = result.assets[0];
+78: ...prev,
+80: uri: asset.uri,
+81: name: asset.fileName || `${fieldName}.jpg`,
+82: type: asset.mimeType || 'image/jpeg',
+86: ...prev,
+87: [fieldName]: asset.uri,
+90: setErrors((prev) => ({ ...prev, [fieldName]: "" }));
+98: if (!formData.fullName.trim()) {
+99: newErrors.fullName = "Full name is required";
+100: } else if (formData.fullName.trim().length < 3) {
+101: newErrors.fullName = "Name must be at least 3 characters";
+104: if (!formData.address.trim()) {
+105: newErrors.address = "Address is required";
+106: } else if (formData.address.trim().length < 10) {
+107: newErrors.address = "Please enter a complete address";
+110: if (!formData.contactNo.trim()) {
+111: newErrors.contactNo = "Contact number is required";
+112: } else if (!/^[6-9]\d{9}$/.test(formData.contactNo.trim())) {
+113: newErrors.contactNo = "Please enter a valid 10-digit mobile number";
+116: if (!formData.email || !formData.email.trim()) {
+117: newErrors.email = "Email is required";
+119: !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email.trim())
+121: newErrors.email = "Please enter a valid email address";
+124: if (!formData.password || !formData.password.trim()) {
+125: newErrors.password = "Password is required";
+126: } else if (formData.password.length < 6) {
+127: newErrors.password = "Password must be at least 6 characters";
+130: if (formData.password !== formData.confirmPassword) {
+131: newErrors.confirmPassword = "Passwords do not match";
+134: if (!formData.aadharImage) {
+135: newErrors.aadharImage = "Aadhar card image is required";
+138: if (!formData.photo) {
+139: newErrors.photo = "Photo is required";
+142: if (selectedStockists.length < 3) {
+143: newErrors.stockists = "Please select at least 3 stockists";
+147: return Object.keys(newErrors).length === 0;
+161: submitData.append("fullName", formData.fullName.trim());
+162: submitData.append("address", formData.address.trim());
+163: submitData.append("email", formData.email.trim());
+164: submitData.append("password", formData.password || "");
+165: submitData.append("contactNo", formData.contactNo.trim());
+168: submitData.append("aadharImage", formData.aadharImage);
+169: submitData.append("photo", formData.photo);
+173: if (created && created.token) {
+174: await AsyncStorage.setItem("token", created.token);
+176: if (created && created.purchaser && created.purchaser._id) {
+177: await AsyncStorage.setItem("pendingPurchaserId", created.purchaser._id);
+183: purchaserId: created.purchaser?._id || created.user?._id,
+184: requester: { fullName: formData.fullName, email: formData.email },
+186: fullName: formData.fullName,
+187: address: formData.address,
+188: contactNo: formData.contactNo,
+189: email: formData.email,
+194: router.push("/purchasermiddle");
+196: setErrorMessage(error.message || "Something went wrong. Please try again.");
+208: const json = await res.json();
+209: setStockists(json.data || []);
+211: console.warn("Failed to load stockists", e.message);
+221: prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+223: setErrors((prev) => ({ ...prev, stockists: "" }));
+226: const filteredStockists = stockists.filter((s) => {
+227: const q = stockistQuery.trim().toLowerCase();
+229: const label = (s.contactPerson || s.name || "").toLowerCase();
+230: const email = (s.email || "").toLowerCase();
+231: const phone = (s.phone || "").toLowerCase();
+232: return label.includes(q) || email.includes(q) || phone.includes(q);
+236: <SafeAreaView style={styles.safeArea}>
+238: behavior={Platform.OS === "ios" ? "padding" : "height"}
+239: style={styles.container}
+241: <ScrollView contentContainerStyle={styles.scrollContent}>
+242: <View style={styles.logoContainer}>
+244: source={require("../../assets/images/final-logo.png")}
+245: style={styles.logo}
+249: <View style={styles.header}>
+250: <View style={styles.iconCircle}>
+254: <Text style={styles.headerTitle}>Purchaser Registration</Text>
+255: <Text style={styles.headerSubtitle}>Complete your profile to get started</Text>
+258: <View style={styles.card}>
+260: <View style={styles.errorContainer}>
+262: <Text style={styles.errorText}>{errorMessage}</Text>
+265: <View style={styles.inputGroup}>
+266: <Text style={styles.label}>FULL NAME</Text>
+268: style={[styles.input, errors.fullName && styles.inputError]}
+269: value={formData.fullName}
+273: {errors.fullName && <Text style={styles.fieldError}>{errors.fullName}</Text>}
+275: <View style={styles.inputGroup}>
+276: <Text style={styles.label}>ADDRESS</Text>
+278: style={[styles.input, styles.textArea, errors.address && styles.inputError]}
+279: value={formData.address}
+285: {errors.address && <Text style={styles.fieldError}>{errors.address}</Text>}
+287: <View style={styles.inputGroup}>
+288: <Text style={styles.label}>CONTACT NUMBER</Text>
+290: style={[styles.input, errors.contactNo && styles.inputError]}
+291: value={formData.contactNo}
+297: {errors.contactNo && <Text style={styles.fieldError}>{errors.contactNo}</Text>}
+299: <View style={styles.inputGroup}>
+300: <Text style={styles.label}>EMAIL ADDRESS</Text>
+302: style={[styles.input, errors.email && styles.inputError]}
+303: value={formData.email}
+307: placeholder="your.email@example.com"
+309: {errors.email && <Text style={styles.fieldError}>{errors.email}</Text>}
+311: <View style={styles.row}>
+312: <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+313: <Text style={styles.label}>PASSWORD</Text>
+315: style={[styles.input, errors.password && styles.inputError]}
+316: value={formData.password}
+321: {errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
+323: <View style={[styles.inputGroup, { flex: 1 }]}>
+324: <Text style={styles.label}>CONFIRM</Text>
+326: style={[styles.input, errors.confirmPassword && styles.inputError]}
+327: value={formData.confirmPassword}
+332: {errors.confirmPassword && <Text style={styles.fieldError}>{errors.confirmPassword}</Text>}
+335: <View style={styles.row}>
+336: <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+337: <Text style={styles.label}>AADHAR CARD</Text>
+339: style={[styles.imageUpload, errors.aadharImage && styles.imageError]}
+342: {previews.aadharImage ? (
+343: <Image source={{ uri: previews.aadharImage }} style={styles.previewImage} />
+345: <View style={styles.uploadPlaceholder}>
+346: <LinearGradient colors={["#22d3ee", "#06b6d4"]} style={styles.uploadIconCircle}>
+349: <Text style={styles.uploadText}>Upload Aadhar</Text>
+354: <View style={[styles.inputGroup, { flex: 1 }]}>
+355: <Text style={styles.label}>YOUR PHOTO</Text>
+357: style={[styles.imageUpload, errors.photo && styles.imageError]}
+360: {previews.photo ? (
+361: <Image source={{ uri: previews.photo }} style={styles.previewImage} />
+363: <View style={styles.uploadPlaceholder}>
+364: <LinearGradient colors={["#fb923c", "#ef4444"]} style={styles.uploadIconCircle}>
+367: <Text style={styles.uploadText}>Upload Photo</Text>
+374: <View style={styles.inputGroup}>
+375: <Text style={styles.label}>SELECT STOCKISTS (MIN. 3)</Text>
+376: {selectedStockists.length > 0 && (
+377: <View style={styles.tokensRow}>
+378: {selectedStockists.map((id) => {
+379: const s = stockists.find((x) => x._id === id) || {};
+381: <View key={id} style={styles.token}>
+382: <Text style={styles.tokenText}>{s.contactPerson || s.name || id}</Text>
+391: <View style={styles.searchBox}>
+392: <Feather name="search" size={18} color="#9ca3af" style={styles.searchIcon} />
+394: style={styles.searchInput}
+405: <View style={styles.dropdown}>
+407: <ActivityIndicator style={styles.loader} color="#06b6d4" />
+410: {filteredStockists.map((s) => {
+411: const isSelected = selectedStockists.includes(s._id);
+414: key={s._id}
+415: style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
+417: if (!isSelected) toggleStockist(s._id);
+423: <Text style={styles.dropdownTitle}>{s.contactPerson || s.name}</Text>
+424: <Text style={styles.dropdownSub}>{s.email || s.phone}</Text>
+432: <TouchableOpacity style={styles.closeDropdown} onPress={() => setStockistDropdownOpen(false)}>
+433: <Text style={styles.closeDropdownText}>Close</Text>
+437: {errors.stockists && <Text style={styles.fieldError}>{errors.stockists}</Text>}
+440: style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+446: style={styles.submitGradient}
+451: <Text style={styles.submitText}>Complete Registration</Text>
+455: <View style={styles.footer}>
+456: <Text style={styles.footerText}>Already have an account?</Text>
+457: <TouchableOpacity onPress={() => router.push("/Purchaser/purchaser-login")}>
+458: <Text style={styles.signInLink}>Sign In Here</Text>
+468: const styles = StyleSheet.create({
+482: shadowOpacity: 0.05,
+502: shadowOpacity: 0.05,
+507: label: { fontSize: 12, fontWeight: "bold", color: "#6b7280", marginBottom: 8, letterSpacing: 0.5 },
+563: shadowOpacity: 0.1,

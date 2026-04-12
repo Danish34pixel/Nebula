@@ -36,7 +36,7 @@ const AdminDashboard = () => {
               <Feather name="users" size={32} color="#fff" />
             </LinearGradient>
             <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>User Management</Text>
+              <Text style={styles.menuTitle}>Purchaser Management</Text>
               <Text style={styles.menuSub}>Approve or decline purchaser registrations</Text>
             </View>
             <Feather name="chevron-right" size={24} color="#94a3b8" />

@@ -178,14 +178,38 @@ export default function PurchaserSignup() {
         submitData.append("personalPhoto", formData.photo);
       }
 
-      const created = await postForm("/api/auth/purchaser-signup", submitData);
+      let purchaserId = null;
+      try {
+        const created = await postForm("/api/auth/purchaser-signup", submitData);
+        const accessToken = created?.accessToken || created?.token;
+        if (accessToken) await AsyncStorage.setItem("token", accessToken);
+        if (created?.refreshToken) await AsyncStorage.setItem("refreshToken", created.refreshToken);
+        purchaserId = created?.purchaser?._id || created?.user?._id || null;
+      } catch (signupErr) {
+        if (signupErr?.status !== 409) throw signupErr;
 
-      if (created?.token) await AsyncStorage.setItem("token", created.token);
-      if (created?.purchaser?._id) await AsyncStorage.setItem("pendingPurchaserId", created.purchaser._id);
+        const loginRes = await postJson("/api/purchaser/login", {
+          email: formData.email.trim(),
+          password: formData.password || "",
+        });
+        const loginData = loginRes?.data || {};
+        if (!loginData?.accessToken) {
+          throw new Error("Email already exists. Please login from purchaser login.");
+        }
+        await AsyncStorage.setItem("token", loginData.accessToken);
+        if (loginData?.refreshToken) {
+          await AsyncStorage.setItem("refreshToken", loginData.refreshToken);
+        }
+        purchaserId = loginData?.purchaser?._id || null;
+      }
+
+      if (purchaserId) {
+        await AsyncStorage.setItem("pendingPurchaserId", purchaserId);
+      }
 
       await postJson("/api/purchasing-card/request", {
         stockistIds: selectedStockists,
-        purchaserId: created?.purchaser?._id || created?.user?._id,
+        purchaserId,
         requester: { fullName: formData.fullName, email: formData.email },
         purchaserData: {
           fullName: formData.fullName,
@@ -207,9 +231,30 @@ export default function PurchaserSignup() {
     (async () => {
       setLoadingStockists(true);
       try {
-        const res = await fetch(apiUrl("/api/stockist"));
-        const json = await res.json();
-        setStockists(json.data || []);
+        const limit = 100;
+        const firstRes = await fetch(apiUrl(`/api/stockist?page=1&limit=${limit}`));
+        const firstJson = await firstRes.json();
+        if (!firstRes.ok) {
+          throw new Error(firstJson?.message || `Failed to load stockists (${firstRes.status})`);
+        }
+
+        let all = Array.isArray(firstJson?.data) ? firstJson.data : [];
+        const totalPages = Math.max(1, Number(firstJson?.totalPages || 1));
+
+        if (totalPages > 1) {
+          const pageRequests = [];
+          for (let p = 2; p <= totalPages; p += 1) {
+            pageRequests.push(fetch(apiUrl(`/api/stockist?page=${p}&limit=${limit}`)));
+          }
+          const responses = await Promise.all(pageRequests);
+          for (const res of responses) {
+            if (!res.ok) continue;
+            const json = await res.json();
+            if (Array.isArray(json?.data)) all = all.concat(json.data);
+          }
+        }
+
+        setStockists(all);
       } catch (e) {
         console.warn("Failed to load stockists", e.message);
       } finally {

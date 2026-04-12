@@ -36,14 +36,28 @@ const StockistAdmin = () => {
     try {
       const token = await AsyncStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      
-      const res = await fetch(apiUrl("/api/stockist"), { headers });
-      const json = await res.json();
+      const limit = 100;
+      const firstRes = await fetch(apiUrl(`/api/stockist?page=1&limit=${limit}`), { headers });
+      const firstJson = await firstRes.json();
+      if (!firstRes.ok) {
+        throw new Error(firstJson.message || `Failed to load stockists (${firstRes.status})`);
+      }
 
-      if (!res.ok)
-        throw new Error(json.message || `Failed to load stockists (${res.status})`);
-      
-      let fetched = json.data || [];
+      let fetched = firstJson.data || [];
+      const totalPages = Math.max(1, Number(firstJson.totalPages || 1));
+
+      if (totalPages > 1) {
+        const pageRequests = [];
+        for (let p = 2; p <= totalPages; p += 1) {
+          pageRequests.push(fetch(apiUrl(`/api/stockist?page=${p}&limit=${limit}`), { headers }));
+        }
+        const responses = await Promise.all(pageRequests);
+        for (const res of responses) {
+          if (!res.ok) continue;
+          const json = await res.json();
+          if (Array.isArray(json?.data)) fetched = fetched.concat(json.data);
+        }
+      }
 
       // Apply local overrides
       try {

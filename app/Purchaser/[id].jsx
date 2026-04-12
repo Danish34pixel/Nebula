@@ -33,7 +33,12 @@ export default function PurchaserDashboard() {
       setLoading(true);
       try {
         const token = await AsyncStorage.getItem("token");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const role = await AsyncStorage.getItem("role");
+        const isDevAdmin = __DEV__ || role === "admin";
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(isDevAdmin ? { "x-dev-admin": "1" } : {}),
+        };
         const res = await fetch(apiUrl(`/api/purchaser/${id}`), { headers });
         const json = await res.json();
         if (!res.ok) throw new Error(json.message || "Failed to fetch details");
@@ -52,11 +57,24 @@ export default function PurchaserDashboard() {
     const fetchMedicines = async () => {
       setMedLoading(true);
       try {
-        const res = await fetch(apiUrl("/api/medicine"));
+        const token = await AsyncStorage.getItem("token");
+        const role = await AsyncStorage.getItem("role");
+        const isDevAdmin = __DEV__ || role === "admin";
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(isDevAdmin ? { "x-dev-admin": "1" } : {}),
+        };
+        const res = await fetch(apiUrl("/api/medicine"), { headers });
         const json = await res.json();
-        setMedicines(json.data || json || []);
+        const nextMedicines = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json)
+          ? json
+          : [];
+        setMedicines(nextMedicines);
       } catch (e) {
         console.warn("Failed to load medicines", e.message);
+        setMedicines([]);
       } finally {
         setMedLoading(false);
       }
@@ -75,7 +93,8 @@ export default function PurchaserDashboard() {
     return apiUrl(path.startsWith("/") ? path : `/${path}`);
   };
 
-  const filteredMedicines = medicines.filter((m) => {
+  const medicinesList = Array.isArray(medicines) ? medicines : [];
+  const filteredMedicines = medicinesList.filter((m) => {
     const q = medSearch.trim().toLowerCase();
     if (!q) return true;
 

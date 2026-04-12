@@ -16,7 +16,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 import { apiUrl, fetchJson } from "../../config/api";
 
@@ -46,10 +45,9 @@ export default function PurchaserDashboard() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         };
         const res = await fetch(apiUrl(`/api/purchaser/${id}`), { headers });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message || "Failed to fetch details");
-        const json = await fetchJson(`/purchaser/${id}`);
-        setPurchaser(json.data || json);
+        const responseJson = await res.json();
+        if (!res.ok) throw new Error(responseJson.message || "Failed to fetch details");
+        setPurchaser(responseJson.data || responseJson);
       } catch (err) {
         setError(err.message || "Failed to fetch purchaser details");
       } finally {

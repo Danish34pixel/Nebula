@@ -17,7 +17,6 @@ import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiUrl, postForm, postJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 import { apiUrl, fetchJson, postForm, postJson } from "../../config/api";
 

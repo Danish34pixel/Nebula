@@ -140,8 +140,9 @@ export default function CreateStaff() {
       fd.append("image", await createFormDataImage(image, "image"));
       fd.append("aadharCard", await createFormDataImage(aadhar, "aadharCard"));
 
-      const endpoint = user ? "/api/staff" : "/api/auth/staff-signup";
-      const headers = user ? { Authorization: `Bearer ${token}` } : {};
+      const isStaffManager = user && (user.role === "stockist" || user.role === "admin");
+      const endpoint = isStaffManager ? "/api/staff" : "/api/auth/staff-signup";
+      const headers = isStaffManager ? { Authorization: `Bearer ${token}` } : {};
 
       const res = await fetch(apiUrl(endpoint), {
         method: "POST",

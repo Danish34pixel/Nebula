@@ -58,7 +58,7 @@ export default function StockistLogin() {
       }
 
       // Store Auth State
-      if (data.token) await AsyncStorage.setItem("token", data.token);
+      if (data.accessToken) await AsyncStorage.setItem("token", data.accessToken);
       if (data.user) await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
       if (rememberMe) {

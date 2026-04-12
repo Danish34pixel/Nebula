@@ -240,6 +240,7 @@ export default function StockistDashboard() {
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [authError, setAuthError] = useState(false);
 
   const stats = useMemo(
     () => ({
@@ -322,9 +323,14 @@ export default function StockistDashboard() {
   const loadStockistData = useCallback(async () => {
     setLoading(true);
     setError("");
+    setAuthError(false);
 
     try {
       const token = await AsyncStorage.getItem("token");
+      if (!token) {
+        setAuthError(true);
+        throw new Error("Session expired. Please login again.");
+      }
       const userStr = await AsyncStorage.getItem("user");
       let storedUser = userStr ? JSON.parse(userStr) : null;
       if (storedUser && storedUser.user) storedUser = storedUser.user;
@@ -346,17 +352,27 @@ export default function StockistDashboard() {
             const singleRes = await fetch(apiUrl(`/api/stockist/${idToFetch}`), {
               headers,
             });
+            if (singleRes.status === 401) {
+              setAuthError(true);
+              throw new Error("Unauthorized");
+            }
             const singleJson = await singleRes.json().catch(() => ({}));
             if (singleJson && singleJson.data) {
               list = [singleJson.data];
               break;
             }
-          } catch (e) {}
+          } catch (e) {
+            if (e?.message === "Unauthorized") throw e;
+          }
         }
       }
 
       if (list.length === 0) {
         const res = await fetch(apiUrl("/api/stockist"), { headers });
+        if (res.status === 401) {
+          setAuthError(true);
+          throw new Error("Unauthorized");
+        }
         const json = await res.json().catch(() => ({}));
         list = json?.data || [];
       }
@@ -401,6 +417,11 @@ export default function StockistDashboard() {
         fetch(apiUrl(`/api/staff?stockist=${target._id}`), { headers }),
       ]);
 
+      if ([cRes.status, mRes.status, sRes.status].includes(401)) {
+        setAuthError(true);
+        throw new Error("Unauthorized");
+      }
+
       const [cJson, mJson, sJson] = await Promise.all([
         cRes.json().catch(() => ({})),
         mRes.json().catch(() => ({})),
@@ -444,7 +465,11 @@ export default function StockistDashboard() {
       setStaffs(staffList);
     } catch (err) {
       console.error("Dashboard error:", err);
-      setError(err.message || "Failed to load data");
+      if (err?.message === "Unauthorized" || err?.message?.includes("login")) {
+        setError("Session expired. Please login again.");
+      } else {
+        setError(err.message || "Failed to load data");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -454,6 +479,13 @@ export default function StockistDashboard() {
   useEffect(() => {
     loadStockistData();
   }, [loadStockistData]);
+
+  useEffect(() => {
+    if (!authError) return;
+    AsyncStorage.multiRemove(["token", "user"]).finally(() => {
+      router.replace("/Stockist/stockist-login");
+    });
+  }, [authError, router]);
 
   const handleLogout = async () => {
     await AsyncStorage.clear();
@@ -479,6 +511,20 @@ export default function StockistDashboard() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <LoadingSkeleton />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && !stockist) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.emptyTitle}>Unable to load dashboard</Text>
+          <Text style={styles.emptyText}>{error}</Text>
+          <TouchableOpacity onPress={loadStockistData} style={styles.retryBtn}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -513,7 +559,10 @@ export default function StockistDashboard() {
         >
           {/* Identity Card */}
           <IdentityCard
-            stockist={{ ...stockist, contactPerson: stockist.contactPerson || displayName }}
+            stockist={{
+              ...(stockist || {}),
+              contactPerson: stockist?.contactPerson || displayName,
+            }}
             qrDataUrl={qrDataUrl}
             onPrint={() => Alert.alert("Print", "Connect to a printer to print this ID.")}
           />
@@ -769,6 +818,14 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: "center", paddingVertical: 40 },
   emptyTitle: { fontSize: 18, fontWeight: "900", color: "#1e293b", marginTop: 12 },
   emptyText: { fontSize: 14, color: "#94a3b8", marginTop: 4 },
+  retryBtn: {
+    marginTop: 16,
+    backgroundColor: "#8b5cf6",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryBtnText: { color: "#fff", fontWeight: "700" },
 
   // Skeleton Styles
   skeletonContainer: { padding: 20, flex: 1, backgroundColor: "#fff" },

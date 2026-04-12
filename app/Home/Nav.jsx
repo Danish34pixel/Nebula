@@ -98,10 +98,13 @@ export default function Nav({ navigation: navProp }) {
     let mounted = true;
     (async () => {
       try {
+        const token = await AsyncStorage.getItem("token");
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
         const [resStockist, resMedicine, resCompany] = await Promise.all([
-          fetch(apiUrl("/api/stockist")),
-          fetch(apiUrl("/api/medicine")),
-          fetch(apiUrl("/api/company")),
+          fetch(apiUrl("/api/stockist"), { headers: authHeaders }),
+          fetch(apiUrl("/api/medicine"), { headers: authHeaders }),
+          fetch(apiUrl("/api/company"), { headers: authHeaders }),
         ]);
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
           resStockist.json(),
@@ -252,10 +255,13 @@ export default function Nav({ navigation: navProp }) {
   const fetchStockistsPage = async (p = page) => {
     setPageLoading(true);
     try {
+      const token = await AsyncStorage.getItem("token");
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
       const [resStockist, resMedicine, resCompany] = await Promise.all([
-        fetch(apiUrl(`/api/stockist?page=${p}&limit=${limit}`)),
-        fetch(apiUrl("/api/medicine")),
-        fetch(apiUrl("/api/company")),
+        fetch(apiUrl(`/api/stockist?page=${p}&limit=${limit}`), { headers: authHeaders }),
+        fetch(apiUrl("/api/medicine"), { headers: authHeaders }),
+        fetch(apiUrl("/api/company"), { headers: authHeaders }),
       ]);
 
       const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
@@ -994,3 +1000,5 @@ const styles = StyleSheet.create({
   filterCloseBtn: { marginTop: 16, padding: 16, backgroundColor: "#e5e7eb", borderRadius: 16, alignItems: "center" },
   filterCloseText: { fontSize: 16, fontWeight: "bold", color: "#374151" },
 });
+
+

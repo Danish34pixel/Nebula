@@ -88,10 +88,13 @@ const Screen = ({ navigation: navProp }) => {
     (async () => {
       try {
         setPageLoading(true);
+        const token = await AsyncStorage.getItem("token");
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
         const [resStockist, resMedicine, resCompany] = await Promise.all([
-          fetch(apiUrl(`/api/stockist?page=${page}&limit=${limit}`)).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/medicine")).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/company")).catch(() => ({ json: () => ({ data: [] }) })),
+          fetch(apiUrl(`/api/stockist?page=${page}&limit=${limit}`), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
+          fetch(apiUrl("/api/medicine"), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
+          fetch(apiUrl("/api/company"), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
         ]);
 
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
@@ -734,3 +737,5 @@ const styles = StyleSheet.create({
 });
 
 export default Screen;
+
+

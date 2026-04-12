@@ -71,7 +71,9 @@ export default function Login() {
 
   useEffect(() => {
     (async () => {
-      const savedEmail = await AsyncStorage.getItem("rememberedEmail");
+      const savedEmail =
+        (await AsyncStorage.getItem("rememberedOwnerEmail")) ||
+        (await AsyncStorage.getItem("rememberedEmail"));
       if (savedEmail) {
         setForm((prev) => ({ ...prev, email: savedEmail }));
         setRememberMe(true);
@@ -119,8 +121,10 @@ export default function Login() {
         await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
         if (rememberMe) {
-          await AsyncStorage.setItem("rememberedEmail", form.email);
+          await AsyncStorage.setItem("rememberedOwnerEmail", form.email);
+          await AsyncStorage.removeItem("rememberedEmail");
         } else {
+          await AsyncStorage.removeItem("rememberedOwnerEmail");
           await AsyncStorage.removeItem("rememberedEmail");
         }
 

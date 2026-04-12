@@ -29,7 +29,9 @@ export default function StockistLogin() {
   useEffect(() => {
     // Load remembered email if exists
     (async () => {
-      const savedEmail = await AsyncStorage.getItem("rememberedEmail");
+      const savedEmail =
+        (await AsyncStorage.getItem("rememberedStockistEmail")) ||
+        (await AsyncStorage.getItem("rememberedEmail"));
       if (savedEmail) {
         setEmail(savedEmail);
         setRememberMe(true);
@@ -62,8 +64,10 @@ export default function StockistLogin() {
       if (data.user) await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
       if (rememberMe) {
-        await AsyncStorage.setItem("rememberedEmail", email);
+        await AsyncStorage.setItem("rememberedStockistEmail", email);
+        await AsyncStorage.removeItem("rememberedEmail");
       } else {
+        await AsyncStorage.removeItem("rememberedStockistEmail");
         await AsyncStorage.removeItem("rememberedEmail");
       }
 

@@ -44,9 +44,9 @@ const PurchaserVerification = () => {
             console.log(`[StatusCheck] Data:`, JSON.stringify(json.data));
             if (json && json.data) {
               if (json.data.approved || json.data.verified) {
-                console.log("[StatusCheck] APPROVED! Redirecting to Dashboard...");
+                console.log("[StatusCheck] APPROVED! Redirecting to Login...");
                 await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
-                router.replace(`/Purchaser/${purchaserId}`);
+                router.replace("/Purchaser/purchaser-login");
                 return;
               }
             }
@@ -64,7 +64,7 @@ const PurchaserVerification = () => {
               setApprovalCount(count);
               if (json2.data.status === "approved" || count >= 3) {
                 await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
-                router.replace(`/Purchaser/${purchaserId}`);
+                router.replace("/Purchaser/purchaser-login");
                 return;
               }
             }
@@ -75,7 +75,7 @@ const PurchaserVerification = () => {
                 const j3 = await fetchJson(`/purchaser/${purchaserId}`);
                 if (j3?.data && (j3.data.approved || j3.data.verified)) {
                   await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
-                  router.replace(`/Purchaser/${purchaserId}`);
+                  router.replace("/Purchaser/purchaser-login");
                   return;
                 }
               }

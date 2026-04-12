@@ -18,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
 
-export default function StockistLogin() {
+export default function StaffLogin() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +29,7 @@ export default function StockistLogin() {
   useEffect(() => {
     // Load remembered email if exists
     (async () => {
-      const savedEmail = await AsyncStorage.getItem("rememberedEmail");
+      const savedEmail = await AsyncStorage.getItem("rememberedStaffEmail");
       if (savedEmail) {
         setEmail(savedEmail);
         setRememberMe(true);
@@ -48,7 +48,7 @@ export default function StockistLogin() {
       const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role: "stockist" }),
+        body: JSON.stringify({ email, password, role: "staff" }), // The role might require backend updates later
       });
 
       const data = await res.json();
@@ -63,23 +63,12 @@ export default function StockistLogin() {
       if (data.user) await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
       if (rememberMe) {
-        await AsyncStorage.setItem("rememberedEmail", email);
+        await AsyncStorage.setItem("rememberedStaffEmail", email);
       } else {
-        await AsyncStorage.removeItem("rememberedEmail");
+        await AsyncStorage.removeItem("rememberedStaffEmail");
       }
 
-      // Check Approval Status
-      const user = data.user;
-      const isApproved = user?.approved || user?.status === "approved" || user?.status === "Approved";
-      
-      if (!isApproved && user?._id) {
-        // Redirect to verification if not approved
-        await AsyncStorage.setItem("pendingStockistId", String(user._id));
-        router.replace("/Stockist/stockist-verification");
-      } else {
-        await AsyncStorage.multiRemove(["pendingStockistId", "pendingUserId"]);
-        router.replace("/Stockist/stockist-dashboard");
-      }
+      router.replace("/Staff/staff-dashboard");
     } catch (err) {
       Alert.alert("Login Error", err.message);
     } finally {
@@ -90,7 +79,7 @@ export default function StockistLogin() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
-        colors={["#faf5ff", "#f0f9ff", "#e0e7ff"]}
+        colors={["#faf5ff", "#f3e8ff", "#e0e7ff"]}
         style={styles.container}
       >
         <KeyboardAvoidingView
@@ -117,8 +106,8 @@ export default function StockistLogin() {
             {/* Form Card */}
             <View style={styles.card}>
               <View style={styles.header}>
-                <Text style={styles.title}>Welcome Back</Text>
-                <Text style={styles.subtitle}>Sign in to your MedTrap Stockist account</Text>
+                <Text style={styles.title}>Staff Portal</Text>
+                <Text style={styles.subtitle}>Sign in to your MedTrap Staff account</Text>
               </View>
 
               <View style={styles.form}>
@@ -176,7 +165,7 @@ export default function StockistLogin() {
                   disabled={loading}
                 >
                   <LinearGradient
-                    colors={["#14b8a6", "#3b82f6"]}
+                    colors={["#c084fc", "#9333ea"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.loginGradient}
@@ -192,13 +181,13 @@ export default function StockistLogin() {
 
               <View style={styles.divider}>
                 <View style={styles.line} />
-                <Text style={styles.dividerText}>New to MedTrap?</Text>
+                <Text style={styles.dividerText}>New to MedTrap Staff?</Text>
                 <View style={styles.line} />
               </View>
 
               <TouchableOpacity 
                 style={styles.createBtn}
-                onPress={() => router.push("/Stockist/stockist-signup")}
+                onPress={() => router.push("/Staff/Createstaff")}
               >
                 <Text style={styles.createBtnText}>Create your account</Text>
               </TouchableOpacity>
@@ -282,9 +271,9 @@ const styles = StyleSheet.create({
   optionsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
   rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: "#cbd5e1", justifyContent: "center", alignItems: "center" },
-  checkboxActive: { backgroundColor: "#14b8a6", borderColor: "#14b8a6" },
+  checkboxActive: { backgroundColor: "#c084fc", borderColor: "#c084fc" },
   rememberText: { fontSize: 14, color: "#64748b" },
-  forgotText: { fontSize: 14, color: "#0d9488", fontWeight: "600" },
+  forgotText: { fontSize: 14, color: "#9333ea", fontWeight: "600" },
   loginBtn: { borderRadius: 16, overflow: "hidden", marginTop: 10 },
   loginGradient: { paddingVertical: 16, alignItems: "center" },
   loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
@@ -292,7 +281,7 @@ const styles = StyleSheet.create({
   line: { flex: 1, height: 1, backgroundColor: "#f1f5f9" },
   dividerText: { fontSize: 13, color: "#94a3b8" },
   createBtn: { alignItems: "center" },
-  createBtnText: { fontSize: 15, color: "#0d9488", fontWeight: "700" },
+  createBtnText: { fontSize: 15, color: "#9333ea", fontWeight: "700" },
   securityRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 24 },
   securityText: { fontSize: 12, color: "#94a3b8" },
 });

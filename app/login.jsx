@@ -103,7 +103,7 @@ export default function Login() {
         throw new Error(data.message || "Login failed");
       }
 
-      if (data.success && data.token && data.user) {
+      if (data.success && data.accessToken && data.user) {
         // Evaluate approval status
         const isApproved = data.user.approved === true || data.user.status === "approved" || data.user.status === "Approved";
 
@@ -115,7 +115,8 @@ export default function Login() {
           return;
         }
 
-        await AsyncStorage.setItem("token", data.token);
+        await AsyncStorage.setItem("token", data.accessToken);
+        if (data.refreshToken) await AsyncStorage.setItem("refreshToken", data.refreshToken);
         await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
         if (rememberMe) {

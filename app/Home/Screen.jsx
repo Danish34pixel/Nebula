@@ -19,9 +19,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const fallbackApiUrl = (path) => path;
 let apiUrl = fallbackApiUrl;
+let fetchJson = async (path) => (await fetch(apiUrl(path))).json();
 try {
   const api = require("../../config/api");
   apiUrl = api.apiUrl || fallbackApiUrl;
+  if (api.fetchJson) fetchJson = api.fetchJson;
 } catch (e) {}
 
 const medicineReferencesStockist = (med, stockistId) => {
@@ -88,16 +90,10 @@ const Screen = ({ navigation: navProp }) => {
     (async () => {
       try {
         setPageLoading(true);
-        const [resStockist, resMedicine, resCompany] = await Promise.all([
-          fetch(apiUrl(`/api/stockist?page=${page}&limit=${limit}`)).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/medicine")).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/company")).catch(() => ({ json: () => ({ data: [] }) })),
-        ]);
-
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
-          resStockist.json(),
-          resMedicine.json(),
-          resCompany.json(),
+          fetchJson(`/api/stockist?page=${page}&limit=${limit}`).catch(() => ({ data: [] })),
+          fetchJson("/api/medicine").catch(() => ({ data: [] })),
+          fetchJson("/api/company").catch(() => ({ data: [] })),
         ]);
 
         const medicines = (jsonMedicine && jsonMedicine.data) || [];

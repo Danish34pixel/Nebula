@@ -10,9 +10,9 @@ import { Platform } from 'react-native';
 const REMOTE_API = "https://medi-trap-backend-2.onrender.com";
 
 // Local/dev fallback (used only in development)
-// Use your machine's physical IP address here
-export const DEV_IP = "10.197.224.112"; 
-const DEV_FALLBACK = "http://10.197.224.112:5000";
+// Use your machine's physical IP address here for physical mobile devices
+export const DEV_IP = Platform.OS === 'web' ? "localhost" : "10.207.78.112"; 
+const DEV_FALLBACK = `http://${DEV_IP}:5000`;
 
 // In React Native, we typically determine IS_DEV based on __DEV__ global
 const IS_DEV = __DEV__;

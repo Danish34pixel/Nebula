@@ -169,7 +169,7 @@ const StaffCard = ({ staff, onPreview }) => {
         style={styles.staffCardContainer}
       >
         <Avatar name={staff.fullName || staff.name || "S"} size={60} style={styles.staffAvatar} />
-        
+
         <View style={styles.staffInfo}>
           <Text style={styles.cardTitle} numberOfLines={1}>
             {staff.fullName || staff.name}
@@ -279,7 +279,7 @@ export default function StockistDashboard() {
               .includes(q)
           )
         ) return true;
-        
+
         const extraKeys = ["title", "shortName", "fullName", "brandName", "medicineName", "companyName", "email", "role", "contactPerson"];
         return extraKeys.some((key) =>
           String(item?.[key] || "")
@@ -314,7 +314,7 @@ export default function StockistDashboard() {
       if (med.vendorId) candidates.push(med.vendorId);
       if (med.supplier) candidates.push(med.supplier);
       if (med.supplierId) candidates.push(med.supplierId);
-    } catch {}
+    } catch { }
     return candidates.some((c) => {
       const id = c?._id || c?.id || c;
       return String(id) === String(stockistId);
@@ -405,7 +405,7 @@ export default function StockistDashboard() {
       } else {
         // Find by ID match first, then by email
         if (storedUser) {
-           target = list.find((s) => matchStockistWithUser(s));
+          target = list.find((s) => matchStockistWithUser(s));
         }
         if (!target && list.length > 0) target = list[0];
       }
@@ -413,11 +413,11 @@ export default function StockistDashboard() {
       // Final attempt: if we still don't have a robust profile but have a storedUser, 
       // see if any item in the list matches the storedUser's email even if IDs didn't match.
       if (storedUser && (!target || !target.dob)) {
-         const emailMatch = list.find(s => 
-           (s.email && s.email.toLowerCase() === storedUser.email?.toLowerCase()) || 
-           (s.ownerEmail && s.ownerEmail.toLowerCase() === storedUser.email?.toLowerCase())
-         );
-         if (emailMatch) target = emailMatch;
+        const emailMatch = list.find(s =>
+          (s.email && s.email.toLowerCase() === storedUser.email?.toLowerCase()) ||
+          (s.ownerEmail && s.ownerEmail.toLowerCase() === storedUser.email?.toLowerCase())
+        );
+        if (emailMatch) target = emailMatch;
       }
 
       if (!target && storedUser) target = storedUser;
@@ -658,7 +658,7 @@ export default function StockistDashboard() {
           </View>
         </ScrollView>
       </LinearGradient>
-      
+
       {/* Staff Quick View Modal */}
       <StaffModel staff={selectedStaff} onClose={() => setSelectedStaff(null)} />
     </SafeAreaView>
@@ -802,7 +802,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   priceText: { color: "#fff", fontWeight: "900", fontSize: 14 },
-  
+
   // Refined Staff Card Styles
   staffCardContainer: {
     flexDirection: "row",

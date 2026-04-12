@@ -89,14 +89,20 @@ export const apiUrl = (path = '') => {
 // JSON Fetch Helper
 export const fetchJson = async (path, options = {}) => {
   const url = apiUrl(path);
+<<<<<<< HEAD
   const token = await secureStorage.getItem("token");
+=======
+  const token = await AsyncStorage.getItem('token');
+  
+  if (__DEV__) console.log(`[API] ${options.method || 'GET'} -> ${url}`);
+>>>>>>> bc3867f3227b4006276562147440c29c38dc094f
 
   const opts = {
     method: options.method || 'GET',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.token || token ? { Authorization: `Bearer ${options.token || token}` } : {}),
     },
     ...options,
   };

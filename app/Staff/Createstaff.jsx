@@ -118,7 +118,7 @@ export default function CreateStaff() {
       fd.append("address", form.address);
       fd.append("isFresher", isFresher);
       if (!isFresher) fd.append("currentWorkingPlace", form.currentWorkingPlace);
-      
+
       if (form.password) fd.append("password", form.password);
 
       const createFormDataImage = async (asset, fieldName) => {
@@ -131,8 +131,8 @@ export default function CreateStaff() {
           return new File([blob], name, { type: blob.type || "image/jpeg" });
         } else {
           const name = uri.split("/").pop();
-           const match = /\.(\w+)$/.exec(name);
-           const type = match ? `image/${match[1]}` : `image`;
+          const match = /\.(\w+)$/.exec(name);
+          const type = match ? `image/${match[1]}` : `image`;
           return { uri, name, type };
         }
       };
@@ -244,7 +244,7 @@ export default function CreateStaff() {
               keyboardType="email-address"
               autoCapitalize="none"
             />
-            
+
             <InputField
               label="Password"
               placeholder="Enter password"

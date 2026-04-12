@@ -74,7 +74,7 @@ export default function MedicalSignup() {
   };
 
   const handleSubmit = async () => {
-    if (!form.medicalName || !form.ownerName || !form.email || !form.password || !licenseImage) {
+    if (!form.medicalName || !form.ownerName || !form.address || !form.email || !form.contactNo || !form.drugLicenseNo || !form.password || !licenseImage) {
       Alert.alert("Error", "Please fill in all required fields and upload your license image.");
       return;
     }
@@ -91,19 +91,26 @@ export default function MedicalSignup() {
       // Append image
       if (licenseImage) {
         const uri = licenseImage.uri;
-        const name = uri.split("/").pop();
-        const match = /\.(\w+)$/.exec(name);
-        const type = match ? `image/${match[1]}` : "image";
+        let name = uri.split("/").pop();
         
-        // Handle web vs mobile FormData
         if (Platform.OS === 'web') {
            const response = await fetch(uri);
            const blob = await response.blob();
+           
+           // Expo ImagePicker blob URIs on web lack extensions. Backend multer requires it.
+           if (!name.includes(".")) {
+             const mimeExt = (blob.type || "image/jpeg").split("/")[1];
+             name = `upload.${mimeExt === 'jpeg' ? 'jpg' : mimeExt}`;
+           }
+           
            formData.append('drugLicenseImage', blob, name);
         } else {
+           const match = /\.(\w+)$/.exec(name);
+           const type = match ? `image/${match[1]}` : "image/jpeg";
+           
            formData.append('drugLicenseImage', {
              uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
-             name,
+             name: name.includes(".") ? name : `${name}.jpg`,
              type,
            });
         }
@@ -127,7 +134,11 @@ export default function MedicalSignup() {
         throw new Error(res.message || "Signup failed");
       }
     } catch (err) {
-      Alert.alert("Signup Error", err.message);
+      let errorMsg = err.message;
+      if (err.body && err.body.errors && err.body.errors.length > 0) {
+        errorMsg = err.body.errors.join("\n");
+      }
+      Alert.alert("Signup Error", errorMsg);
     } finally {
       setIsLoading(false);
     }

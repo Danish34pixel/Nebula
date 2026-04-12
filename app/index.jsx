@@ -8,6 +8,7 @@ import {
   Dimensions,
   Animated,
   SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,6 +23,7 @@ const ASSETS = {
   stockist: require("../assets/images/stockist-logo.jpg"),
   purchaser: require("../assets/images/purchaser-logo.jpg"),
   medicalOwner: require("../assets/images/medical-owner.jpg"),
+  staff: require("../assets/images/staff-logo.png"),
 };
 
 const Logo = ({ style }) => (
@@ -77,6 +79,13 @@ export default function Page() {
       gradient: ["#fb923c", "#ef4444"], // orange-400 to red-500
       description: "Clinic management",
     },
+    {
+      id: "Staff",
+      name: "Staff",
+      icon: ASSETS.staff,
+      gradient: ["#c084fc", "#9333ea"], // purple-400 to purple-600
+      description: "Staff access",
+    },
   ];
 
   const handleRoleSelect = async (roleId) => {
@@ -88,6 +97,8 @@ export default function Page() {
         router.push("/Stockist/stockist-login");
       } else if (roleId === "Medical Owner") {
         router.push("/login");
+      } else if (roleId === "Staff") {
+        router.push("/Staff/staff-login"); 
       } else {
         router.push("/Home");
       }
@@ -116,40 +127,42 @@ export default function Page() {
             <Text style={styles.title}>Select Your Role</Text>
           </View>
 
-          <View style={styles.rolesGrid}>
-            {roles.map((role) => (
-              <TouchableOpacity
-                key={role.id}
-                onPress={() => handleRoleSelect(role.id)}
-                activeOpacity={0.7}
-                style={[
-                  styles.roleCard,
-                  selectedRole === role.id && styles.roleCardActive
-                ]}
-              >
-                <LinearGradient
-                  colors={role.gradient}
-                  style={styles.iconContainer}
+          <ScrollView style={styles.rolesGridScroll} showsVerticalScrollIndicator={false}>
+            <View style={styles.rolesGrid}>
+              {roles.map((role) => (
+                <TouchableOpacity
+                  key={role.id}
+                  onPress={() => handleRoleSelect(role.id)}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.roleCard,
+                    selectedRole === role.id && styles.roleCardActive
+                  ]}
                 >
-                  <Image source={role.icon} style={styles.roleIcon} resizeMode="cover" />
-                </LinearGradient>
+                  <LinearGradient
+                    colors={role.gradient}
+                    style={styles.iconContainer}
+                  >
+                    <Image source={role.icon} style={styles.roleIcon} resizeMode="cover" />
+                  </LinearGradient>
 
-                <Text style={styles.roleName}>{role.name}</Text>
-                <Text style={styles.roleDescription}>{role.description}</Text>
+                  <Text style={styles.roleName}>{role.name}</Text>
+                  <Text style={styles.roleDescription}>{role.description}</Text>
 
-                {selectedRole === role.id && (
-                  <View style={styles.activeIndicator}>
-                    <View style={styles.activeDot} />
-                  </View>
-                )}
-                
-                <View style={[
-                   styles.roleProgress, 
-                   { backgroundColor: selectedRole === role.id ? role.gradient[1] : 'transparent' }
-                ]} />
-              </TouchableOpacity>
-            ))}
-          </View>
+                  {selectedRole === role.id && (
+                    <View style={styles.activeIndicator}>
+                      <View style={styles.activeDot} />
+                    </View>
+                  )}
+                  
+                  <View style={[
+                     styles.roleProgress, 
+                     { backgroundColor: selectedRole === role.id ? role.gradient[1] : 'transparent' }
+                  ]} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </View>
       </LinearGradient>
     </SafeAreaView>
@@ -228,8 +241,13 @@ const styles = StyleSheet.create({
     color: "#1e293b",
     textAlign: "center",
   },
+  rolesGridScroll: {
+    maxHeight: 500, // Limit height to make it scrollable
+    width: "100%",
+  },
   rolesGrid: {
     gap: 16,
+    paddingBottom: 20, // Add padding to bottom for better scrolling experience
   },
   roleCard: {
     backgroundColor: "rgba(255, 255, 255, 0.7)",

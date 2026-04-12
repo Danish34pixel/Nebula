@@ -163,11 +163,15 @@ export default function PurchaserSignup() {
       if (Platform.OS === "web") {
         if (formData.aadharImage) {
           const aadharBlob = await (await fetch(formData.aadharImage.uri)).blob();
-          submitData.append("aadharImage", aadharBlob, formData.aadharImage.name);
+          let name = formData.aadharImage.name || formData.aadharImage.fileName || "aadhar.jpg";
+          if (!name.includes(".")) name += (aadharBlob.type.includes("png") ? ".png" : ".jpg");
+          submitData.append("aadharImage", aadharBlob, name);
         }
         if (formData.photo) {
           const photoBlob = await (await fetch(formData.photo.uri)).blob();
-          submitData.append("personalPhoto", photoBlob, formData.photo.name);
+          let name = formData.photo.name || formData.photo.fileName || "photo.jpg";
+          if (!name.includes(".")) name += (photoBlob.type.includes("png") ? ".png" : ".jpg");
+          submitData.append("personalPhoto", photoBlob, name);
         }
       } else {
         submitData.append("aadharImage", formData.aadharImage);

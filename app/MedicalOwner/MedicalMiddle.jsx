@@ -53,29 +53,8 @@ export default function MedicalMiddle() {
             if (json.data.approved || json.data.status === 'approved') {
               await AsyncStorage.removeItem("pendingUserId");
               
-              // Attempt auto-login
-              const credsStr = await AsyncStorage.getItem("pendingUserCreds");
-              if (credsStr) {
-                try {
-                  const creds = JSON.parse(credsStr);
-                  const loginRes = await fetch(apiUrl(`/api/auth/login`), {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email: creds.email, password: creds.password, role: "medicalOwner" })
-                  });
-                  const loginData = await loginRes.json();
-                  if (loginRes.ok && loginData.success && loginData.token) {
-                    await AsyncStorage.setItem("token", loginData.token);
-                    await AsyncStorage.setItem("user", JSON.stringify(loginData.user));
-                    await AsyncStorage.removeItem("pendingUserCreds");
-                    if (!cancelled) router.replace("/Home");
-                    return;
-                  }
-                } catch(e) {
-                   // Fallback to manual login below if auto-login fails
-                }
-              }
-
+              await AsyncStorage.multiRemove(["pendingUserId", "pendingUserCreds"]);
+              
               // Navigate to normal medical owner login after approval
               if (!cancelled) router.replace("/login");
               return;

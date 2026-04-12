@@ -11,6 +11,7 @@ import Screen from "./Screen.jsx";
 export default function Dashboard() {
   const router = useRouter();
   const [isAdminEmail, setIsAdminEmail] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   // Provide a navigation-like object for backwards compatibility 
   // with child components anticipating native navigation properties.
@@ -33,7 +34,11 @@ export default function Dashboard() {
     (async () => {
       try {
         const userStr = await AsyncStorage.getItem("user");
-        if (!userStr) return;
+        const tokenStr = await AsyncStorage.getItem("token");
+        if (!userStr || !tokenStr) {
+          router.replace("/");
+          return;
+        }
         
         const user = JSON.parse(userStr);
         const email = (user && (user.email || "")).toString().toLowerCase();
@@ -41,11 +46,22 @@ export default function Dashboard() {
         if (email === "danishkhaannn34@gmail.com") {
           setIsAdminEmail(true);
         }
+        setIsAuthChecking(false);
       } catch (e) {
-        // Ignore Storage errors
+        router.replace("/");
       }
     })();
   }, []);
+
+  if (isAuthChecking) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Text>Loading dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

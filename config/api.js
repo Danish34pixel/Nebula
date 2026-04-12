@@ -1,17 +1,58 @@
 // Central API configuration helper for Meditrap (React Native / Expo)
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Public env vars are embedded into the frontend bundle by Expo.
-const ENV_API =
+const ENV_API_DEFAULT =
   process.env.EXPO_PUBLIC_API_BASE_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
   '';
+const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || '';
+const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || '';
 
 // Normalize to remove any trailing slashes
 const normalizeBase = (url) =>
   url && url.endsWith('/') ? url.slice(0, -1) : url;
 
-const resolvedBase = normalizeBase(ENV_API);
+const extractExpoHost = () => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest?.debuggerHost ||
+    '';
+  return String(hostUri).split(':')[0] || '';
+};
+
+const rewriteLocalhostForDevice = (url) => {
+  if (!url) return url;
+  if (Platform.OS === 'web') return url;
+
+  try {
+    const parsed = new URL(url);
+    const isLocalHost =
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1' ||
+      parsed.hostname === '::1';
+
+    if (!isLocalHost) return url;
+
+    const expoHost = extractExpoHost();
+    if (!expoHost) return url;
+
+    parsed.hostname = expoHost;
+    return normalizeBase(parsed.toString());
+  } catch {
+    return url;
+  }
+};
+
+const selectedBase =
+  Platform.OS === 'web'
+    ? ENV_API_WEB || ENV_API_DEFAULT
+    : ENV_API_NATIVE || ENV_API_DEFAULT;
+
+const resolvedBase = rewriteLocalhostForDevice(normalizeBase(selectedBase));
 
 if (!resolvedBase) {
   throw new Error(

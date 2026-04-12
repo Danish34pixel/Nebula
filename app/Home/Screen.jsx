@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { secureStorage } from "../../utils/secureStore";
 
 const fallbackApiUrl = (path) => path;
 let apiUrl = fallbackApiUrl;
@@ -90,7 +91,7 @@ const Screen = ({ navigation: navProp }) => {
     (async () => {
       try {
         setPageLoading(true);
-        const token = await AsyncStorage.getItem("token");
+        const token = await secureStorage.getItem("token");
         const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
         const [resStockist, resMedicine, resCompany] = await Promise.all([

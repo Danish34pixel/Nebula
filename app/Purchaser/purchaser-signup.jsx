@@ -18,6 +18,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl, postForm, postJson } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 export default function PurchaserSignup() {
   const router = useRouter();
@@ -182,8 +183,8 @@ export default function PurchaserSignup() {
       try {
         const created = await postForm("/api/auth/purchaser-signup", submitData);
         const accessToken = created?.accessToken || created?.token;
-        if (accessToken) await AsyncStorage.setItem("token", accessToken);
-        if (created?.refreshToken) await AsyncStorage.setItem("refreshToken", created.refreshToken);
+        if (accessToken) await secureStorage.setItem("token", accessToken);
+        if (created?.refreshToken) await secureStorage.setItem("refreshToken", created.refreshToken);
         purchaserId = created?.purchaser?._id || created?.user?._id || null;
       } catch (signupErr) {
         if (signupErr?.status !== 409) throw signupErr;
@@ -196,9 +197,9 @@ export default function PurchaserSignup() {
         if (!loginData?.accessToken) {
           throw new Error("Email already exists. Please login from purchaser login.");
         }
-        await AsyncStorage.setItem("token", loginData.accessToken);
+        await secureStorage.setItem("token", loginData.accessToken);
         if (loginData?.refreshToken) {
-          await AsyncStorage.setItem("refreshToken", loginData.refreshToken);
+          await secureStorage.setItem("refreshToken", loginData.refreshToken);
         }
         purchaserId = loginData?.purchaser?._id || null;
       }

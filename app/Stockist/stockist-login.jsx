@@ -17,6 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 export default function StockistLogin() {
   const router = useRouter();
@@ -60,7 +61,7 @@ export default function StockistLogin() {
       }
 
       // Store Auth State
-      if (data.accessToken) await AsyncStorage.setItem("token", data.accessToken);
+      if (data.accessToken) await secureStorage.setItem("token", data.accessToken);
       if (data.user) await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
       if (rememberMe) {

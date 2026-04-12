@@ -1,7 +1,7 @@
 // Central API configuration helper for Meditrap (React Native / Expo)
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { secureStorage } from "../utils/secureStore";
 
 // Public env vars are embedded into the frontend bundle by Expo.
 const ENV_API_DEFAULT =
@@ -62,6 +62,15 @@ if (!resolvedBase) {
 
 export const API_BASE = resolvedBase;
 
+if (
+  process.env.NODE_ENV === "production" &&
+  API_BASE.startsWith("http://") &&
+  !API_BASE.includes("localhost") &&
+  !API_BASE.includes("127.0.0.1")
+) {
+  throw new Error("In production, EXPO_PUBLIC_API_BASE_URL must use HTTPS.");
+}
+
 /**
  * Helper to safely build complete URLs.
  * Automatically ensures the '/api' prefix unless already present.
@@ -80,7 +89,7 @@ export const apiUrl = (path = '') => {
 // JSON Fetch Helper
 export const fetchJson = async (path, options = {}) => {
   const url = apiUrl(path);
-  const token = await AsyncStorage.getItem('token');
+  const token = await secureStorage.getItem("token");
 
   const opts = {
     method: options.method || 'GET',
@@ -99,8 +108,9 @@ export const fetchJson = async (path, options = {}) => {
 
   if (!res.ok) {
     if (res.status === 401) {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      await secureStorage.removeItem("token");
+      await secureStorage.removeItem("refreshToken");
+      await secureStorage.removeItem("user");
     }
     const err = new Error(body?.message || `Request failed ${res.status}`);
     err.status = res.status;
@@ -117,7 +127,7 @@ export const requestJson = fetchJson;
 // POST FormData Helper (Image Uploads)
 export const postForm = async (path, formData, options = {}) => {
   const url = apiUrl(path);
-  const token = await AsyncStorage.getItem('token');
+  const token = await secureStorage.getItem("token");
 
   const controller = new AbortController();
   const timeout = options.timeout || 120000;

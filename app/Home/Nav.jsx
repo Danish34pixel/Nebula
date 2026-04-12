@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { secureStorage } from "../../utils/secureStore";
 
 // Safely require backend config
 const fallbackApiUrl = (p) => p;
@@ -98,7 +99,7 @@ export default function Nav({ navigation: navProp }) {
     let mounted = true;
     (async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
+        const token = await secureStorage.getItem("token");
         const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
         const [resStockist, resMedicine, resCompany] = await Promise.all([
@@ -255,7 +256,7 @@ export default function Nav({ navigation: navProp }) {
   const fetchStockistsPage = async (p = page) => {
     setPageLoading(true);
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [resStockist, resMedicine, resCompany] = await Promise.all([
@@ -397,7 +398,7 @@ export default function Nav({ navigation: navProp }) {
   useEffect(() => {
     (async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
+        const token = await secureStorage.getItem("token");
         setUserToken(token);
       } catch (e) {}
     })();

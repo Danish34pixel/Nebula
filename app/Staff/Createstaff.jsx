@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 export default function CreateStaff() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function CreateStaff() {
 
   const loadData = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
 
       if (!token) {
         setProfileLoading(false);
@@ -109,7 +110,7 @@ export default function CreateStaff() {
 
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
       const fd = new FormData();
       fd.append("fullName", form.fullName);
       fd.append("contact", form.contact);

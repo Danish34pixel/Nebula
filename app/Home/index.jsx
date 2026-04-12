@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { secureStorage } from "../../utils/secureStore";
 
 // Import your child components.
 // Note: We renamed the huge Screen file you provided earlier to "Screen.jsx".
@@ -35,7 +36,7 @@ export default function Dashboard() {
     (async () => {
       try {
         const userStr = await AsyncStorage.getItem("user");
-        const tokenStr = await AsyncStorage.getItem("token");
+        const tokenStr = await secureStorage.getItem("token");
         if (!userStr || !tokenStr) {
           router.replace("/");
           return;

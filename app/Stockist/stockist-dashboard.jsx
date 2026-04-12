@@ -20,6 +20,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 import IdentityCard from "../../components/stockist/IdentityCard";
 import StockistApprovals from "../../components/stockist/StockistApprovals";
 import StaffModel from "../Staff/StaffModel";
@@ -326,7 +327,7 @@ export default function StockistDashboard() {
     setAuthError(false);
 
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
       if (!token) {
         setAuthError(true);
         throw new Error("Session expired. Please login again.");
@@ -504,13 +505,13 @@ export default function StockistDashboard() {
 
   useEffect(() => {
     if (!authError) return;
-    AsyncStorage.multiRemove(["token", "user"]).finally(() => {
+    secureStorage.multiRemove(["token", "refreshToken", "user"]).finally(() => {
       router.replace("/Stockist/stockist-login");
     });
   }, [authError, router]);
 
   const handleLogout = async () => {
-    await AsyncStorage.clear();
+    await secureStorage.multiRemove(["token", "refreshToken", "user", "pendingStockistId", "pendingUserId"]);
     router.replace("/Stockist/stockist-login");
   };
 

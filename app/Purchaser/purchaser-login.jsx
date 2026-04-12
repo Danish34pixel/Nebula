@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { postJson } from '../../config/api';
+import { secureStorage } from "../../utils/secureStore";
 
 const PurchaserLogin = () => {
   const [email, setEmail] = useState('');
@@ -39,8 +40,11 @@ const PurchaserLogin = () => {
       // Purchasers have a dedicated login endpoint separate from medical-owner login
       const res = await postJson("/purchaser/login", { email, password });
 
-      if (res && res.data && res.data.token) {
-        await AsyncStorage.setItem("token", res.data.token);
+      if (res && res.data && res.data.accessToken) {
+        await secureStorage.setItem("token", res.data.accessToken);
+        if (res.data.refreshToken) {
+          await secureStorage.setItem("refreshToken", res.data.refreshToken);
+        }
         await AsyncStorage.setItem("user", JSON.stringify(res.data.purchaser));
         await AsyncStorage.setItem("role", "purchaser");
         await AsyncStorage.setItem("purchaserId", res.data.purchaser?.id || res.data.purchaser?._id || "");

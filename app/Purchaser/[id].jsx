@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 export default function PurchaserDashboard() {
   const { id } = useLocalSearchParams();
@@ -32,12 +33,9 @@ export default function PurchaserDashboard() {
     const fetchPurchaser = async () => {
       setLoading(true);
       try {
-        const token = await AsyncStorage.getItem("token");
-        const role = await AsyncStorage.getItem("role");
-        const isDevAdmin = __DEV__ || role === "admin";
+        const token = await secureStorage.getItem("token");
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(isDevAdmin ? { "x-dev-admin": "1" } : {}),
         };
         const res = await fetch(apiUrl(`/api/purchaser/${id}`), { headers });
         const json = await res.json();
@@ -57,12 +55,9 @@ export default function PurchaserDashboard() {
     const fetchMedicines = async () => {
       setMedLoading(true);
       try {
-        const token = await AsyncStorage.getItem("token");
-        const role = await AsyncStorage.getItem("role");
-        const isDevAdmin = __DEV__ || role === "admin";
+        const token = await secureStorage.getItem("token");
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(isDevAdmin ? { "x-dev-admin": "1" } : {}),
         };
         const res = await fetch(apiUrl("/api/medicine"), { headers });
         const json = await res.json();
@@ -83,7 +78,7 @@ export default function PurchaserDashboard() {
   }, [activeTab]);
 
   const handleLogout = async () => {
-    await AsyncStorage.multiRemove(["token", "user", "pendingPurchaserId", "pendingPurchasingRequestId"]);
+    await secureStorage.multiRemove(["token", "refreshToken", "user", "pendingPurchaserId", "pendingPurchasingRequestId"]);
     router.replace("/Purchaser/purchaser-login");
   };
 

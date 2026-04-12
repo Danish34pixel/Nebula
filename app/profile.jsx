@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl } from "../config/api";
+import { secureStorage } from "../utils/secureStore";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -21,7 +22,7 @@ const Profile = () => {
         const storedUser = storedUserStr ? JSON.parse(storedUserStr) : null;
         if (storedUser && mounted) setUser(storedUser);
 
-        const tokenAtRequest = await AsyncStorage.getItem("token");
+        const tokenAtRequest = await secureStorage.getItem("token");
 
         if (!tokenAtRequest) {
           if (!storedUser && mounted) {
@@ -42,7 +43,7 @@ const Profile = () => {
         if (res.ok && json && json.success && json.user) {
           setUser(json.user);
           try {
-            const currentToken = await AsyncStorage.getItem("token");
+            const currentToken = await secureStorage.getItem("token");
             if (currentToken && tokenAtRequest === currentToken) {
               await AsyncStorage.setItem("user", JSON.stringify(json.user));
             }
@@ -63,7 +64,8 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("token");
+      await secureStorage.removeItem("token");
+      await secureStorage.removeItem("refreshToken");
       await AsyncStorage.removeItem("user");
     } catch (e) {}
     router.replace("/Stockist/stockist-login");

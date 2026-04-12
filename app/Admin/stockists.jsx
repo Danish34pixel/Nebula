@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 const StockistAdmin = () => {
   const router = useRouter();
@@ -34,7 +35,7 @@ const StockistAdmin = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const limit = 100;
       const firstRes = await fetch(apiUrl(`/api/stockist?page=1&limit=${limit}`), { headers });
@@ -89,25 +90,24 @@ const StockistAdmin = () => {
     
     // Load dev token if exists
     (async () => {
-      const savedToken = await AsyncStorage.getItem("token");
+      const savedToken = await secureStorage.getItem("token");
       if (savedToken) setDevToken(savedToken);
     })();
   }, []);
 
   const saveDevToken = async () => {
     if (!devToken) return Alert.alert("Error", "Enter a token to save");
-    await AsyncStorage.setItem("token", devToken);
+    await secureStorage.setItem("token", devToken);
     Alert.alert("Success", "Token saved for dev testing");
   };
 
   const approveStockist = async (id) => {
     setApproving((p) => ({ ...p, [id]: true }));
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
       const headers = { 
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
-        ...(isDev && { "x-dev-admin": "1" })
       };
 
       const res = await fetch(apiUrl(`/api/stockist/${id}/approve`), {
@@ -148,11 +148,10 @@ const StockistAdmin = () => {
   const declineStockist = async (id) => {
     setDeclining((p) => ({ ...p, [id]: true }));
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
       const headers = { 
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
-        ...(isDev && { "x-dev-admin": "1" })
       };
 
       const res = await fetch(apiUrl(`/api/stockist/${id}/decline`), {

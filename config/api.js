@@ -81,13 +81,15 @@ export const apiUrl = (path = '') => {
 export const fetchJson = async (path, options = {}) => {
   const url = apiUrl(path);
   const token = await AsyncStorage.getItem('token');
+  
+  if (__DEV__) console.log(`[API] ${options.method || 'GET'} -> ${url}`);
 
   const opts = {
     method: options.method || 'GET',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.token || token ? { Authorization: `Bearer ${options.token || token}` } : {}),
     },
     ...options,
   };

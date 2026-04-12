@@ -27,7 +27,7 @@ try {
 } catch (e) {}
 
 const medicineReferencesStockist = (med, stockistId) => {
-  if (!med) return false;
+  if (!med || !stockistId) return false;
   const candidates = [];
   try {
     if (Array.isArray(med.stockists)) candidates.push(...med.stockists);
@@ -40,9 +40,12 @@ const medicineReferencesStockist = (med, stockistId) => {
     if (med.supplier) candidates.push(med.supplier);
     if (med.supplierId) candidates.push(med.supplierId);
   } catch {}
+  
   return candidates.some((c) => {
-    const id = c?._id || c?.id || c;
-    return String(id) === String(stockistId);
+    if (!c) return false;
+    // Support nested objects like { stockist: ID } or { seller: ID }
+    const refId = c.stockist || c.seller || c.stockistId || c.sellerId || c._id || c.id || (typeof c === 'string' ? c : null);
+    return String(refId) === String(stockistId);
   });
 };
 
@@ -55,12 +58,12 @@ const medicineDisplayName = (m) => {
 
 const nameMatchesStockistItems = (name, s) => {
   if (!name || !s) return false;
-  const n = String(name).toLowerCase();
-  const items = s.items || s.companies || [];
+  const n = String(name).toLowerCase().trim();
+  const items = s.items || s.companies || s.medicines || s.Medicines || [];
   return items.some(i => {
     if (!i) return false;
-    const str = typeof i === 'string' ? i : (i.name || i.shortName || "");
-    return str && (str.toLowerCase().includes(n) || n.includes(str.toLowerCase()));
+    const str = String(typeof i === 'string' ? i : (i.name || i.shortName || i.brandName || "")).toLowerCase().trim();
+    return str && (str.includes(n) || n.includes(str));
   });
 };
 

@@ -39,14 +39,15 @@ const PurchaserLogin = () => {
       // Purchasers have a dedicated login endpoint separate from medical-owner login
       const res = await postJson("/purchaser/login", { email, password });
 
-      if (res && res.data && res.data.token) {
-        await AsyncStorage.setItem("token", res.data.token);
+      if (res && res.data && res.data.accessToken) {
+        await AsyncStorage.setItem("token", res.data.accessToken);
         await AsyncStorage.setItem("user", JSON.stringify(res.data.purchaser));
         await AsyncStorage.setItem("role", "purchaser");
-        await AsyncStorage.setItem("purchaserId", res.data.purchaser?.id || res.data.purchaser?._id || "");
+        const pId = res.data.purchaser?.id || res.data.purchaser?._id || "";
+        await AsyncStorage.setItem("purchaserId", pId);
 
-        // Redirect to the main home dashboard (same as medical owner / stockist home)
-        router.replace("/Home");
+        // Redirect to the purchaser's dashboard directly
+        router.replace(`/Purchaser/${pId}`);
       } else {
         setError("Invalid response from server. Please try again.");
       }

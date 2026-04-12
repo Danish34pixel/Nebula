@@ -47,7 +47,7 @@ const StockistVerification = () => {
         }
 
         if (looksLikeObjectId(stockistId)) {
-          const res = await fetch(apiUrl(`/api/stockist/${stockistId}`));
+          const res = await fetch(apiUrl(`/api/auth/status/${stockistId}`));
           if (res.ok) {
             const json = await res.json();
             if (json && json.data) {

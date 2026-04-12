@@ -139,17 +139,33 @@ export default function StockistSignup() {
           if (value && value.uri) {
             const fieldName =
               key === "profileImage" ? "profileImage" : "drugLicenseImage";
+              
+            let name = value.name || `upload.jpg`;
+            
             if (Platform.OS === "web") {
               try {
                 const response = await fetch(value.uri);
                 const blob = await response.blob();
-                formData.append(fieldName, blob, value.name);
+                
+                if (!name.includes(".")) {
+                  const mimeExt = (blob.type || "image/jpeg").split("/")[1];
+                  name = `upload.${mimeExt === 'jpeg' ? 'jpg' : mimeExt}`;
+                }
+                
+                formData.append(fieldName, blob, name);
               } catch (e) {
                 console.error("Failed to convert image to blob on web:", e);
                 formData.append(fieldName, value);
               }
             } else {
-              formData.append(fieldName, value);
+              const match = /\.(\w+)$/.exec(name);
+              const type = match ? `image/${match[1]}` : "image/jpeg";
+              
+              formData.append(fieldName, {
+                 uri: Platform.OS === "android" ? value.uri : value.uri.replace("file://", ""),
+                 name: name.includes(".") ? name : `${name}.jpg`,
+                 type,
+              });
             }
           }
         } else if (key === "phone") {

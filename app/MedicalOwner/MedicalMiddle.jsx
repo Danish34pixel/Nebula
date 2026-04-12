@@ -29,7 +29,7 @@ export default function MedicalMiddle() {
         }
 
         if (stockistId) {
-          const res = await fetch(apiUrl(`/api/stockist/${stockistId}`));
+          const res = await fetch(apiUrl(`/api/auth/status/${stockistId}`));
           const json = await res.json().catch(() => ({}));
           
           if (res.ok && json && json.data) {
@@ -46,7 +46,7 @@ export default function MedicalMiddle() {
             }
           }
         } else if (userId) {
-          const res = await fetch(apiUrl(`/api/user/${userId}`));
+          const res = await fetch(apiUrl(`/api/auth/status/${userId}`));
           const json = await res.json().catch(() => ({}));
           
           if (res.ok && json && json.data) {

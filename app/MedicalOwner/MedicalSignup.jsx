@@ -20,7 +20,7 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl, postForm } from "../../config/api";
 
-const InputField = ({ icon, label, value, onChangeText, placeholder, secureTextEntry, keyboardType }) => (
+const InputField = ({ icon, label, value, onChangeText, placeholder, secureTextEntry, keyboardType, showEye, onToggleEye }) => (
   <View style={styles.inputGroup}>
     <View style={styles.labelRow}>
       <Feather name={icon} size={16} color="#0891b2" style={styles.labelIcon} />
@@ -28,7 +28,7 @@ const InputField = ({ icon, label, value, onChangeText, placeholder, secureTextE
     </View>
     <View style={styles.inputWrapper}>
       <TextInput
-        style={styles.input}
+        style={[styles.input, showEye !== undefined && { paddingRight: 50 }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -37,6 +37,11 @@ const InputField = ({ icon, label, value, onChangeText, placeholder, secureTextE
         keyboardType={keyboardType}
         autoCapitalize="none"
       />
+      {showEye !== undefined && (
+        <TouchableOpacity style={styles.eyeBtn} onPress={onToggleEye}>
+          <Feather name={secureTextEntry ? "eye" : "eye-off"} size={20} color="#64748b" />
+        </TouchableOpacity>
+      )}
     </View>
   </View>
 );
@@ -53,6 +58,7 @@ export default function MedicalSignup() {
     password: "",
   });
   const [licenseImage, setLicenseImage] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const pickImage = async () => {
@@ -235,7 +241,9 @@ export default function MedicalSignup() {
                 value={form.password}
                 onChangeText={(text) => setForm({ ...form, password: text })}
                 placeholder="Create password"
-                secureTextEntry
+                secureTextEntry={!showPassword}
+                showEye={showPassword}
+                onToggleEye={() => setShowPassword(!showPassword)}
               />
 
               {/* Submit Button */}
@@ -315,6 +323,15 @@ const styles = {
     paddingHorizontal: 16,
     fontSize: 15,
     color: "#1e293b",
+  },
+  eyeBtn: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 50,
+    justifyContent: "center",
+    alignItems: "center",
   },
   imagePickerGroup: { marginBottom: 20 },
   imagePicker: {

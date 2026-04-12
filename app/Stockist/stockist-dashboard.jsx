@@ -192,6 +192,55 @@ const StaffCard = ({ staff, onPreview }) => {
   );
 };
 
+const DemandCard = ({ demand }) => {
+  return (
+    <View style={styles.groupCard}>
+      <LinearGradient
+        colors={["#14b8a6", "#06b6d4"]}
+        style={styles.groupHeader}
+      >
+        <View style={{ flex: 1 }}>
+          <View style={styles.groupTitleRow}>
+            <Feather name="clipboard" size={18} color="#fff" />
+            <Text style={styles.groupTitleText}>
+              {demand.purchaserName || "Unknown Purchaser"}
+            </Text>
+          </View>
+          <Text style={styles.groupItemCount}>
+            {demand.lines?.length || 0} item{(demand.lines?.length !== 1) ? "s" : ""}
+          </Text>
+        </View>
+        <View style={styles.dateBadge}>
+          <Text style={styles.dateBadgeText}>{new Date(demand.createdAt).toLocaleDateString()}</Text>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.groupItemsContainer}>
+        {(demand.lines || []).map((line, idx) => (
+          <View key={idx} style={styles.groupItemRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.groupItemName}>{line.name}</Text>
+              {line.matchedMedicineName ? (
+                <View style={styles.matchBadge}>
+                  <Feather name="check-circle" size={12} color="#0d9488" />
+                  <Text style={styles.matchText}>
+                    Matches: {line.matchedMedicineName}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.noMatchText}>Direct request</Text>
+              )}
+            </View>
+            <View style={styles.groupItemQtyBadge}>
+              <Text style={styles.groupItemQtyText}>Qty: {line.qty}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+};
+
 const LoadingSkeleton = () => {
   const opacity = React.useRef(new Animated.Value(0.3)).current;
 
@@ -235,6 +284,7 @@ export default function StockistDashboard() {
   const [companiesList, setCompaniesList] = useState([]);
   const [medicinesList, setMedicinesList] = useState([]);
   const [staffs, setStaffs] = useState([]);
+  const [demandsList, setDemandsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("medicines");
@@ -248,8 +298,9 @@ export default function StockistDashboard() {
       companies: companiesList.length,
       medicines: medicinesList.length,
       staff: staffs.length,
+      demands: demandsList.length,
     }),
-    [companiesList.length, medicinesList.length, staffs.length]
+    [companiesList.length, medicinesList.length, staffs.length, demandsList.length]
   );
 
   const displayName = useMemo(() => {
@@ -296,9 +347,10 @@ export default function StockistDashboard() {
       companies: filterByQuery(companiesList, ["name"]),
       medicines: filterByQuery(medicinesList, ["name"]),
       staff: filterByQuery(staffs, ["fullName", "name"]),
+      demands: filterByQuery(demandsList, ["purchaserName", "purchaserId"]),
       approvals: [],
     }),
-    [companiesList, medicinesList, staffs, filterByQuery]
+    [companiesList, medicinesList, staffs, demandsList, filterByQuery]
   );
 
   const medicineReferencesStockist = (med, stockistId) => {
@@ -425,26 +477,29 @@ export default function StockistDashboard() {
 
       setStockist(target);
 
-      const [cRes, mRes, sRes] = await Promise.all([
+      const [cRes, mRes, sRes, dRes] = await Promise.all([
         fetch(apiUrl("/api/company"), { headers }),
         fetch(apiUrl("/api/medicine"), { headers }),
         fetch(apiUrl(`/api/staff?stockist=${target._id}`), { headers }),
+        fetch(apiUrl(`/api/demand?stockistId=${target._id}`), { headers }),
       ]);
 
-      if ([cRes.status, mRes.status, sRes.status].includes(401)) {
+      if ([cRes.status, mRes.status, sRes.status, dRes.status].includes(401)) {
         setAuthError(true);
         throw new Error("Unauthorized");
       }
 
-      const [cJson, mJson, sJson] = await Promise.all([
+      const [cJson, mJson, sJson, dJson] = await Promise.all([
         cRes.json().catch(() => ({})),
         mRes.json().catch(() => ({})),
         sRes.json().catch(() => ({})),
+        dRes.json().catch(() => ({})),
       ]);
 
       const allCompanies = cJson?.data || [];
       const allMeds = mJson?.data || [];
       const staffList = sJson?.data || [];
+      const allDemands = dJson?.data || [];
 
       const filteredCompanies = allCompanies.filter((company) => {
         try {
@@ -486,6 +541,7 @@ export default function StockistDashboard() {
       setCompaniesList(filteredCompanies);
       setMedicinesList(filteredMeds);
       setStaffs(filteredStaffs);
+      setDemandsList(allDemands);
     } catch (err) {
       console.error("Dashboard error:", err);
       if (err?.message === "Unauthorized" || err?.message?.includes("login")) {
@@ -527,6 +583,7 @@ export default function StockistDashboard() {
     { key: "medicines", label: "Medicines", icon: "package", color: "#3b82f6", bg: "#eff6ff" },
     { key: "companies", label: "Companies", icon: "briefcase", color: "#f97316", bg: "#fff7ed" },
     { key: "staff", label: "Staff", icon: "users", color: "#8b5cf6", bg: "#faf5ff" },
+    { key: "demands", label: "Demands", icon: "clipboard", color: "#f43f5e", bg: "#fff1f2" },
     { key: "approvals", label: "Approvals", icon: "check-circle", color: "#10b981", bg: "#f0fdf4" },
   ];
 
@@ -645,6 +702,7 @@ export default function StockistDashboard() {
                   if (activeTab === "companies") return <CompanyCard key={i} company={item} />;
                   if (activeTab === "medicines") return <MedicineCard key={i} medicine={item} />;
                   if (activeTab === "staff") return <StaffCard key={i} staff={item} onPreview={setSelectedStaff} />;
+                  if (activeTab === "demands") return <DemandCard key={i} demand={item} />;
                   return null;
                 })
               ) : (
@@ -837,6 +895,23 @@ const styles = StyleSheet.create({
   },
   qrImageSmall: { width: 44, height: 44 },
   zoomIcon: { position: "absolute", bottom: 2, right: 2 },
+
+  // Group styles matching Purchaser Demands view
+  groupCard: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 16, overflow: "hidden", marginBottom: 16, backgroundColor: "#fff" },
+  groupHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16 },
+  groupTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  groupTitleText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  groupItemCount: { fontSize: 13, color: "rgba(255,255,255,0.9)" },
+  groupItemsContainer: { backgroundColor: "#fff" },
+  groupItemRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, borderTopWidth: 1, borderTopColor: "#f1f5f9" },
+  groupItemName: { fontSize: 15, fontWeight: "600", color: "#0f172a", marginBottom: 4 },
+  matchBadge: { flexDirection: "row", alignItems: "center", gap: 6 },
+  matchText: { fontSize: 13, color: "#0d9488", fontWeight: "500" },
+  noMatchText: { fontSize: 13, color: "#64748b" },
+  groupItemQtyBadge: { backgroundColor: "#dbeafe", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  groupItemQtyText: { fontSize: 13, fontWeight: "700", color: "#1e40af" },
+  dateBadge: { backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  dateBadgeText: { color: "#fff", fontSize: 11, fontWeight: "600" },
 
   emptyContainer: { alignItems: "center", paddingVertical: 40 },
   emptyTitle: { fontSize: 18, fontWeight: "900", color: "#1e293b", marginTop: 12 },

@@ -103,9 +103,9 @@ export default function Nav({ navigation: navProp }) {
         const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
         const [resStockist, resMedicine, resCompany] = await Promise.all([
-          fetch(apiUrl("/api/stockist"), { headers: authHeaders }),
-          fetch(apiUrl("/api/medicine"), { headers: authHeaders }),
-          fetch(apiUrl("/api/company"), { headers: authHeaders }),
+          fetch(apiUrl("/api/stockist?limit=1000"), { headers: authHeaders }),
+          fetch(apiUrl("/api/medicine?limit=1000"), { headers: authHeaders }),
+          fetch(apiUrl("/api/company?limit=1000"), { headers: authHeaders }),
         ]);
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
           resStockist.json(),
@@ -637,12 +637,12 @@ export default function Nav({ navigation: navProp }) {
                 if (text === "") {
                   setShowAllResults(true);
                   if (filterType === "stockist") setSelectedStockists(sectionData);
-                  // Omitted other auto-refills for brevity
                 }
               }}
-              onFocus={() => setShowSuggestions(true)}
+              onFocus={() => searchQuery.length > 0 && setShowSuggestions(true)}
               placeholder={`Search for ${filterType}...`}
               placeholderTextColor="#6b7280"
+              autoCapitalize="none"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={clearResults} style={styles.clearBtn}>
@@ -699,7 +699,12 @@ export default function Nav({ navigation: navProp }) {
         </ScrollView>
       )}
 
-      <Modal visible={isMenuOpen} transparent animationType="fade">
+      <Modal 
+        visible={isMenuOpen} 
+        transparent 
+        animationType="fade"
+        onRequestClose={() => setIsMenuOpen(false)}
+      >
         <View style={styles.modalBg}>
           <View style={styles.menuModalContent}>
             <View style={styles.menuHeader}>
@@ -724,7 +729,12 @@ export default function Nav({ navigation: navProp }) {
         </View>
       </Modal>
 
-      <Modal visible={showFilterModal} transparent animationType="fade">
+      <Modal 
+        visible={showFilterModal} 
+        transparent 
+        animationType="fade"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
         <View style={styles.modalBg}>
           <View style={styles.menuModalContent}>
             <Text style={styles.filterTitle}>Select Search Category</Text>
@@ -832,12 +842,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   suggestionsContainer: {
-    marginTop: 16,
+    position: "absolute",
+    top: 60, // Float below the search input
+    left: 0,
+    right: 0,
     backgroundColor: "#fff",
     borderColor: "#ddd6fe",
     borderWidth: 1,
     borderRadius: 16,
     overflow: "hidden",
+    zIndex: 2000,
+    elevation: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
   },
   suggestionsTitle: {
     padding: 12,

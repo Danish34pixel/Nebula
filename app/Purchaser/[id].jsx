@@ -33,6 +33,8 @@ export default function PurchaserDashboard() {
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [medSearch, setMedSearch] = useState("");
   const [medLoading, setMedLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     const fetchPurchaser = async () => {
@@ -131,6 +133,39 @@ export default function PurchaserDashboard() {
 
     return tokens.some((t) => t.includes(q));
   });
+
+  const handleSearchChange = (text) => {
+    setMedSearch(text);
+    if (text.trim().length > 1) {
+      const q = text.toLowerCase().trim();
+      const matches = medicines.filter(m => {
+        const name = (m.name || "").toLowerCase();
+        const gen = (m.genericName || "").toLowerCase();
+        return name.includes(q) || gen.includes(q);
+      }).slice(0, 5);
+      setSuggestions(matches);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectSuggestion = (m) => {
+    setMedSearch(m.name);
+    setShowSuggestions(false);
+    setSelectedMedicine(m);
+  };
+
+  const closeMedicineModal = () => {
+    if (Platform.OS === "web") {
+      // Release focus from the hidden modal tree to satisfy ARIA standards
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }
+    setSelectedMedicine(null);
+  };
 
   const formatCompanyName = (med) => {
     const raw = med.company?.name || med.company || med.manufacturer || "";
@@ -472,16 +507,39 @@ export default function PurchaserDashboard() {
             <TextInput
               style={styles.searchInput}
               value={medSearch}
-              onChangeText={setMedSearch}
+              onChangeText={handleSearchChange}
+              onFocus={() => medSearch.length > 1 && setShowSuggestions(true)}
               placeholder="Search by name or company..."
               placeholderTextColor="#9ca3af"
             />
             {medSearch.length > 0 ? (
-              <TouchableOpacity onPress={() => setMedSearch("")}>
+              <TouchableOpacity onPress={() => { setMedSearch(""); setShowSuggestions(false); }}>
                 <Feather name="x" size={16} color="#94a3b8" />
               </TouchableOpacity>
             ) : null}
           </View>
+
+          {/* Search Suggestions Overlay */}
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsOverlay}>
+              {suggestions.map((s, idx) => (
+                <TouchableOpacity 
+                  key={s._id || idx} 
+                  style={styles.suggestionItem}
+                  onPress={() => selectSuggestion(s)}
+                >
+                  <Feather name="search" size={14} color="#94a3b8" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.suggestionText}>{s.name}</Text>
+                    {s.genericName ? (
+                      <Text style={styles.suggestionSubtext}>{s.genericName}</Text>
+                    ) : null}
+                  </View>
+                  <Feather name="arrow-up-left" size={14} color="#cbd5e1" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           {medLoading ? (
             <ActivityIndicator color="#1d4ed8" style={{ marginTop: 32 }} />
@@ -521,7 +579,7 @@ export default function PurchaserDashboard() {
         visible={!!selectedMedicine}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setSelectedMedicine(null)}
+        onRequestClose={closeMedicineModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -532,7 +590,7 @@ export default function PurchaserDashboard() {
                   {selectedMedicine?.manufacturer || selectedMedicine?.company?.name || "Manufacturer Details"}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setSelectedMedicine(null)} style={styles.modalCloseBtn}>
+              <TouchableOpacity onPress={closeMedicineModal} style={styles.modalCloseBtn}>
                 <Feather name="x" size={24} color="#64748b" />
               </TouchableOpacity>
             </View>
@@ -583,7 +641,7 @@ export default function PurchaserDashboard() {
 
               <TouchableOpacity 
                 style={styles.closeFullBtn} 
-                onPress={() => setSelectedMedicine(null)}
+                onPress={closeMedicineModal}
               >
                 <Text style={styles.closeFullBtnText}>Close Details</Text>
               </TouchableOpacity>
@@ -838,4 +896,40 @@ const styles = StyleSheet.create({
   contactBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#ecfdf5", justifyContent: "center", alignItems: "center" },
   closeFullBtn: { marginTop: 24, backgroundColor: "#f1f5f9", paddingVertical: 16, borderRadius: 16, alignItems: "center" },
   closeFullBtnText: { color: "#475569", fontWeight: "bold", fontSize: 15 },
+  
+  // Suggestions UI
+  suggestionsOverlay: {
+    position: "absolute",
+    top: 175, // Adjust based on searchBox position
+    left: 24,
+    right: 24,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    zIndex: 1000,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    overflow: "hidden",
+  },
+  suggestionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    gap: 12,
+  },
+  suggestionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1e293b",
+  },
+  suggestionSubtext: {
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 2,
+  },
 });

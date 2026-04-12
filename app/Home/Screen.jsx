@@ -99,14 +99,14 @@ const Screen = ({ navigation: navProp }) => {
 
         const [resStockist, resMedicine, resCompany] = await Promise.all([
           fetch(apiUrl(`/api/stockist?page=${page}&limit=${limit}`), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/medicine"), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/company"), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
+          fetch(apiUrl("/api/medicine?limit=1000"), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
+          fetch(apiUrl("/api/company?limit=1000"), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
         ]);
 
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
-          fetchJson(`/api/stockist?page=${page}&limit=${limit}`).catch(() => ({ data: [] })),
-          fetchJson("/api/medicine").catch(() => ({ data: [] })),
-          fetchJson("/api/company").catch(() => ({ data: [] })),
+          resStockist.json().catch(() => ({ data: [] })),
+          resMedicine.json().catch(() => ({ data: [] })),
+          resCompany.json().catch(() => ({ data: [] })),
         ]);
 
         const medicines = (jsonMedicine && jsonMedicine.data) || [];
@@ -624,7 +624,12 @@ const Screen = ({ navigation: navProp }) => {
           {renderBottomNavigation()}
         </>
       ) : (
-        <Modal visible={true} animationType="slide" presentationStyle="formSheet">
+        <Modal 
+          visible={true} 
+          animationType="slide" 
+          presentationStyle="formSheet"
+          onRequestClose={() => setFullscreenStockist(null)}
+        >
           {renderDetailViewForFullscreen(fullscreenStockist)}
         </Modal>
       )}

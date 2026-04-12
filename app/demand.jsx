@@ -9,13 +9,13 @@ import {
   ScrollView,
   SafeAreaView,
   Linking,
+  Alert,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../config/api";
 
-// Inline versions of utilities from React Web version
 const medicineDisplayName = (m) => m?.name || m?.medicineName || m?.title || String(m?._id || "");
 const medicineReferencesStockist = (med, stockistId) => {
   if (!med) return false;
@@ -36,6 +36,7 @@ export default function Demand() {
   const [medicines, setMedicines] = useState([]);
   const [stockists, setStockists] = useState([]);
   const [result, setResult] = useState(null);
+  const [demandId, setDemandId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [focusedLineId, setFocusedLineId] = useState(null);
@@ -101,6 +102,13 @@ export default function Demand() {
     setLines((prev) => prev.filter((l) => l.id !== id));
 
   const createDemand = async () => {
+    // Check empty
+    const validLines = lines.filter((l) => l.name.trim().length > 0);
+    if (validLines.length === 0) {
+      Alert.alert("Empty demand", "Please enter at least one medicine name.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -122,14 +130,9 @@ export default function Demand() {
         });
       };
 
-      for (const line of lines) {
+      for (const line of validLines) {
         const q = normalizeQuery(line.name);
-        if (!q) {
-          groups["unmatched"] = groups["unmatched"] || [];
-          groups["unmatched"].push({ line });
-          continue;
-        }
-
+        
         const qLower = q.toLowerCase();
         let foundMeds = [];
         if (Array.isArray(medicines) && medicines.length > 0) {
@@ -160,12 +163,12 @@ export default function Demand() {
             });
 
             for (const matchedStockist of availableStockists) {
-              const label =
-                matchedStockist.title || matchedStockist.name || matchedStockist._id;
+              const label = matchedStockist.name || matchedStockist.title || matchedStockist._id;
               groups[label] = groups[label] || [];
               groups[label].push({
                 line,
                 medicine: med,
+                stockist: matchedStockist,
                 available: true,
                 quantity: line.qty,
               });
@@ -183,12 +186,12 @@ export default function Demand() {
 
           if (stockistsWithMedicine.length > 0) {
             for (const matchedStockist of stockistsWithMedicine) {
-              const label =
-                matchedStockist.title || matchedStockist.name || matchedStockist._id;
+              const label = matchedStockist.name || matchedStockist.title || matchedStockist._id;
               groups[label] = groups[label] || [];
               groups[label].push({
                 line,
                 medicine: { name: q },
+                stockist: matchedStockist,
                 available: true,
                 quantity: line.qty,
               });
@@ -204,6 +207,44 @@ export default function Demand() {
       }
 
       setResult(groups);
+
+      // SAVE THIS TO BACKEND
+      try {
+        let purchaserId = null; let purchaserName = null;
+        try {
+          const raw = await AsyncStorage.getItem("user");
+          if (raw) { const u = JSON.parse(raw); purchaserId = u._id || u.id; purchaserName = u.fullName || u.name || u.email; }
+        } catch (_) {}
+
+        // Format backend payload
+        const apiLines = [];
+        for (const [groupName, items] of Object.entries(groups)) {
+          for (const item of items) {
+             const isUnmatched = groupName === 'unmatched';
+             apiLines.push({
+               name: item.line.name,
+               qty: item.quantity || item.line.qty,
+               assignedStockistId: isUnmatched ? null : item.stockist?._id,
+               assignedStockistName: isUnmatched ? null : groupName,
+               matchedMedicineId: isUnmatched ? null : item.medicine?._id,
+               matchedMedicineName: isUnmatched ? null : item.medicine?.name,
+               status: isUnmatched ? "unmatched" : "assigned"
+             });
+          }
+        }
+
+        const res = await fetch(apiUrl("/api/demand"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ purchaserId, purchaserName, extendedLines: apiLines })
+        });
+        
+        if (res.ok) {
+          const ds = await res.json();
+          if (ds.data?._id) setDemandId(ds.data._id);
+        }
+      } catch (e) { console.warn("Failed to save to backend API", e); }
+
       try {
         await AsyncStorage.setItem(
           SAVE_KEY,
@@ -226,6 +267,8 @@ export default function Demand() {
     );
     if (stockist?.phone) {
       Linking.openURL(`tel:${stockist.phone}`);
+    } else {
+      Alert.alert("No Phone Number", "This stockist does not have a phone number listed.");
     }
   };
 
@@ -357,7 +400,10 @@ export default function Demand() {
           <View style={styles.resultCard}>
             <View style={styles.resultHeader}>
               <Feather name="check-circle" size={28} color="#14b8a6" />
-              <Text style={styles.resultTitle}>Grouped Demand Results</Text>
+              <View>
+                <Text style={styles.resultTitle}>Grouped Demand Results</Text>
+                {demandId && <Text style={styles.demandIdLabel}>Backend ID: {demandId}</Text>}
+              </View>
             </View>
 
             {Object.keys(result).length === 0 ? (
@@ -400,7 +446,7 @@ export default function Demand() {
                           <View key={i} style={styles.groupItemRow}>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.groupItemName}>{it.line.name}</Text>
-                              {it.medicine ? (
+                              {it.medicine && it.medicine.name ? (
                                 <View style={styles.matchBadge}>
                                   <Feather name="check-circle" size={12} color="#0d9488" />
                                   <Text style={styles.matchText}>
@@ -497,6 +543,7 @@ const styles = StyleSheet.create({
   resultCard: { backgroundColor: "#fff", borderRadius: 24, padding: 24, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 15, elevation: 4, width: "100%", maxWidth: 600 },
   resultHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 24 },
   resultTitle: { fontSize: 20, fontWeight: "700", color: "#1e293b" },
+  demandIdLabel: { fontSize: 12, color: "#64748b", fontWeight: "600" },
   emptyContainer: { alignItems: "center", paddingVertical: 40 },
   emptyText: { fontSize: 16, color: "#64748b" },
   

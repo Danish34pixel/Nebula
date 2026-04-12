@@ -402,8 +402,21 @@ export default function StockistDashboard() {
           (s) => String(s._id) === String(routeId) || String(s.id) === String(routeId)
         );
       } else {
-        if (storedUser) target = list.find((s) => matchStockistWithUser(s));
+        // Find by ID match first, then by email
+        if (storedUser) {
+           target = list.find((s) => matchStockistWithUser(s));
+        }
         if (!target && list.length > 0) target = list[0];
+      }
+
+      // Final attempt: if we still don't have a robust profile but have a storedUser, 
+      // see if any item in the list matches the storedUser's email even if IDs didn't match.
+      if (storedUser && (!target || !target.dob)) {
+         const emailMatch = list.find(s => 
+           (s.email && s.email.toLowerCase() === storedUser.email?.toLowerCase()) || 
+           (s.ownerEmail && s.ownerEmail.toLowerCase() === storedUser.email?.toLowerCase())
+         );
+         if (emailMatch) target = emailMatch;
       }
 
       if (!target && storedUser) target = storedUser;
@@ -460,9 +473,18 @@ export default function StockistDashboard() {
         medicineReferencesStockist(med, target._id)
       );
 
+      const filteredStaffs = staffList.filter((s) => {
+        try {
+          const sid = s.stockist?._id || s.stockist || s.stockistId || s.owner?._id || s.owner || s.ownerId || s.medical?._id || s.medical;
+          return sid && String(sid) === String(target._id);
+        } catch {
+          return false;
+        }
+      });
+
       setCompaniesList(filteredCompanies);
       setMedicinesList(filteredMeds);
-      setStaffs(staffList);
+      setStaffs(filteredStaffs);
     } catch (err) {
       console.error("Dashboard error:", err);
       if (err?.message === "Unauthorized" || err?.message?.includes("login")) {

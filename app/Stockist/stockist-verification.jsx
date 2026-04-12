@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView,
   Dimensions,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,72 +23,94 @@ const StockistVerification = () => {
     "Thanks for registering. Your documents are under verification. We will notify you once your account is approved."
   );
   
+  const [isApproved, setIsApproved] = useState(false);
   const timerRef = useRef(null);
 
   // Helper: validate a possible Mongo ObjectId (24 hex chars)
   const looksLikeObjectId = (id) =>
     typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
 
-  useEffect(() => {
-    let cancelled = false;
+  const checkStatus = async () => {
+    try {
+      const stockistId = 
+        (await AsyncStorage.getItem("pendingStockistId")) || 
+        (await AsyncStorage.getItem("pendingUserId"));
 
-    const checkStatus = async () => {
-      try {
-        const stockistId = 
-          (await AsyncStorage.getItem("pendingStockistId")) || 
-          (await AsyncStorage.getItem("pendingUserId"));
+      console.log("[Verification] Checking status for ID:", stockistId);
 
-        console.log("[Verification] Checking status for ID:", stockistId);
-
-        if (!stockistId) {
-          console.warn("[Verification] No pending ID found in storage.");
-          setChecking(false);
-          return;
+      if (!stockistId) {
+        // Fallback: Check if user is already logged in or has a basic user record
+        const userStr = await AsyncStorage.getItem("user");
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            if (user._id) {
+               console.log("[Verification] Found existing user in storage, using that ID:", user._id);
+               // Proceed with this ID
+               checkWithId(user._id);
+               return;
+            }
+          } catch (e) {}
         }
 
-        if (looksLikeObjectId(stockistId)) {
-          const res = await fetch(apiUrl(`/api/auth/status/${stockistId}`));
-          if (res.ok) {
-            const json = await res.json();
-            if (json && json.data) {
-              console.log("[Verification] Status received:", json.data.status, "Approved:", json.data.approved);
-              const isApproved = json.data.approved || json.data.status === "approved" || json.data.status === "Approved";
-              if (isApproved) {
-                console.log("[Verification] Approval confirmed! Redirecting to login...");
-                await AsyncStorage.multiRemove(["pendingStockistId", "pendingUserId"]);
-                router.replace("/Stockist/stockist-login");
-                return;
-              } else if (json.data.declined || json.data.status === "declined") {
-                setMessage("Document verification failed");
-                setChecking(false);
-                return;
-              }
+        console.warn("[Verification] No pending ID found in storage.");
+        setChecking(false);
+        setMessage("No active registration session found. If you just registered, please try logging in.");
+        return;
+      }
+
+      checkWithId(stockistId);
+    } catch (e) {
+      console.warn("Polling error:", e.message);
+    }
+  };
+
+  const checkWithId = async (id) => {
+    try {
+      if (looksLikeObjectId(id)) {
+        console.log(`[Verification] Fetching status for: ${id}`);
+        const res = await fetch(apiUrl(`/api/auth/status/${id}`));
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.data) {
+            const { approved, status, verified } = json.data;
+            console.log("[Verification] Backend status:", { approved, status, verified });
+            
+            const approvedValue = approved === true || status === "approved" || status === "Approved" || verified === true;
+            setIsApproved(approvedValue);
+            
+            if (approvedValue) {
+              console.log("[Verification] Approval confirmed! Redirecting...");
+              await AsyncStorage.multiRemove(["pendingStockistId", "pendingUserId"]);
+              setChecking(false);
+              // Check if it's a medical owner or stockist based on the route if possible, 
+              // but stockist-login is a safe bet for this screen.
+              router.replace("/Stockist/stockist-dashboard"); 
+              return;
+            } else if (json.data.declined || status === "declined" || status === "Declined") {
+              setMessage("Document verification failed. Your registration was declined.");
+              setChecking(false);
+              return;
             }
-          } else if (res.status === 404) {
-            await AsyncStorage.removeItem("pendingStockistId");
-            setMessage("Verification record not found. Please contact support.");
-            setChecking(false);
-            return;
           }
         }
-      } catch (e) {
-        console.warn("Polling error:", e.message);
       }
+    } catch (err) {
+       console.warn("Fetch error:", err);
+    }
+    
+    timerRef.current = setTimeout(checkStatus, 3000);
+  };
 
-      if (!cancelled) {
-        timerRef.current = setTimeout(checkStatus, 3000);
-      }
-    };
-
+  useEffect(() => {
     checkStatus();
 
     return () => {
-      cancelled = true;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
 
-  const isFailed = message === "Document verification failed";
+  const isFailed = message === "Document verification failed. Your registration was declined.";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -139,17 +161,20 @@ const StockistVerification = () => {
             </TouchableOpacity>
           )}
 
-          {!isFailed && !checking && (
+          {!isFailed && (
             <TouchableOpacity 
                style={styles.refreshActionBtn} 
                onPress={() => {
+                 console.log("[Verification] Manual status check requested.");
                  setChecking(true);
-                 // The useEffect will pick up the 'checking' state if handled, 
-                 // or we can just rely on the next poll if checkStatus wasn't exported.
-                 // Actually, let's keep it simple: the user just needs to know it's trying.
+                 if (timerRef.current) clearTimeout(timerRef.current);
+                 checkStatus(); 
                }}
+               disabled={isApproved}
             >
-               <Text style={styles.refreshActionBtnText}>Check Status Again</Text>
+               <Text style={styles.refreshActionBtnText}>
+                 {checking ? "Checking..." : "Check Status Now"}
+               </Text>
             </TouchableOpacity>
           )}
         </View>

@@ -8,18 +8,19 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
-  SafeAreaView,
   Platform,
   KeyboardAvoidingView,
   Alert,
   Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl, postForm } from "../../config/api";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const { width } = Dimensions.get("window");
 
@@ -48,6 +49,8 @@ export default function StockistSignup() {
   const [previews, setPreviews] = useState({ profile: null, license: null });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateField, setDateField] = useState(null); // 'dob' or 'licenseExpiry'
 
   const handleInputChange = (path, value) => {
     if (path.startsWith("address.")) {
@@ -105,6 +108,17 @@ export default function StockistSignup() {
       if (!form.address.street.trim()) newErrors["address.street"] = "Street is required";
       if (!form.address.pincode.trim()) newErrors["address.pincode"] = "Pincode is required";
       if (!form.licenseNumber.trim()) newErrors.licenseNumber = "License number is required";
+      
+      if (form.licenseExpiry) {
+        const expiryDate = new Date(form.licenseExpiry);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (expiryDate < today) {
+          newErrors.licenseExpiry = "License expiry cannot be in the past";
+        }
+      } else {
+        newErrors.licenseExpiry = "License expiry is required";
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -120,6 +134,19 @@ export default function StockistSignup() {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === "dismissed" || !selectedDate) return;
+
+    const formattedDate = selectedDate.toISOString().split("T")[0]; // YYYY-MM-DD
+    handleInputChange(dateField, formattedDate);
+  };
+
+  const openDatePicker = (field) => {
+    setDateField(field);
+    setShowDatePicker(true);
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     try {
@@ -128,13 +155,11 @@ export default function StockistSignup() {
       // Append flattened fields
       for (const [key, value] of Object.entries(form)) {
         if (key === "address") {
-          // Convert address object to a single string for standard backend compatibility
-          const addrStr = `${value.street || ""}, ${value.city || ""}, ${
-            value.state || ""
-          } - ${value.pincode || ""}`
-            .trim()
-            .replace(/^, |, $/g, "");
-          formData.append("address", addrStr);
+          // Send as nested object fields for the backend to parse correctly
+          formData.append("address[street]", value.street || "");
+          formData.append("address[city]", value.city || "");
+          formData.append("address[state]", value.state || "");
+          formData.append("address[pincode]", value.pincode || "");
         } else if (key === "profileImage" || key === "licenseImage") {
           if (value && value.uri) {
             const fieldName =
@@ -188,6 +213,8 @@ export default function StockistSignup() {
         const stockistId = response.data?._id || response.data?.id || (response.user?._id || response.user?.id);
         
         if (stockistId) {
+          // Clear any old pending IDs first to avoid cross-role confusion
+          await AsyncStorage.removeItem("pendingUserId");
           await AsyncStorage.setItem("pendingStockistId", String(stockistId));
           router.replace("/Stockist/stockist-verification");
         } else {
@@ -261,9 +288,9 @@ export default function StockistSignup() {
                 <Input label="Firm/Shop Name" icon="briefcase" placeholder="Pharmacy Name" value={form.name} onChangeText={(v) => handleInputChange("name", v)} error={errors.name} />
                 <Input label="Contact Person" icon="user" placeholder="Name" value={form.contactPerson} onChangeText={(v) => handleInputChange("contactPerson", v)} />
                 <SectionHeader icon="mail" title="Contact Details" />
-                <Input label="Email" icon="mail" placeholder="email@example.com" value={form.email} onChangeText={(v) => handleInputChange("email", v)} keyboardType="email-address" autoCapitalize="none" error={errors.email} />
-                <Input label="Phone" icon="phone" placeholder="+91 XXXXX XXXXX" value={form.phone} onChangeText={(v) => handleInputChange("phone", v)} keyboardType="phone-pad" />
-                <Input label="Password" icon="lock" placeholder="••••••••" value={form.password} onChangeText={(v) => handleInputChange("password", v)} secureTextEntry error={errors.password} />
+                <Input label="Email" icon="mail" placeholder="Enter your mail" value={form.email} onChangeText={(v) => handleInputChange("email", v)} keyboardType="email-address" autoCapitalize="none" error={errors.email} />
+                <Input label="Phone" icon="phone" placeholder="Enter your phone number" value={form.phone} onChangeText={(v) => handleInputChange("phone", v)} keyboardType="phone-pad" />
+                <Input label="Password" icon="lock" placeholder="Enter your password" value={form.password} onChangeText={(v) => handleInputChange("password", v)} secureTextEntry error={errors.password} />
               </View>
             )}
 
@@ -282,14 +309,61 @@ export default function StockistSignup() {
                 <Input label="Pincode" icon="hash" placeholder="XXXXXX" value={form.address.pincode} onChangeText={(v) => handleInputChange("address.pincode", v)} keyboardType="number-pad" error={errors["address.pincode"]} />
                 <SectionHeader icon="file-text" title="Professional" />
                 <Input label="License Number" icon="shield" placeholder="License No" value={form.licenseNumber} onChangeText={(v) => handleInputChange("licenseNumber", v)} error={errors.licenseNumber} />
-                <Input label="License Expiry" icon="calendar" placeholder="YYYY-MM-DD" value={form.licenseExpiry} onChangeText={(v) => handleInputChange("licenseExpiry", v)} />
+                
+                {Platform.OS === "web" ? (
+                  <Input 
+                    label="License Expiry" 
+                    icon="calendar" 
+                    placeholder="YYYY-MM-DD" 
+                    value={form.licenseExpiry} 
+                    onChangeText={(v) => handleInputChange("licenseExpiry", v)}
+                    //@ts-ignore
+                    type="date"
+                    error={errors.licenseExpiry}
+                  />
+                ) : (
+                  <TouchableOpacity onPress={() => openDatePicker("licenseExpiry")} activeOpacity={1}>
+                    <Input 
+                      label="License Expiry" 
+                      icon="calendar" 
+                      placeholder="Select expiry date" 
+                      value={form.licenseExpiry} 
+                      editable={false} 
+                      pointerEvents="none"
+                      error={errors.licenseExpiry}
+                    />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
             {currentStep === 3 && (
               <View>
                 <SectionHeader icon="user" title="Personal Info" />
-                <Input label="DOB" icon="calendar" placeholder="YYYY-MM-DD" value={form.dob} onChangeText={(v) => handleInputChange("dob", v)} />
+                {Platform.OS === "web" ? (
+                  <Input 
+                    label="DOB" 
+                    icon="calendar" 
+                    placeholder="YYYY-MM-DD" 
+                    value={form.dob} 
+                    onChangeText={(v) => handleInputChange("dob", v)}
+                    //@ts-ignore
+                    type="date"
+                    error={errors.dob}
+                  />
+                ) : (
+                  <TouchableOpacity onPress={() => openDatePicker("dob")} activeOpacity={1}>
+                    <Input 
+                      label="DOB" 
+                      icon="calendar" 
+                      placeholder="Select date of birth" 
+                      value={form.dob} 
+                      editable={false} 
+                      pointerEvents="none"
+                      error={errors.dob}
+                    />
+                  </TouchableOpacity>
+                )}
                 <Input label="Blood Group" icon="heart" placeholder="O+" value={form.bloodGroup} onChangeText={(v) => handleInputChange("bloodGroup", v)} />
                 <Input label="Role Type" icon="award" placeholder="Proprietor/Pharmacist" value={form.roleType} onChangeText={(v) => handleInputChange("roleType", v)} />
                 <Input label="CNTX Number" icon="hash" placeholder="Identifier" value={form.cntxNumber} onChangeText={(v) => handleInputChange("cntxNumber", v)} />
@@ -311,6 +385,17 @@ export default function StockistSignup() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {showDatePicker && Platform.OS !== "web" && (
+          <DateTimePicker
+            value={form[dateField] ? new Date(form[dateField]) : new Date()}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            onChange={onDateChange}
+            minimumDate={dateField === "licenseExpiry" ? new Date() : undefined}
+            maximumDate={dateField === "dob" ? new Date() : undefined}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -325,13 +410,33 @@ const SectionHeader = ({ icon, title }) => (
   </View>
 );
 
-const Input = ({ label, error, ...props }) => (
-  <View style={styles.inputGroup}>
-    {label && <Text style={styles.label}>{label}</Text>}
-    <TextInput style={[styles.input, error && styles.inputError]} placeholderTextColor="#94a3b8" {...props} />
-    {error && <Text style={styles.errorText}>{error}</Text>}
-  </View>
-);
+const Input = ({ label, icon, error, secureTextEntry, ...props }) => {
+  const [show, setShow] = useState(false);
+  const isPassword = secureTextEntry;
+
+  return (
+    <View style={styles.inputGroup}>
+      {label && <Text style={styles.label}>{label}</Text>}
+      <View style={styles.inputWrapper}>
+        {icon && (
+          <Feather name={icon} size={20} color="#94a3b8" style={styles.inputIcon} />
+        )}
+        <TextInput
+          style={[styles.input, error && styles.inputError]}
+          placeholderTextColor="#94a3b8"
+          secureTextEntry={isPassword && !show}
+          {...props}
+        />
+        {isPassword && (
+          <TouchableOpacity onPress={() => setShow(!show)} style={styles.eyeIcon}>
+            <Feather name={show ? "eye" : "eye-off"} size={20} color="#94a3b8" />
+          </TouchableOpacity>
+        )}
+      </View>
+      {error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+};
 
 const UploadCard = ({ label, preview, onPress }) => (
   <View style={styles.uploadGroup}>
@@ -377,7 +482,18 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: "800", color: "#334155" },
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 12, fontWeight: "700", color: "#64748b", marginBottom: 8, marginLeft: 4 },
-  input: { backgroundColor: "#f8fafc", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: "#1e293b", borderWidth: 1, borderColor: "#f1f5f9" },
+  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#1e293b" },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  inputIcon: { marginRight: 12 },
+  eyeIcon: { padding: 4 },
   inputError: { borderColor: "#fecaca" },
   errorText: { color: "#ef4444", fontSize: 11, marginTop: 4, marginLeft: 4 },
   row: { flexDirection: "row", gap: 12 },

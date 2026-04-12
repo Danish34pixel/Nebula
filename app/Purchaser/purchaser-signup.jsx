@@ -8,10 +8,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
-  SafeAreaView,
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";

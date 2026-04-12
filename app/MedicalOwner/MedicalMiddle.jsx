@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, Alert, SafeAreaView, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
@@ -24,7 +25,10 @@ export default function MedicalMiddle() {
         const userId = await AsyncStorage.getItem("pendingUserId");
 
         if (!stockistId && !userId) {
-          if (!cancelled) setChecking(false);
+          if (!cancelled) {
+            setChecking(false);
+            setMessage("No active registration session found. Please try logging in.");
+          }
           return;
         }
 

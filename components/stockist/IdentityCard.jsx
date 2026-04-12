@@ -15,10 +15,15 @@ const { width } = Dimensions.get("window");
 
 // Mock Logo component
 const Logo = ({ style }) => (
-  <Text style={[styles.logoText, style]}>LUVOX PVT LTD</Text>
+  <View style={[styles.logoRow, style]}>
+    <View style={styles.logoCircle}>
+      <Feather name="shield" size={14} color="#fff" />
+    </View>
+    <Text style={styles.logoText}>MEDITRAP</Text>
+  </View>
 );
 
-const Avatar = ({ name, size = 48, style }) => {
+const Avatar = ({ name, size = 100, style }) => {
   const initials =
     name
       ?.split(" ")
@@ -28,10 +33,10 @@ const Avatar = ({ name, size = 48, style }) => {
       .slice(0, 2) || "?";
 
   const colors = [
-    ["#fb923c", "#f472b6"], // orange-400 to pink-400
-    ["#22d3ee", "#60a5fa"], // cyan-400 to blue-400
-    ["#c084fc", "#f472b6"], // purple-400 to pink-400
-    ["#4ade80", "#22d3ee"], // green-400 to cyan-400
+    ["#6366f1", "#a855f7"], // indigo-500 to purple-500
+    ["#3b82f6", "#2dd4bf"], // blue-500 to teal-400
+    ["#f43f5e", "#fb923c"], // rose-500 to orange-400
+    ["#8b5cf6", "#ec4899"], // violet-500 to pink-500
   ];
   const colorIndex = name?.charCodeAt(0) % colors.length || 0;
 
@@ -42,14 +47,14 @@ const Avatar = ({ name, size = 48, style }) => {
         {
           width: size,
           height: size,
-          borderRadius: size / 2,
+          borderRadius: size / 2.5,
           justifyContent: "center",
           alignItems: "center",
         },
         style,
       ]}
     >
-      <Text style={{ color: "#fff", fontWeight: "bold", fontSize: size / 2.5 }}>
+      <Text style={{ color: "#fff", fontWeight: "900", fontSize: size / 2.8 }}>
         {initials}
       </Text>
     </LinearGradient>
@@ -61,7 +66,7 @@ function formatDate(d) {
   try {
     const dt = new Date(d);
     if (isNaN(dt.getTime())) return "—";
-    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+    const options = { year: 'numeric', month: 'short', day: '2-digit' };
     return dt.toLocaleDateString(undefined, options);
   } catch {
     return "—";
@@ -71,37 +76,42 @@ function formatDate(d) {
 export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
   if (!stockist) return null;
 
-  const displayName = stockist.contactPerson || stockist.name || "Employee Name";
-  const idNum = stockist._id ? String(stockist._id).slice(-8).toUpperCase() : "00000000";
+  const displayName = stockist.contactPerson || stockist.name || "Authorized User";
+  const idNum = stockist._id ? String(stockist._id).slice(-8).toUpperCase() : "MT-88291";
 
   return (
     <View style={styles.container}>
       <View style={styles.cardFrame}>
-        <View style={styles.cardContent}>
-          {/* Header */}
+        {/* Main Background Gradient */}
+        <LinearGradient
+          colors={["#ffffff", "#f8fafc"]}
+          style={styles.cardContent}
+        >
+          {/* Header Section */}
           <LinearGradient
-            colors={["#1e3a8a", "#1e40af"]}
+            colors={["#4338ca", "#6366f1"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={styles.header}
           >
-            <Logo style={styles.logoText} />
-            <View style={styles.authorizedBadge}>
-              <Text style={styles.authorizedText}>AUTHORIZED</Text>
+            <View style={styles.headerTop}>
+              <Logo />
+              <View style={styles.statusBadge}>
+                <View style={styles.statusDot} />
+                <Text style={styles.statusText}>VERIFIED</Text>
+              </View>
+            </View>
+            
+            {/* Card Pattern Decoration */}
+            <View style={styles.patternLayer}>
+              <View style={[styles.patternCircle, { left: -50, top: -20, opacity: 0.1 }]} />
+              <View style={[styles.patternCircle, { right: -30, bottom: -10, opacity: 0.15 }]} />
             </View>
           </LinearGradient>
 
-          {/* Accent Stripe */}
-          <View style={styles.accentStripe} />
-
-          {/* Body */}
-          <View style={styles.body}>
-            {/* Photo Section */}
-            <View style={styles.photoContainer}>
-              {/* Corner Brackets */}
-              <View style={[styles.bracket, styles.bracketTL]} />
-              <View style={[styles.bracket, styles.bracketTR]} />
-              <View style={[styles.bracket, styles.bracketBL]} />
-              <View style={[styles.bracket, styles.bracketBR]} />
-
+          {/* Profile Section (Overlapping) */}
+          <View style={styles.profileSection}>
+            <View style={styles.photoWrapper}>
               {stockist.profileImageUrl ? (
                 <Image
                   source={{ uri: stockist.profileImageUrl }}
@@ -109,351 +119,257 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
                 />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Avatar name={displayName} size={80} />
+                  <Avatar name={displayName} size={100} />
                 </View>
               )}
+              <LinearGradient
+                colors={["transparent", "rgba(0,0,0,0.5)"]}
+                style={styles.photoOverlay}
+              />
             </View>
-
-            {/* Role Badge */}
-            <View style={styles.roleBadge}>
+            
+            <View style={styles.nameBadge}>
               <Text style={styles.roleText}>
-                {stockist.roleType || stockist.designation || "STOCKIST"}
+                {String(stockist.role || stockist.roleType || "STOCKIST").toUpperCase().replace("PROPRITER", "PROPRIETOR")}
               </Text>
-            </View>
-
-            {/* Name */}
-            <Text style={styles.nameText} numberOfLines={2}>
-              {displayName.toUpperCase()}
-            </Text>
-
-            {/* Underline */}
-            <LinearGradient
-              colors={["#2563eb", "#fbbf24"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.underline}
-            />
-
-            {/* ID Section */}
-            <View style={styles.idBox}>
-              <Text style={styles.idLabel}>ID NUMBER</Text>
-              <Text style={styles.idValue}>{idNum}</Text>
-            </View>
-
-            {/* Contact Info Table */}
-            <View style={styles.infoTable}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>PHONE</Text>
-                <Text style={styles.infoValue}>
-                  {stockist.phone || stockist.contactNo || "—"}
-                </Text>
-              </View>
-
-              <View style={styles.gridRow}>
-                <View style={[styles.infoCol, { flex: 1 }]}>
-                  <Text style={styles.infoLabel}>DOB</Text>
-                  <Text style={styles.infoValue}>{formatDate(stockist.dob)}</Text>
-                </View>
-                <View style={[styles.infoCol, { flex: 0.5 }]}>
-                  <Text style={styles.infoLabel}>BLOOD</Text>
-                  <Text style={styles.infoValue}>{stockist.bloodGroup || "—"}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* QR Section */}
-            <View style={styles.qrSection}>
-              <View style={styles.qrWrapper}>
-                {qrDataUrl ? (
-                  <Image source={{ uri: qrDataUrl }} style={styles.qrImage} />
-                ) : (
-                  <View style={styles.qrPlaceholder}>
-                    <Feather name="grid" size={32} color="#1e3a8a" />
-                  </View>
-                )}
-              </View>
-              <Text style={styles.scanLabel}>SCAN ID</Text>
-            </View>
-
-            {/* Signature Area */}
-            <View style={styles.signatureArea}>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureLabel}>AUTHORIZED SIGN</Text>
             </View>
           </View>
 
-          {/* Footer */}
-          <LinearGradient
-            colors={["#1e3a8a", "#1e40af"]}
-            style={styles.footer}
-          >
-            <Text style={styles.addressText} numberOfLines={1}>
-              {typeof stockist.address === "object" && stockist.address
-                ? `${stockist.address.street || ""}, ${stockist.address.city || ""}, ${stockist.address.state || ""} - ${stockist.address.pincode || ""}`
-                : stockist.address || stockist.location || "N/A"}
+          {/* User Details Section */}
+          <View style={styles.infoBody}>
+            <Text style={styles.nameText} numberOfLines={1}>
+              {displayName}
             </Text>
-            <Text style={styles.webText}>www.luvox.com</Text>
-          </LinearGradient>
-        </View>
-      </View>
+            
+            <View style={styles.idContainer}>
+              <Text style={styles.idLabel}>ID NO:</Text>
+              <Text style={styles.idValue}>{idNum}</Text>
+            </View>
 
-      {/* Print Button */}
-      <TouchableOpacity onPress={onPrint} style={styles.printBtn}>
-        <Feather name="printer" size={20} color="#fff" />
-        <Text style={styles.printBtnText}>PRINT ID CARD</Text>
-      </TouchableOpacity>
+            {/* Grid Stats */}
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Feather name="user" size={12} color="#6366f1" />
+                <Text style={styles.statValue} numberOfLines={1}>
+                  {stockist.contactPerson || stockist.fullName || displayName}
+                </Text>
+                <Text style={styles.statLabel}>FULL NAME</Text>
+              </View>
+              <View style={styles.dividerV} />
+              <View style={styles.statItem}>
+                <Feather name="briefcase" size={12} color="#6366f1" />
+                <Text style={styles.statValue} numberOfLines={1}>
+                  {stockist.name || stockist.companyName || stockist.firmName || "N/A"}
+                </Text>
+                <Text style={styles.statLabel}>FIRM NAME</Text>
+              </View>
+              <View style={styles.dividerV} />
+              <View style={styles.statItem}>
+                <Feather name="droplet" size={12} color="#ef4444" />
+                <Text style={styles.statValue} numberOfLines={1}>
+                  {stockist.bloodGroup || stockist.blood || stockist.user?.bloodGroup || "O+"}
+                </Text>
+                <Text style={styles.statLabel}>BLOOD</Text>
+              </View>
+            </View>
+
+            {/* QR and Security Section */}
+            <View style={styles.bottomSection}>
+              <View style={styles.qrGlassBox}>
+                <View style={styles.qrInner}>
+                  {qrDataUrl ? (
+                    <Image source={{ uri: qrDataUrl }} style={styles.qrImage} />
+                  ) : (
+                    <Feather name="maximize" size={32} color="#e2e8f0" />
+                  )}
+                </View>
+                <Text style={styles.scanHint}>SCAN TO VERIFY</Text>
+              </View>
+              
+              <View style={styles.securitySeal}>
+                <Feather name="shield" size={24} color="#f59e0b" />
+                <Text style={styles.sealText}>AUTHENTIC</Text>
+              </View>
+            </View>
+          </View>
+
+        </LinearGradient>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
+    paddingVertical: 24,
+    width: "100%",
     alignItems: "center",
   },
   cardFrame: {
-    width: 280,
+    width: 320,
     height: 480,
+    borderRadius: 32,
     backgroundColor: "#fff",
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#1e1b4b",
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.15,
+        shadowRadius: 30,
+      },
+      android: { elevation: 12 },
+    }),
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.8)",
   },
   cardContent: {
     flex: 1,
   },
   header: {
-    height: 60,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 8,
-  },
-  logoText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 2,
-  },
-  authorizedBadge: {
-    backgroundColor: "#fbbf24",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 50,
-    marginTop: 4,
-  },
-  authorizedText: {
-    color: "#1e3a8a",
-    fontSize: 8,
-    fontWeight: "900",
-  },
-  accentStripe: {
-    height: 4,
-    backgroundColor: "#fbbf24",
-  },
-  body: {
-    flex: 1,
-    alignItems: "center",
-    padding: 12,
-  },
-  photoContainer: {
+    height: 160,
+    padding: 24,
     position: "relative",
-    width: 84,
-    height: 84,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderColor: "#fff",
-    backgroundColor: "#f1f5f9",
-    justifyContent: "center",
-    alignItems: "center",
     overflow: "hidden",
   },
-  bracket: {
-    position: "absolute",
-    width: 12,
-    height: 12,
-    borderColor: "#2563eb",
-  },
-  bracketTL: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2 },
-  bracketTR: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2 },
-  bracketBL: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2 },
-  bracketBR: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2 },
-  roleBadge: {
-    backgroundColor: "#1e3a8a",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginBottom: 4,
-  },
-  roleText: {
-    color: "#fff",
-    fontSize: 9,
-    fontWeight: "bold",
-  },
-  nameText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#111827",
-    textAlign: "center",
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  underline: {
-    height: 2,
-    width: 48,
-    marginBottom: 12,
-  },
-  idBox: {
-    width: "100%",
-    backgroundColor: "#f9fafb",
-    borderLeftWidth: 4,
-    borderLeftColor: "#2563eb",
-    padding: 6,
-    borderRadius: 4,
-    marginBottom: 12,
-  },
-  idLabel: {
-    fontSize: 7,
-    fontWeight: "bold",
-    color: "#6b7280",
-    marginBottom: 2,
-  },
-  idValue: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: "#1e3a8a",
-    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-  },
-  infoTable: {
-    width: "100%",
-    gap: 8,
-    marginBottom: 12,
-  },
-  infoRow: {
+  headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    zIndex: 10,
   },
-  gridRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  infoCol: {
-    gap: 2,
-  },
-  infoLabel: {
-    fontSize: 8,
-    fontWeight: "bold",
-    color: "#6b7280",
-  },
-  infoValue: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#111827",
-  },
-  qrSection: {
-    alignItems: "center",
-    backgroundColor: "#f9fafb",
-    width: "100%",
-    paddingVertical: 12,
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  logoCircle: {
+    width: 28,
+    height: 28,
     borderRadius: 8,
-    marginBottom: 8,
-  },
-  qrWrapper: {
-    backgroundColor: "#fff",
-    padding: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#2563eb",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  qrImage: {
-    width: 64,
-    height: 64,
-  },
-  qrPlaceholder: {
-    width: 64,
-    height: 64,
+    backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
-  scanLabel: {
-    fontSize: 8,
+  logoText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "900",
-    color: "#374151",
-    marginTop: 6,
-  },
-  signatureArea: {
-    width: "100%",
-    alignItems: "center",
-    marginTop: "auto",
-  },
-  signatureLine: {
-    width: 80,
-    height: 1,
-    backgroundColor: "#9ca3af",
-    marginBottom: 2,
-  },
-  signatureLabel: {
-    fontSize: 8,
-    fontWeight: "bold",
-    color: "#6b7280",
-  },
-  footer: {
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 8,
-  },
-  addressText: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 8,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  webText: {
-    color: "#fff",
-    fontSize: 9,
-    fontWeight: "bold",
-  },
-  printBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#1e40af",
-    width: 280,
-    marginTop: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
-    gap: 10,
-  },
-  printBtnText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 14,
     letterSpacing: 1,
   },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 6,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#4ade80" },
+  statusText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  patternLayer: { ...StyleSheet.absoluteFillObject },
+  patternCircle: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "#fff",
+  },
+  profileSection: {
+    alignItems: "center",
+    marginTop: -60,
+    zIndex: 20,
+  },
+  photoWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 40,
+    borderWidth: 6,
+    borderColor: "#fff",
+    backgroundColor: "#fff",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  profileImage: { width: "100%", height: "100%" },
+  avatarPlaceholder: { flex: 1, justifyContent: "center", alignItems: "center" },
+  photoOverlay: { ...StyleSheet.absoluteFillObject },
+  nameBadge: {
+    backgroundColor: "#1e1b4b",
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginTop: -15,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  roleText: { color: "#fff", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
+  infoBody: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 15,
+  },
+  nameText: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#1e1b4b",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  idContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 24,
+  },
+  idLabel: { fontSize: 12, color: "#64748b", fontWeight: "700" },
+  idValue: { fontSize: 12, color: "#4338ca", fontWeight: "800", letterSpacing: 1 },
+  statsGrid: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "space-between",
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  statItem: { flex: 1, alignItems: "center", gap: 3 },
+  statValue: { fontSize: 11, fontWeight: "800", color: "#1e293b" },
+  statLabel: { fontSize: 8, fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" },
+  dividerV: { width: 1, height: "100%", backgroundColor: "#e2e8f0" },
+  bottomSection: {
+    flexDirection: "row",
+    width: "100%",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    paddingTop: 10,
+  },
+  qrGlassBox: {
+    alignItems: "center",
+    gap: 8,
+  },
+  qrInner: {
+    backgroundColor: "#fff",
+    padding: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  qrImage: { width: 70, height: 70 },
+  scanHint: { fontSize: 9, fontWeight: "900", color: "#64748b" },
+  securitySeal: {
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 16,
+  },
+  sealText: { fontSize: 9, fontWeight: "900", color: "#f59e0b", letterSpacing: 1 },
 });

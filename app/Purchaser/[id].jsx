@@ -111,6 +111,15 @@ export default function PurchaserDashboard() {
     return tokens.some((t) => t.includes(q));
   });
 
+  const formatCompanyName = (med) => {
+    const raw = med.company?.name || med.company || med.manufacturer || "";
+    if (!raw || typeof raw !== "string") return "Authorized Pharmacy";
+    
+    // Check if it's a 24-character hex ID (MongoDB ObjectId)
+    const isId = /^[0-9a-fA-F]{24}$/.test(raw.trim());
+    return isId ? "Authorized Pharmacy" : raw;
+  };
+
   const checkMedicineStockistMatch = (med, sid) => {
     if (!med || !sid) return false;
     
@@ -475,9 +484,7 @@ export default function PurchaserDashboard() {
                 </View>
                 <View style={styles.medInfo}>
                   <Text style={styles.medName}>{m.name}</Text>
-                  <Text style={styles.medCompany}>
-                    {m.company?.name || m.company || m.manufacturer || "Unknown Company"}
-                  </Text>
+                  <Text style={styles.medCompany}>{formatCompanyName(m)}</Text>
                 </View>
                 <View style={styles.medBadge}>
                   <Text style={styles.medBadgeText}>Available</Text>
@@ -747,9 +754,44 @@ const styles = StyleSheet.create({
   medName: { fontSize: 15, fontWeight: "700", color: "#1e293b" },
   medCompany: { fontSize: 12, color: "#64748b", marginTop: 2 },
   medBadge: { backgroundColor: "#dcfce7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  medBadgeText: { color: "#166534", fontSize: 10, fontWeight: "bold" },
+  
+  // Stockist Browser
+  stockistScroll: { paddingHorizontal: 4, paddingBottom: 10 },
+  stockistItem: {
+    width: 80,
+    alignItems: "center",
+    marginRight: 10,
+    gap: 8,
+  },
+  stockistItemActive: {
+    transform: [{ scale: 1.05 }],
+  },
+  stockistIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#f1f5f9",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+    overflow: "hidden",
+  },
+  stockistName: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "600",
+    textAlign: "center",
+    width: "100%",
+  },
   stockistNameActive: { color: "#1d4ed8", fontWeight: "bold" },
   stockistInitial: { fontSize: 24, fontWeight: "bold" },
-  stockistImg: { width: 64, height: 64, borderRadius: 32 },
+  stockistImg: { width: "100%", height: "100%", borderRadius: 0 },
 
   // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },

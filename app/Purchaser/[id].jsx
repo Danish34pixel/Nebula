@@ -39,7 +39,6 @@ export default function PurchaserDashboard() {
       setLoading(true);
       setError(null);
       try {
-<<<<<<< HEAD
         const token = await secureStorage.getItem("token");
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -47,9 +46,7 @@ export default function PurchaserDashboard() {
         const res = await fetch(apiUrl(`/api/purchaser/${id}`), { headers });
         const json = await res.json();
         if (!res.ok) throw new Error(json.message || "Failed to fetch details");
-=======
         const json = await fetchJson(`/purchaser/${id}`);
->>>>>>> bc3867f3227b4006276562147440c29c38dc094f
         setPurchaser(json.data || json);
       } catch (err) {
         setError(err.message || "Failed to fetch purchaser details");
@@ -65,7 +62,6 @@ export default function PurchaserDashboard() {
     const fetchData = async () => {
       setMedLoading(true);
       try {
-<<<<<<< HEAD
         const token = await secureStorage.getItem("token");
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -78,7 +74,6 @@ export default function PurchaserDashboard() {
           ? json
           : [];
         setMedicines(nextMedicines);
-=======
         const [medReq, stockistReq] = await Promise.all([
           fetchJson("/medicine?limit=500"),
           fetchJson("/api/stockist?limit=1000"),
@@ -90,7 +85,6 @@ export default function PurchaserDashboard() {
         console.log(`[Dashboard] Loaded ${medReq.data?.length || 0} medicines and ${stockistReq.data?.length || 0} stockists.`);
         if (medReq.data?.[0]) console.log(`[Dashboard] Med Sample:`, JSON.stringify(medReq.data[0]).slice(0, 200));
         if (stockistReq.data?.[0]) console.log(`[Dashboard] Stockist Sample:`, JSON.stringify(stockistReq.data[0]).slice(0, 200));
->>>>>>> bc3867f3227b4006276562147440c29c38dc094f
       } catch (e) {
         console.warn("Failed to load dashboard data", e.message);
         setMedicines([]);

@@ -75,7 +75,7 @@ export default function PurchaserDashboard() {
           : [];
         setMedicines(nextMedicines);
         const [medReq, stockistReq] = await Promise.all([
-          fetchJson("/medicine?limit=500"),
+          fetchJson("/api/medicine?limit=500"),
           fetchJson("/api/stockist?limit=1000"),
         ]);
         setMedicines(medReq.data || medReq || []);

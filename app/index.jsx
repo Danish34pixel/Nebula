@@ -60,7 +60,7 @@ export default function Page() {
   const roles = [
     {
       id: "Stockist",
-      name: "Stockist",
+      name: "Stockist (Wholeseller)",
       icon: ASSETS.stockist,
       gradient: ["#34d399", "#14b8a6"], // emerald-400 to teal-500
       description: "Manage inventory",
@@ -74,7 +74,7 @@ export default function Page() {
     },
     {
       id: "Medical Owner",
-      name: "Medical Owner",
+      name: "Medical (Retailer)",
       icon: ASSETS.medicalOwner,
       gradient: ["#fb923c", "#ef4444"], // orange-400 to red-500
       description: "Clinic management",

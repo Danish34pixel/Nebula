@@ -7,561 +7,696 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  SafeAreaView,
   Linking,
   Alert,
+  Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../config/api";
+import { useRouter } from "expo-router";
 
-const medicineDisplayName = (m) => m?.name || m?.medicineName || m?.title || String(m?._id || "");
-const medicineReferencesStockist = (med, stockistId) => {
-  if (!med) return false;
-  const candidates = [];
-  try {
-    if (Array.isArray(med.stockists)) candidates.push(...med.stockists);
-    if (med.stockist) candidates.push(med.stockist);
-    if (med.stockistId) candidates.push(med.stockistId);
-    if (med.seller) candidates.push(med.seller);
-    if (med.sellerId) candidates.push(med.sellerId);
-    if (med.vendor) candidates.push(med.vendor);
-  } catch {}
-  return candidates.some((c) => String(c?._id || c?.id || c) === String(stockistId));
-};
+const SAVE_KEY = "savedDemand";
 
 export default function Demand() {
-  const [lines, setLines] = useState([{ id: Date.now().toString(), name: "", qty: 1 }]);
+  const router = useRouter();
+  const [lines, setLines] = useState([{ id: "1", name: "", qty: 1 }]);
   const [medicines, setMedicines] = useState([]);
-  const [stockists, setStockists] = useState([]);
   const [result, setResult] = useState(null);
   const [demandId, setDemandId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [focusedLineId, setFocusedLineId] = useState(null);
-  const SAVE_KEY = "savedDemand";
 
-  const getSuggestions = (text) => {
-    if (!text || text.length < 1) return [];
-    const q = text.toLowerCase();
-    const matches = medicines
-      .filter((m) => {
-        const mn = medicineDisplayName(m).toLowerCase();
-        return mn.includes(q) && mn !== q;
-      })
-      .map((m) => medicineDisplayName(m));
-    return Array.from(new Set(matches)).slice(0, 5);
-  };
-
+  // Load medicines for autocomplete and clear stale cache
   useEffect(() => {
-    const fetchData = async () => {
+    // Clear any old format cache to prevent type errors
+    AsyncStorage.removeItem(SAVE_KEY).catch(() => {});
+    (async () => {
       try {
-        const [mRes, sRes] = await Promise.all([
-          fetch(apiUrl(`/api/medicine`)),
-          fetch(apiUrl(`/api/stockist`)),
-        ]);
-
-        if (mRes && mRes.ok) {
+        const mRes = await fetch(apiUrl("/api/medicine?limit=500"));
+        if (mRes.ok) {
           const mJson = await mRes.json();
           setMedicines(mJson.data || []);
         }
-        if (sRes && sRes.ok) {
-          const sJson = await sRes.json();
-          setStockists(sJson.data || []);
-        }
-      } catch (e) {
-        console.warn("Could not fetch medicines/stockists", e);
-      }
-    };
-
-    fetchData();
-
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(SAVE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.groups) setResult(parsed.groups);
-        }
-      } catch (e) {}
+      } catch (_) {}
     })();
   }, []);
 
-  const updateLine = (id, patch) => {
-    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const getSuggestions = (text) => {
+    if (!text || text.length < 2) return [];
+    const q = text.toLowerCase();
+    return medicines
+      .filter((m) => (m.name || "").toLowerCase().includes(q))
+      .map((m) => m.name)
+      .slice(0, 5);
   };
+
+  const updateLine = (id, patch) =>
+    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
 
   const addLine = () =>
     setLines((prev) => [
       ...prev,
-      { id: (Date.now() + Math.random()).toString(), name: "", qty: 1 },
+      { id: String(Date.now()), name: "", qty: 1 },
     ]);
-    
+
   const removeLine = (id) =>
     setLines((prev) => prev.filter((l) => l.id !== id));
 
+  const clearAll = () => {
+    setLines([{ id: String(Date.now()), name: "", qty: 1 }]);
+    setResult(null);
+    setDemandId(null);
+    setError(null);
+    AsyncStorage.removeItem(SAVE_KEY).catch(() => {});
+  };
+
   const createDemand = async () => {
-    // Check empty
     const validLines = lines.filter((l) => l.name.trim().length > 0);
     if (validLines.length === 0) {
-      Alert.alert("Empty demand", "Please enter at least one medicine name.");
+      Alert.alert("Empty List", "Please enter at least one medicine name.");
       return;
     }
-
     setLoading(true);
     setError(null);
+    setResult(null);
     try {
       const groups = {};
-      const normalizeQuery = (s) => (s || "").toString().trim();
-
-      const checkStockistInventory = (medicine, stockist) => {
-        const searchName = (medicine.name || medicine || "").toString().toLowerCase();
-        if (!searchName) return false;
-
-        const itemsToCheck = [];
-        if (Array.isArray(stockist.medicines)) itemsToCheck.push(...stockist.medicines);
-        if (Array.isArray(stockist.items)) itemsToCheck.push(...stockist.items);
-        if (Array.isArray(stockist.companies)) itemsToCheck.push(...stockist.companies);
-
-        return itemsToCheck.some((it) => {
-          const medName = (typeof it === "string" ? it : it.name || it.brandName || it.shortName || "").toString().toLowerCase();
-          return medName && (medName.includes(searchName) || searchName.includes(medName));
-        });
-      };
-
-      for (const line of validLines) {
-        const q = normalizeQuery(line.name);
-        
-        const qLower = q.toLowerCase();
-        let foundMeds = [];
-        if (Array.isArray(medicines) && medicines.length > 0) {
-          const exact = medicines.filter((m) => {
-            const mn = (m.name || m.medicineName || m.title || "")
-              .toString()
-              .toLowerCase();
-            return mn === qLower;
-          });
-          const includes = medicines.filter((m) => {
-            const mn = (m.name || m.medicineName || m.title || "")
-              .toString()
-              .toLowerCase();
-            return mn.includes(qLower) && mn !== qLower;
-          });
-          foundMeds = exact.length ? exact : includes;
-        }
-
-        let assigned = false;
-
-        for (const med of foundMeds) {
-          let availableStockists = [];
-          if (Array.isArray(stockists) && stockists.length > 0) {
-            availableStockists = stockists.filter((s) => {
-              const hasInInventory = checkStockistInventory(med, s);
-              const isReferenced = medicineReferencesStockist(med, s._id);
-              return hasInInventory || isReferenced;
-            });
-
-            for (const matchedStockist of availableStockists) {
-              const label = matchedStockist.name || matchedStockist.title || matchedStockist._id;
-              groups[label] = groups[label] || [];
-              groups[label].push({
-                line,
-                medicine: med,
-                stockist: matchedStockist,
-                available: true,
-                quantity: line.qty,
-              });
-              assigned = true;
+      await Promise.all(
+        validLines.map(async (line) => {
+          const q = line.name.trim();
+          try {
+            const res = await fetch(
+              apiUrl(`/api/stockist/by-medicine?name=${encodeURIComponent(q)}`)
+            );
+            const json = await res.json();
+            const list = json.data || [];
+            const matchType = json.matchType || "general";
+            if (list.length === 0) {
+              groups["__unmatched__"] = groups["__unmatched__"] || [];
+              groups["__unmatched__"].push({ line });
+            } else {
+              for (const stockist of list) {
+                const label = stockist._id;
+                groups[label] = groups[label] || { stockist, items: [] };
+                groups[label].items.push({ line, matchType });
+              }
             }
+          } catch (_) {
+            groups["__unmatched__"] = groups["__unmatched__"] || [];
+            groups["__unmatched__"].push({ line });
           }
-        }
-
-        if (assigned) continue;
-
-        if (!assigned && Array.isArray(stockists) && stockists.length > 0) {
-          const stockistsWithMedicine = stockists.filter((s) =>
-            checkStockistInventory({ name: q }, s)
-          );
-
-          if (stockistsWithMedicine.length > 0) {
-            for (const matchedStockist of stockistsWithMedicine) {
-              const label = matchedStockist.name || matchedStockist.title || matchedStockist._id;
-              groups[label] = groups[label] || [];
-              groups[label].push({
-                line,
-                medicine: { name: q },
-                stockist: matchedStockist,
-                available: true,
-                quantity: line.qty,
-              });
-              assigned = true;
-            }
-          }
-        }
-
-        if (!assigned) {
-          groups["unmatched"] = groups["unmatched"] || [];
-          groups["unmatched"].push({ line });
-        }
-      }
+        })
+      );
 
       setResult(groups);
 
-      // SAVE THIS TO BACKEND
+      // Save
       try {
-        let purchaserId = null; let purchaserName = null;
-        try {
-          const raw = await AsyncStorage.getItem("user");
-          if (raw) { const u = JSON.parse(raw); purchaserId = u._id || u.id; purchaserName = u.fullName || u.name || u.email; }
-        } catch (_) {}
-
-        // Format backend payload
+        let purchaserId = null;
+        let purchaserName = null;
+        const raw = await AsyncStorage.getItem("user").catch(() => null);
+        if (raw) {
+          const u = JSON.parse(raw);
+          purchaserId = u._id || u.id;
+          purchaserName = u.fullName || u.name || u.email;
+        }
         const apiLines = [];
-        for (const [groupName, items] of Object.entries(groups)) {
-          for (const item of items) {
-             const isUnmatched = groupName === 'unmatched';
-             apiLines.push({
-               name: item.line.name,
-               qty: item.quantity || item.line.qty,
-               assignedStockistId: isUnmatched ? null : item.stockist?._id,
-               assignedStockistName: isUnmatched ? null : groupName,
-               matchedMedicineId: isUnmatched ? null : item.medicine?._id,
-               matchedMedicineName: isUnmatched ? null : item.medicine?.name,
-               status: isUnmatched ? "unmatched" : "assigned"
-             });
+        for (const [key, val] of Object.entries(groups)) {
+          if (key === "__unmatched__") {
+            for (const it of val) {
+              apiLines.push({ name: it.line.name, qty: it.line.qty, status: "unmatched" });
+            }
+          } else {
+            for (const it of val.items) {
+              apiLines.push({
+                name: it.line.name,
+                qty: it.line.qty,
+                assignedStockistId: val.stockist._id,
+                assignedStockistName: val.stockist.name,
+                status: "assigned",
+              });
+            }
           }
         }
-
-        const res = await fetch(apiUrl("/api/demand"), {
+        const backendRes = await fetch(apiUrl("/api/demand"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ purchaserId, purchaserName, extendedLines: apiLines })
+          body: JSON.stringify({ purchaserId, purchaserName, extendedLines: apiLines }),
         });
-        
-        if (res.ok) {
-          const ds = await res.json();
-          if (ds.data?._id) setDemandId(ds.data._id);
+        if (backendRes.ok) {
+          const ds = await backendRes.json();
+          const id = ds.data?._id;
+          if (id) {
+            setDemandId(id);
+            AsyncStorage.setItem(SAVE_KEY, JSON.stringify({ groups, demandId: id, createdAt: Date.now() })).catch(() => {});
+          }
         }
-      } catch (e) { console.warn("Failed to save to backend API", e); }
-
-      try {
-        await AsyncStorage.setItem(
-          SAVE_KEY,
-          JSON.stringify({ groups, createdAt: Date.now() })
-        );
-      } catch (e) {
-        console.warn("Could not save demand to AsyncStorage", e);
-      }
+      } catch (_) {}
     } catch (e) {
-      console.error(e);
-      setError("Could not create demand. See console.");
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCall = (stockistGroup) => {
-    const stockist = stockists.find(
-      (s) => s.name === stockistGroup || s.title === stockistGroup
-    );
-    if (stockist?.phone) {
-      Linking.openURL(`tel:${stockist.phone}`);
-    } else {
-      Alert.alert("No Phone Number", "This stockist does not have a phone number listed.");
-    }
-  };
+  // Count matched vs unmatched
+  const resultEntries = result ? Object.entries(result) : [];
+  const unmatchedEntry = result?.["__unmatched__"];
+  const matchedEntries = resultEntries.filter(([k]) => k !== "__unmatched__");
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Feather name="file-text" size={40} color="#14b8a6" />
-          </View>
-          <Text style={styles.headerDesc}>Create a new medicine demand list for your stockists.</Text>
+    <SafeAreaView style={styles.safe}>
+      {/* Top Bar */}
+      <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.topBar}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Feather name="arrow-left" size={22} color="#94a3b8" />
+        </TouchableOpacity>
+        <View style={styles.topBarTitle}>
+          <Text style={styles.topBarH}>Medicine Demand</Text>
+          <Text style={styles.topBarSub}>Find stockists for your medicines</Text>
         </View>
+        {result && (
+          <TouchableOpacity onPress={clearAll} style={styles.clearBtn}>
+            <Feather name="refresh-cw" size={18} color="#94a3b8" />
+          </TouchableOpacity>
+        )}
+      </LinearGradient>
 
-        {/* Form Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Medicine Requirements</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {lines.length} item{lines.length !== 1 ? "s" : ""}
-              </Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Input Section */}
+        <View style={styles.inputCard}>
+          <View style={styles.inputCardHeader}>
+            <View style={styles.inputCardTitleRow}>
+              <View style={styles.inputCardIcon}>
+                <Feather name="list" size={18} color="#06b6d4" />
+              </View>
+              <Text style={styles.inputCardTitle}>Medicine List</Text>
+            </View>
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{lines.length} item{lines.length !== 1 ? "s" : ""}</Text>
             </View>
           </View>
 
-          {/* Lines */}
-          <View style={styles.linesContainer}>
-            {lines.map((line, index) => {
-              const suggestions =
-                focusedLineId === line.id ? getSuggestions(line.name) : [];
-              return (
-                <View key={line.id} style={{ zIndex: focusedLineId === line.id ? 10 : 1 }}>
-                  <View style={styles.lineRow}>
-                    <View style={styles.lineNumberBox}>
-                      <Text style={styles.lineNumber}>{index + 1}</Text>
-                    </View>
+          {/* Medicine Lines */}
+          {lines.map((line, index) => {
+            const sugg = focusedLineId === line.id ? getSuggestions(line.name) : [];
+            return (
+              <View key={line.id} style={styles.lineWrapper}>
+                <View style={styles.lineRow}>
+                  <View style={styles.lineNum}>
+                    <Text style={styles.lineNumText}>{index + 1}</Text>
+                  </View>
 
+                  <View style={styles.nameInputWrapper}>
                     <TextInput
                       style={styles.nameInput}
                       value={line.name}
-                      onChangeText={(val) => updateLine(line.id, { name: val })}
+                      onChangeText={(v) => updateLine(line.id, { name: v })}
                       onFocus={() => setFocusedLineId(line.id)}
-                      onBlur={() => setTimeout(() => setFocusedLineId(null), 200)}
-                      placeholder="Enter medicine name..."
+                      onBlur={() => setTimeout(() => setFocusedLineId(null), 180)}
+                      placeholder="Medicine name..."
                       placeholderTextColor="#94a3b8"
                     />
-
-                    <View style={styles.qtyContainer}>
-                      <Text style={styles.qtyLabel}>Qty:</Text>
-                      <TextInput
-                        style={styles.qtyInput}
-                        value={line.qty.toString()}
-                        onChangeText={(val) => {
-                          const parsed = parseInt(val, 10);
-                          updateLine(line.id, { qty: isNaN(parsed) ? "" : parsed });
-                        }}
-                        keyboardType="numeric"
-                      />
-                    </View>
-
-                    {lines.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() => removeLine(line.id)}
-                        style={styles.removeBtn}
-                      >
-                        <Feather name="trash-2" size={18} color="#f97316" />
-                      </TouchableOpacity>
-                    )}
                   </View>
 
-                  {/* Suggestions Dropdown */}
-                  {suggestions.length > 0 && (
-                    <View style={styles.suggestionsDropdown}>
-                      {suggestions.map((s, idx) => (
-                        <TouchableOpacity
-                          key={idx}
-                          style={styles.suggestionItem}
-                          onPress={() => {
-                            updateLine(line.id, { name: s });
-                            setFocusedLineId(null);
-                          }}
-                        >
-                          <Feather name="search" size={14} color="#94a3b8" />
-                          <Text style={styles.suggestionText}>{s}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                  <View style={styles.qtyBox}>
+                    <TouchableOpacity
+                      onPress={() => updateLine(line.id, { qty: Math.max(1, (line.qty || 1) - 1) })}
+                      style={styles.qtyBtn}
+                    >
+                      <Feather name="minus" size={14} color="#475569" />
+                    </TouchableOpacity>
+                    <Text style={styles.qtyNum}>{line.qty}</Text>
+                    <TouchableOpacity
+                      onPress={() => updateLine(line.id, { qty: (line.qty || 1) + 1 })}
+                      style={styles.qtyBtn}
+                    >
+                      <Feather name="plus" size={14} color="#475569" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {lines.length > 1 && (
+                    <TouchableOpacity onPress={() => removeLine(line.id)} style={styles.removeBtn}>
+                      <Feather name="x" size={16} color="#ef4444" />
+                    </TouchableOpacity>
                   )}
                 </View>
-              );
-            })}
-          </View>
 
-          {/* Actions */}
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity onPress={addLine} style={styles.addBtn}>
-              <Feather name="plus" size={18} color="#64748b" />
-              <Text style={styles.addBtnText}>Add Item</Text>
-            </TouchableOpacity>
+                {/* Autocomplete */}
+                {sugg.length > 0 && (
+                  <View style={styles.suggBox}>
+                    {sugg.map((s, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={[styles.suggItem, i === sugg.length - 1 && { borderBottomWidth: 0 }]}
+                        onPress={() => { updateLine(line.id, { name: s }); setFocusedLineId(null); }}
+                      >
+                        <Feather name="clock" size={13} color="#94a3b8" />
+                        <Text style={styles.suggText}>{s}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
 
-            <TouchableOpacity 
-              onPress={createDemand} 
-              style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-              disabled={loading}
+          {/* Add Item */}
+          <TouchableOpacity onPress={addLine} style={styles.addBtn}>
+            <Feather name="plus-circle" size={18} color="#06b6d4" />
+            <Text style={styles.addBtnText}>Add Another Medicine</Text>
+          </TouchableOpacity>
+
+          {/* Error */}
+          {error && (
+            <View style={styles.errorRow}>
+              <Feather name="alert-circle" size={16} color="#ef4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {/* Submit */}
+          <TouchableOpacity
+            onPress={createDemand}
+            disabled={loading}
+            style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={["#06b6d4", "#0ea5e9"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.submitGradient}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" style={{marginRight: 8}} />
+                <ActivityIndicator color="#fff" />
               ) : (
-                <Feather name="check-circle" size={18} color="#fff" style={{marginRight: 8}} />
+                <>
+                  <Feather name="send" size={18} color="#fff" style={{ marginRight: 10 }} />
+                  <Text style={styles.submitText}>Create Demand</Text>
+                </>
               )}
-              <Text style={styles.submitBtnText}>
-                {loading ? "Processing..." : "Create Demand"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
-        {/* Error */}
-        {error ? (
-          <View style={styles.errorBox}>
-            <Feather name="alert-triangle" size={20} color="#f97316" />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        {/* Results */}
+        {/* ── RESULTS ── */}
         {result && (
-          <View style={styles.resultCard}>
-            <View style={styles.resultHeader}>
-              <Feather name="check-circle" size={28} color="#14b8a6" />
-              <View>
-                <Text style={styles.resultTitle}>Grouped Demand Results</Text>
-                {demandId && <Text style={styles.demandIdLabel}>Backend ID: {demandId}</Text>}
+          <View style={styles.resultsSection}>
+            {/* Summary bar */}
+            <View style={styles.summaryBar}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryNum}>{matchedEntries.length}</Text>
+                <Text style={styles.summaryLabel}>Stockists Found</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Text style={[styles.summaryNum, { color: "#06b6d4" }]}>
+                  {matchedEntries.reduce((acc, [, v]) => acc + (v?.items?.length || 0), 0)}
+                </Text>
+                <Text style={styles.summaryLabel}>Medicines Matched</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Text style={[styles.summaryNum, { color: "#f59e0b" }]}>
+                  {unmatchedEntry ? unmatchedEntry.length : 0}
+                </Text>
+                <Text style={styles.summaryLabel}>Not Found</Text>
               </View>
             </View>
 
-            {Object.keys(result).length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Feather name="package" size={48} color="#cbd5e1" style={{marginBottom: 16}} />
-                <Text style={styles.emptyText}>No results to display</Text>
+            {demandId && (
+              <View style={styles.savedBanner}>
+                <Feather name="check-circle" size={15} color="#059669" />
+                <Text style={styles.savedText}>Demand saved · Ref: {demandId.slice(-8).toUpperCase()}</Text>
               </View>
-            ) : (
-              <View style={styles.groupsContainer}>
-                {Object.entries(result).map(([group, items]) => {
-                  const isUnmatched = group === "unmatched";
-                  const phoneAvailable = !isUnmatched && stockists.find(s => s.name === group || s.title === group)?.phone;
-                  
-                  return (
-                    <View key={group} style={styles.groupCard}>
-                      <LinearGradient
-                        colors={isUnmatched ? ["#f59e0b", "#f97316"] : ["#14b8a6", "#06b6d4"]}
-                        style={styles.groupHeader}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <View style={styles.groupTitleRow}>
-                            {isUnmatched && <Feather name="alert-triangle" size={18} color="#fff" />}
-                            <Text style={styles.groupTitleText}>
-                              {isUnmatched ? "Unmatched / Not Found" : group}
-                            </Text>
-                          </View>
-                          <Text style={styles.groupItemCount}>
-                            {items.length} item{items.length !== 1 ? "s" : ""}
+            )}
+
+            {/* Matched stockist groups */}
+            {matchedEntries.map(([key, val]) => {
+              // Guard against stale/unexpected data formats
+              if (!val || !val.stockist || !Array.isArray(val.items)) return null;
+              const { stockist, items } = val;
+              const hasInventory = items.some((it) => it.matchType === "inventory");
+              return (
+                <View key={key} style={styles.stockistCard}>
+                  {/* Card Header */}
+                  <LinearGradient
+                    colors={hasInventory ? ["#0f766e", "#0e7490"] : ["#1d4ed8", "#4f46e5"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.cardHead}
+                  >
+                    <View style={styles.cardHeadLeft}>
+                      <View style={styles.stockistAvatar}>
+                        <Text style={styles.stockistAvatarText}>
+                          {(stockist.name || "S").charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text style={styles.cardStockistName}>{stockist.name || "Unnamed Stockist"}</Text>
+                        <View style={styles.statusTag}>
+                          <Feather
+                            name={hasInventory ? "check-circle" : "info"}
+                            size={11}
+                            color={hasInventory ? "#a7f3d0" : "#bfdbfe"}
+                          />
+                          <Text style={[styles.statusTagText, { color: hasInventory ? "#a7f3d0" : "#bfdbfe" }]}>
+                            {hasInventory ? "Confirmed Inventory" : "Contact to Verify"}
                           </Text>
                         </View>
-                        {phoneAvailable && (
-                          <TouchableOpacity onPress={() => handleCall(group)} style={styles.callBtn}>
-                            <Text style={styles.callBtnEmoji}>📞</Text>
-                          </TouchableOpacity>
-                        )}
-                      </LinearGradient>
-
-                      <View style={styles.groupItemsContainer}>
-                        {items.map((it, i) => (
-                          <View key={i} style={styles.groupItemRow}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.groupItemName}>{it.line.name}</Text>
-                              {it.medicine && it.medicine.name ? (
-                                <View style={styles.matchBadge}>
-                                  <Feather name="check-circle" size={12} color="#0d9488" />
-                                  <Text style={styles.matchText}>
-                                    Matches: {medicineDisplayName(it.medicine)}
-                                  </Text>
-                                </View>
-                              ) : (
-                                !isUnmatched && (
-                                  <Text style={styles.noMatchText}>No direct medicine match</Text>
-                                )
-                              )}
-                            </View>
-                            <View style={styles.groupItemQtyBadge}>
-                              <Text style={styles.groupItemQtyText}>Qty: {it.line.qty}</Text>
-                            </View>
-                          </View>
-                        ))}
                       </View>
                     </View>
-                  );
-                })}
+                    {stockist.phone && (
+                      <TouchableOpacity
+                        style={styles.callPill}
+                        onPress={() => Linking.openURL(`tel:${stockist.phone}`)}
+                      >
+                        <Feather name="phone-call" size={15} color="#0f172a" />
+                        <Text style={styles.callPillText}>Call</Text>
+                      </TouchableOpacity>
+                    )}
+                  </LinearGradient>
+
+                  {/* Phone Row */}
+                  {stockist.phone && (
+                    <View style={styles.phoneInfoRow}>
+                      <Feather name="phone" size={13} color="#64748b" />
+                      <Text style={styles.phoneInfoText}>{stockist.phone}</Text>
+                      {(stockist.address?.city || stockist.address?.state) && (
+                        <>
+                          <Text style={{ color: "#cbd5e1", marginHorizontal: 8 }}>•</Text>
+                          <Feather name="map-pin" size={13} color="#64748b" />
+                          <Text style={styles.phoneInfoText}>
+                            {[stockist.address?.city, stockist.address?.state].filter(Boolean).join(", ")}
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Medicine items */}
+                  {items.map((it, i) => (
+                    <View
+                      key={i}
+                      style={[styles.itemRow, i === 0 && { borderTopWidth: 1, borderTopColor: "#f1f5f9" }]}
+                    >
+                      <View style={styles.medDot} />
+                      <Text style={styles.itemName} numberOfLines={1}>{it.line.name}</Text>
+                      <View style={styles.qtyPill}>
+                        <Text style={styles.qtyPillText}>×{it.line.qty}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              );
+            })}
+
+            {/* Unmatched medicines */}
+            {unmatchedEntry && unmatchedEntry.length > 0 && (
+              <View style={styles.unmatchedCard}>
+                <View style={styles.unmatchedHead}>
+                  <View style={styles.unmatchedIconBox}>
+                    <Feather name="alert-triangle" size={18} color="#f59e0b" />
+                  </View>
+                  <View>
+                    <Text style={styles.unmatchedTitle}>No Stockist Available</Text>
+                    <Text style={styles.unmatchedSub}>{unmatchedEntry.length} medicine{unmatchedEntry.length !== 1 ? "s" : ""} could not be matched</Text>
+                  </View>
+                </View>
+                {unmatchedEntry.map((it, i) => (
+                  <View key={i} style={[styles.itemRow, styles.unmatchedItem]}>
+                    <Feather name="x-circle" size={14} color="#f59e0b" />
+                    <Text style={styles.unmatchedItemText} numberOfLines={1}>{it.line.name}</Text>
+                    <View style={[styles.qtyPill, { backgroundColor: "#fef3c7" }]}>
+                      <Text style={[styles.qtyPillText, { color: "#92400e" }]}>×{it.line.qty}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             )}
           </View>
         )}
-
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#f8fafc" },
-  scrollContainer: { padding: 16, paddingBottom: 40, alignItems: "center" },
-  header: { alignItems: "center", marginBottom: 32, marginTop: 16, width: "100%", maxWidth: 600 },
-  logoContainer: { width: 80, height: 80, backgroundColor: "#ccfbf1", borderRadius: 40, justifyContent: "center", alignItems: "center", marginBottom: 16 },
-  headerDesc: { fontSize: 16, color: "#64748b", textAlign: "center", paddingHorizontal: 20 },
-  
-  card: { backgroundColor: "#fff", borderRadius: 24, padding: 24, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 15, elevation: 4, width: "100%", maxWidth: 600, marginBottom: 24 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-  cardTitle: { fontSize: 20, fontWeight: "700", color: "#1e293b" },
-  badge: { backgroundColor: "#14b8a6", paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
-  badgeText: { color: "#fff", fontWeight: "600", fontSize: 13 },
-  
-  linesContainer: { gap: 12, marginBottom: 24 },
-  lineRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 16, padding: 12, gap: 12 },
-  lineNumberBox: { width: 32, height: 32, backgroundColor: "#e2e8f0", borderRadius: 16, justifyContent: "center", alignItems: "center" },
-  lineNumber: { fontSize: 14, fontWeight: "700", color: "#475569" },
-  nameInput: { flex: 1, fontSize: 15, color: "#1e293b", padding: 0 },
-  
-  suggestionsDropdown: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    marginTop: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 5,
-    position: "absolute",
-    top: 60,
-    left: 44,
-    right: 100,
-    zIndex: 999,
-  },
-  suggestionItem: {
+  safe: { flex: 1, backgroundColor: "#f1f5f9" },
+
+  /* Top Bar */
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
+    paddingVertical: 14,
     gap: 12,
   },
-  suggestionText: { fontSize: 14, color: "#334155", fontWeight: "500" },
-  
-  qtyContainer: { flexDirection: "row", alignItems: "center", gap: 8 },
-  qtyLabel: { fontSize: 13, fontWeight: "600", color: "#64748b" },
-  qtyInput: { width: 60, height: 40, backgroundColor: "#fff", borderWidth: 1, borderColor: "#cbd5e1", borderRadius: 10, textAlign: "center", fontSize: 15, color: "#1e293b" },
-  removeBtn: { padding: 8, backgroundColor: "#ffedd5", borderRadius: 20, justifyContent: "center", alignItems: "center" },
-  
-  actionsContainer: { gap: 12 },
-  addBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderWidth: 2, borderColor: "#cbd5e1", borderStyle: "dashed", borderRadius: 12, backgroundColor: "#f8fafc" },
-  addBtnText: { fontSize: 15, fontWeight: "600", color: "#64748b" },
-  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, backgroundColor: "#14b8a6", borderRadius: 12 },
-  submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
-  
-  errorBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#ffedd5", borderLeftWidth: 4, borderLeftColor: "#f97316", padding: 16, borderRadius: 8, width: "100%", maxWidth: 600, marginBottom: 24, gap: 12 },
-  errorText: { color: "#9a3412", fontWeight: "600", fontSize: 15 },
-  
-  resultCard: { backgroundColor: "#fff", borderRadius: 24, padding: 24, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 15, elevation: 4, width: "100%", maxWidth: 600 },
-  resultHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 24 },
-  resultTitle: { fontSize: 20, fontWeight: "700", color: "#1e293b" },
-  demandIdLabel: { fontSize: 12, color: "#64748b", fontWeight: "600" },
-  emptyContainer: { alignItems: "center", paddingVertical: 40 },
-  emptyText: { fontSize: 16, color: "#64748b" },
-  
-  groupsContainer: { gap: 20 },
-  groupCard: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 16, overflow: "hidden" },
-  groupHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16 },
-  groupTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  groupTitleText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-  groupItemCount: { fontSize: 13, color: "rgba(255,255,255,0.9)" },
-  callBtn: { backgroundColor: "#fff", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
-  callBtnEmoji: { fontSize: 16 },
-  
-  groupItemsContainer: { backgroundColor: "#fff" },
-  groupItemRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, borderTopWidth: 1, borderTopColor: "#f1f5f9" },
-  groupItemName: { fontSize: 15, fontWeight: "600", color: "#0f172a", marginBottom: 4 },
-  matchBadge: { flexDirection: "row", alignItems: "center", gap: 6 },
-  matchText: { fontSize: 13, color: "#0d9488", fontWeight: "500" },
-  noMatchText: { fontSize: 13, color: "#64748b" },
-  groupItemQtyBadge: { backgroundColor: "#dbeafe", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  groupItemQtyText: { fontSize: 13, fontWeight: "700", color: "#1e40af" },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    justifyContent: "center", alignItems: "center",
+  },
+  topBarTitle: { flex: 1 },
+  topBarH: { fontSize: 17, fontWeight: "800", color: "#f1f5f9" },
+  topBarSub: { fontSize: 12, color: "#64748b", marginTop: 1 },
+  clearBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    justifyContent: "center", alignItems: "center",
+  },
+
+  scroll: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 60 },
+
+  /* Input Card */
+  inputCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+    marginBottom: 20,
+  },
+  inputCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  inputCardTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  inputCardIcon: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "#ecfeff",
+    justifyContent: "center", alignItems: "center",
+  },
+  inputCardTitle: { fontSize: 16, fontWeight: "800", color: "#0f172a" },
+  countBadge: {
+    backgroundColor: "#06b6d4",
+    paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 20,
+  },
+  countBadgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+
+  /* Line Row */
+  lineWrapper: { marginBottom: 12 },
+  lineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#f8fafc",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  lineNum: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: "#e2e8f0",
+    justifyContent: "center", alignItems: "center",
+  },
+  lineNumText: { fontSize: 13, fontWeight: "700", color: "#475569" },
+  nameInputWrapper: { flex: 1 },
+  nameInput: {
+    fontSize: 15,
+    color: "#0f172a",
+    padding: 0,
+    ...Platform.select({ web: { outlineStyle: "none" } }),
+  },
+  qtyBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    overflow: "hidden",
+  },
+  qtyBtn: { width: 30, height: 34, justifyContent: "center", alignItems: "center" },
+  qtyNum: { width: 30, textAlign: "center", fontSize: 14, fontWeight: "700", color: "#0f172a" },
+  removeBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: "#fef2f2",
+    justifyContent: "center", alignItems: "center",
+  },
+
+  /* Suggestions */
+  suggBox: {
+    backgroundColor: "#fff",
+    borderWidth: 1, borderColor: "#e2e8f0",
+    borderRadius: 12,
+    marginTop: 4,
+    overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8,
+    elevation: 3,
+    zIndex: 99,
+  },
+  suggItem: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 14, paddingVertical: 11,
+    borderBottomWidth: 1, borderBottomColor: "#f1f5f9",
+  },
+  suggText: { fontSize: 14, color: "#334155", fontWeight: "500" },
+
+  /* Add btn */
+  addBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 14,
+    borderWidth: 2, borderColor: "#e0f2fe", borderStyle: "dashed",
+    borderRadius: 12, backgroundColor: "#f0fdff",
+    marginBottom: 16,
+  },
+  addBtnText: { color: "#06b6d4", fontWeight: "700", fontSize: 14 },
+
+  /* Error */
+  errorRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#fef2f2", padding: 12, borderRadius: 10, marginBottom: 12,
+  },
+  errorText: { color: "#b91c1c", fontSize: 13, fontWeight: "500", flex: 1 },
+
+  /* Submit */
+  submitBtn: { borderRadius: 14, overflow: "hidden" },
+  submitGradient: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 16,
+  },
+  submitText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+
+  /* Results */
+  resultsSection: { gap: 14 },
+
+  summaryBar: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    alignItems: "center",
+  },
+  summaryItem: { flex: 1, alignItems: "center" },
+  summaryNum: { fontSize: 22, fontWeight: "800", color: "#0f172a" },
+  summaryLabel: { fontSize: 11, color: "#94a3b8", fontWeight: "600", marginTop: 2 },
+  summaryDivider: { width: 1, height: 36, backgroundColor: "#f1f5f9" },
+
+  savedBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1, borderColor: "#bbf7d0",
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  savedText: { fontSize: 13, color: "#15803d", fontWeight: "600" },
+
+  /* Stockist Card */
+  stockistCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
+    borderWidth: 1, borderColor: "#f1f5f9",
+  },
+  cardHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  cardHeadLeft: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
+  stockistAvatar: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center", alignItems: "center",
+  },
+  stockistAvatarText: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  cardStockistName: { fontSize: 15, fontWeight: "800", color: "#fff", marginBottom: 3 },
+  statusTag: { flexDirection: "row", alignItems: "center", gap: 5 },
+  statusTagText: { fontSize: 11, fontWeight: "600" },
+  callPill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "#fff",
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
+  },
+  callPillText: { fontSize: 13, fontWeight: "800", color: "#0f172a" },
+
+  phoneInfoRow: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: "#f8fafc",
+    borderBottomWidth: 1, borderBottomColor: "#f1f5f9",
+  },
+  phoneInfoText: { fontSize: 13, color: "#475569", fontWeight: "500" },
+
+  /* Item Row */
+  itemRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: "#f8fafc",
+    gap: 10,
+  },
+  medDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#06b6d4" },
+  itemName: { flex: 1, fontSize: 14, fontWeight: "600", color: "#1e293b" },
+  qtyPill: {
+    backgroundColor: "#e0f2fe",
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20,
+  },
+  qtyPillText: { fontSize: 12, fontWeight: "700", color: "#0369a1" },
+
+  /* Unmatched */
+  unmatchedCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20, overflow: "hidden",
+    borderWidth: 1, borderColor: "#fef3c7",
+    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+  },
+  unmatchedHead: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: "#fffbeb",
+    borderBottomWidth: 1, borderBottomColor: "#fef3c7",
+  },
+  unmatchedIconBox: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: "#fef3c7",
+    justifyContent: "center", alignItems: "center",
+  },
+  unmatchedTitle: { fontSize: 14, fontWeight: "800", color: "#92400e" },
+  unmatchedSub: { fontSize: 12, color: "#b45309", marginTop: 2 },
+  unmatchedItem: { backgroundColor: "#fffbeb" },
+  unmatchedItemText: { flex: 1, fontSize: 14, fontWeight: "600", color: "#78350f" },
 });

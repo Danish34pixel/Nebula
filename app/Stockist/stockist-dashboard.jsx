@@ -666,14 +666,14 @@ export default function StockistDashboard() {
                   onChangeText={setQuery}
                 />
               </View>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 onPress={() => router.push("/Staff/Createstaff")}
                 style={styles.addStaffBtn}
               >
                 <LinearGradient colors={["#8b5cf6", "#d946ef"]} style={styles.addStaffGradient}>
                   <Feather name="user-plus" size={20} color="#fff" />
                 </LinearGradient>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
 
             <View style={styles.tabsContainer}>

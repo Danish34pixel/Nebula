@@ -33,35 +33,26 @@ export default function CreateStaff() {
     currentWorkingPlace: "",
   });
 
-  const [user, setUser] = useState(null);
-  const [profileLoading, setProfileLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
   const [aadhar, setAadhar] = useState(null);
   const [isFresher, setIsFresher] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [stockists, setStockists] = useState([]);
+  const [stockistQuery, setStockistQuery] = useState("");
+  const [selectedStockist, setSelectedStockist] = useState(null);
+
   const loadData = useCallback(async () => {
     try {
-      const token = await secureStorage.getItem("token");
-
-      if (!token) {
-        setProfileLoading(false);
-        return;
-      }
-
-      const res = await fetch(apiUrl("/api/auth/me"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(apiUrl("/api/stockist"));
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok && data?.user) {
-        setUser(data.user);
+      if (res.ok && data?.data) {
+        setStockists(data.data);
       }
     } catch (e) {
-      console.error("Session verification failed", e);
-    } finally {
-      setProfileLoading(false);
+      console.error("Failed to fetch stockists", e);
     }
   }, []);
 
@@ -107,6 +98,10 @@ export default function CreateStaff() {
       setErrorMsg("Please enter your current working place or select 'Fresher'.");
       return;
     }
+    if (!selectedStockist) {
+      setErrorMsg("Please select the Stockist to join.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -120,6 +115,7 @@ export default function CreateStaff() {
       if (!isFresher) fd.append("currentWorkingPlace", form.currentWorkingPlace);
 
       if (form.password) fd.append("password", form.password);
+      fd.append("stockistId", selectedStockist._id);
 
       const createFormDataImage = async (asset, fieldName) => {
         const uri = asset.uri;
@@ -140,9 +136,8 @@ export default function CreateStaff() {
       fd.append("image", await createFormDataImage(image, "image"));
       fd.append("aadharCard", await createFormDataImage(aadhar, "aadharCard"));
 
-      const isStaffManager = user && (user.role === "stockist" || user.role === "admin");
-      const endpoint = isStaffManager ? "/api/staff" : "/api/auth/staff-signup";
-      const headers = isStaffManager ? { Authorization: `Bearer ${token}` } : {};
+      const endpoint = "/api/auth/staff-signup";
+      const headers = {};
 
       const res = await fetch(apiUrl(endpoint), {
         method: "POST",
@@ -153,12 +148,8 @@ export default function CreateStaff() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Failed to create staff");
 
-      Alert.alert("Success", user ? "Staff member created successfully!" : "Registration successful! Please login.");
-      if (user) {
-        router.replace("/Stockist/stockist-dashboard");
-      } else {
-        router.replace("/Staff/staff-login");
-      }
+      Alert.alert("Success", "Registration successful! Request sent to the stockist. Please wait for approval before logging in.");
+      router.replace("/Staff/staff-login");
     } catch (err) {
       setErrorMsg(String(err));
       Alert.alert("Submission Failed", String(err));
@@ -166,17 +157,6 @@ export default function CreateStaff() {
       setLoading(false);
     }
   };
-
-  if (profileLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#c084fc" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  const isPublicSignup = !user;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -186,13 +166,50 @@ export default function CreateStaff() {
             <LinearGradient colors={["#c084fc", "#9333ea"]} style={styles.iconBox}>
               <Feather name="user-plus" size={32} color="#fff" />
             </LinearGradient>
-            <Text style={styles.title}>{isPublicSignup ? "Staff Registration" : "Create Staff Member"}</Text>
+            <Text style={styles.title}>Staff Registration</Text>
             <Text style={styles.subtitle}>
-              {isPublicSignup ? "Enroll as a staff member for your stockist." : "Add a new team member."}
+              Enroll as a staff member for your stockist. Wait for their approval after registering.
             </Text>
           </View>
 
           <View style={styles.formCard}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Select Stockist to Join</Text>
+              <View style={styles.inputContainer}>
+                <Feather name="search" size={20} color="#94a3b8" style={{ marginRight: 12 }} />
+                <TextInput
+                  style={styles.input}
+                  placeholderTextColor="#94a3b8"
+                  placeholder="Type stockist name..."
+                  value={stockistQuery}
+                  onChangeText={(t) => {
+                    setStockistQuery(t);
+                    if (selectedStockist && selectedStockist.name !== t) {
+                      setSelectedStockist(null);
+                    }
+                  }}
+                />
+              </View>
+              {stockistQuery && !selectedStockist && stockists.length > 0 && (
+                <View style={styles.dropdown}>
+                  {stockists
+                    .filter((s) => s.name?.toLowerCase().includes(stockistQuery.toLowerCase()))
+                    .slice(0, 5)
+                    .map((s) => (
+                      <TouchableOpacity
+                        key={s._id}
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setSelectedStockist(s);
+                          setStockistQuery(s.name);
+                        }}
+                      >
+                        <Text style={styles.dropdownText}>{s.name} - {s.address?.city}</Text>
+                      </TouchableOpacity>
+                    ))}
+                </View>
+              )}
+            </View>
             <View style={styles.fresherToggleContainer}>
               <Text style={styles.fresherToggleLabel}>Are you a Fresher?</Text>
               <TouchableOpacity
@@ -282,7 +299,7 @@ export default function CreateStaff() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Text style={styles.submitText}>{isPublicSignup ? "Complete Registration" : "Create Staff Member"}</Text>
+                    <Text style={styles.submitText}>Complete Registration</Text>
                     <Feather name="arrow-right" size={20} color="#fff" style={{ marginLeft: 8 }} />
                   </>
                 )}
@@ -352,4 +369,7 @@ const styles = StyleSheet.create({
   toggleBtnActive: { backgroundColor: "#14b8a6" },
   toggleIndicator: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   toggleIndicatorActive: { transform: [{ translateX: 20 }] },
+  dropdown: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 12, marginTop: 4, maxHeight: 150 },
+  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" },
+  dropdownText: { fontSize: 14, color: "#1e293b" },
 });

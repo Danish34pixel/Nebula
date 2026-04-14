@@ -122,48 +122,43 @@ export default function Demand() {
 
     try {
       const medicalOwner = await loadOwnerDetails();
+      const token = await AsyncStorage.getItem("accessToken").catch(() => null);
 
-      const requestedMedicines = payloadItems.map((item) => {
-        const matched = resolveMedicineFromCatalog(medicines, item.name);
-        return {
-          inputName: item.name,
-          medicineName: matched?.name || item.name,
-          medicineId: matched?._id || null,
-          inCatalog: Boolean(matched),
-        };
+      const res = await fetch(apiUrl("/api/demand/create"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token ? `Bearer ${token}` : "",
+        },
+        body: JSON.stringify({
+          items: payloadItems,
+          purchaserId: medicalOwner.id,
+          purchaserName: medicalOwner.name,
+        }),
       });
 
-      const medicineStockists = await Promise.all(
-        requestedMedicines.map(async (item) => {
-          const url = apiUrl(
-            `/api/stockist/by-medicine?name=${encodeURIComponent(item.medicineName)}&strict=true`
-          );
-          const res = await fetch(url);
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data?.message || "Failed to fetch stockists");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || "Failed to create demand");
 
-          const stockists = Array.isArray(data?.data)
-            ? data.data.map((s) => ({
-                id: s?._id || null,
-                name: s?.name || s?.contactPerson || "Unnamed Stockist",
-                phone: s?.phone || s?.cntxNumber || s?.contactNo || "No contact listed",
-              }))
-            : [];
-
-          return {
-            medicineName: item.medicineName,
-            requestedAs: item.inputName,
-            stockists,
-          };
-        })
-      );
-
+      // The backend now returns 'inventory' which is Medicine -> Stockists mapping
       setSessionDemand({
         generatedAt: new Date().toISOString(),
         medicalOwner,
-        requestedMedicines,
-        medicineStockists,
+        requestedMedicines: data.data.inventory.map(inv => ({
+          inputName: inv.requestedAs,
+          medicineName: inv.medicineName,
+          medicineId: null, // IDs are in stockists
+          inCatalog: true, // Backend did the check
+        })),
+        medicineStockists: data.data.inventory.map(inv => ({
+          medicineName: inv.medicineName,
+          requestedAs: inv.requestedAs,
+          stockists: inv.stockists,
+        })),
+        originalDemandId: data.data.originalDemandId,
       });
+
+      // Show success alert or similar if needed
     } catch (e) {
       setError(e?.message || "Something went wrong while creating demand.");
     } finally {

@@ -64,6 +64,61 @@ const nameMatchesStockistItems = (name, s) => {
   });
 };
 
+const extractIdCandidates = (value) => {
+  if (value == null) return [];
+  if (typeof value === "string" || typeof value === "number") return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(extractIdCandidates);
+  if (typeof value === "object") {
+    const direct = [];
+    const keys = ["_id", "id", "stockist", "stockistId", "seller", "sellerId"];
+    for (const k of keys) {
+      if (value[k] != null) direct.push(...extractIdCandidates(value[k]));
+    }
+    return direct;
+  }
+  return [];
+};
+
+const idEquals = (a, b) => {
+  const left = extractIdCandidates(a);
+  const right = new Set(extractIdCandidates(b));
+  return left.some((v) => right.has(v));
+};
+
+const companyDisplayName = (company) =>
+  String(company?.name || company?.shortName || "").trim();
+
+const companyLinksStockist = (company, stockistId) => {
+  if (!company || !stockistId) return false;
+  const refs = Array.isArray(company.stockists) ? company.stockists : [];
+  return refs.some((ref) => idEquals(ref, stockistId));
+};
+
+const deepScanCompanyReferences = (obj, sid) => {
+  if (!obj) return false;
+  const target = String(sid);
+  const seen = new Set();
+  const walk = (value) => {
+    if (value == null) return false;
+    if (seen.has(value)) return false;
+    if (typeof value === "string" || typeof value === "number") return String(value) === target;
+    if (Array.isArray(value)) {
+      for (const item of value) if (walk(item)) return true;
+      return false;
+    }
+    if (typeof value === "object") {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      for (const k of Object.keys(value)) {
+        if (walk(value[k])) return true;
+      }
+      return false;
+    }
+    return false;
+  };
+  return walk(obj);
+};
+
 const { width, height } = Dimensions.get("window");
 
 export default function Nav({ navigation: navProp }) {
@@ -144,7 +199,7 @@ export default function Nav({ navigation: navProp }) {
 
             const companyIds = new Set(
               medicines
-                .filter((m) => Array.isArray(m.stockists) ? m.stockists.some((st) => String(st.stockist || st).includes(String(s._id))) : false)
+                .filter((m) => (Array.isArray(m.stockists) ? m.stockists.some((st) => idEquals(st, s._id)) : false))
                 .map((m) => m.company && (m.company._id || m.company) ? String(m.company._id || m.company) : null)
                 .filter(Boolean)
             );
@@ -172,21 +227,35 @@ export default function Nav({ navigation: navProp }) {
               if (byCompany.length > 0) medsForStockist = [...new Set([...(medsForStockist || []), ...byCompany])];
             }
 
+            const directCompanies = companies
+              .filter((c) => companyLinksStockist(c, s._id))
+              .map((c) => companyDisplayName(c))
+              .filter(Boolean);
+
             let companiesForStockist = companies
               .filter((c) => companyIds.has(String(c._id)))
-              .map((c) => (c.name ? c.name : c.shortName || ""))
+              .map((c) => companyDisplayName(c))
               .filter(Boolean);
 
             const explicitItems = (Array.isArray(s.companies) ? s.companies : [])
               .map((c) => {
                 if (typeof c === "string") {
-                  const found = companies.find((co) => String(co._id) === c || co.id === c);
-                  return found ? found.name || found.shortName || c : c;
+                  const found = companies.find((co) => idEquals(co._id || co.id, c));
+                  return found ? companyDisplayName(found) || c : c;
                 }
-                if (c && (c.name || c.shortName)) return c.name || c.shortName;
+                if (c && (c.name || c.shortName)) return companyDisplayName(c);
                 return "";
               })
               .filter(Boolean);
+
+            const reverseCompanies = companies
+              .filter((c) => deepScanCompanyReferences(c, s._id))
+              .map((c) => companyDisplayName(c))
+              .filter(Boolean);
+
+            companiesForStockist = Array.from(
+              new Set([...directCompanies, ...companiesForStockist, ...reverseCompanies])
+            );
 
             const items = Array.from(new Set([...(explicitItems || []), ...(companiesForStockist || [])]));
 
@@ -210,31 +279,6 @@ export default function Nav({ navigation: navProp }) {
               meds = (medsForStockist || []).slice();
             }
 
-            const deepScanCompanyReferences = (obj, sid) => {
-              if (!obj) return false;
-              const target = String(sid);
-              const seen = new Set();
-              const walk = (value) => {
-                if (value == null) return false;
-                if (seen.has(value)) return false;
-                if (typeof value === "string" || typeof value === "number") return String(value) === target;
-                if (Array.isArray(value)) { for (const item of value) if (walk(item)) return true; return false; }
-                if (typeof value === "object") {
-                  if (seen.has(value)) return false;
-                  seen.add(value);
-                  for (const k of Object.keys(value)) { if (walk(value[k])) return true; }
-                  return false;
-                }
-                return false;
-              };
-              return walk(obj);
-            };
-
-            const reverseCompanies = companies
-              .filter((c) => deepScanCompanyReferences(c, s._id))
-              .map((c) => (c.name ? c.name : c.shortName || ""))
-              .filter(Boolean);
-              
             return {
               _id: s._id,
               title: s.name,
@@ -303,14 +347,19 @@ export default function Nav({ navigation: navProp }) {
 
         const companyIds = new Set(
           medicines
-            .filter((m) => Array.isArray(m.stockists) ? m.stockists.some((st) => String(st.stockist || st).includes(String(s._id))) : false)
+            .filter((m) => (Array.isArray(m.stockists) ? m.stockists.some((st) => idEquals(st, s._id)) : false))
             .map((m) => (m.company && (m.company._id || m.company) ? String(m.company._id || m.company) : null))
             .filter(Boolean)
         );
 
+        const directCompanies = companies
+          .filter((c) => companyLinksStockist(c, s._id))
+          .map((c) => companyDisplayName(c))
+          .filter(Boolean);
+
         let companiesForStockist = companies
           .filter((c) => companyIds.has(String(c._id)))
-          .map((c) => (c.name ? c.name : c.shortName || ""))
+          .map((c) => companyDisplayName(c))
           .filter(Boolean);
 
         const companyIdsFromStockist = new Set(
@@ -339,13 +388,22 @@ export default function Nav({ navigation: navProp }) {
         const explicitItems = (Array.isArray(s.companies) ? s.companies : [])
           .map((c) => {
             if (typeof c === "string") {
-              const found = companies.find((co) => String(co._id) === c || co.id === c);
-              return found ? found.name || found.shortName || c : c;
+              const found = companies.find((co) => idEquals(co._id || co.id, c));
+              return found ? companyDisplayName(found) || c : c;
             }
-            if (c && (c.name || c.shortName)) return c.name || c.shortName;
+            if (c && (c.name || c.shortName)) return companyDisplayName(c);
             return "";
           })
           .filter(Boolean);
+
+        const reverseCompanies = companies
+          .filter((c) => deepScanCompanyReferences(c, s._id))
+          .map((c) => companyDisplayName(c))
+          .filter(Boolean);
+
+        companiesForStockist = Array.from(
+          new Set([...directCompanies, ...companiesForStockist, ...reverseCompanies])
+        );
 
         const items = Array.from(new Set([...(explicitItems || []), ...(companiesForStockist || [])]));
 

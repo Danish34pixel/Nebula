@@ -68,6 +68,36 @@ const nameMatchesStockistItems = (name, s) => {
   });
 };
 
+const extractIdCandidates = (value) => {
+  if (value == null) return [];
+  if (typeof value === "string" || typeof value === "number") return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(extractIdCandidates);
+  if (typeof value === "object") {
+    const direct = [];
+    const keys = ["_id", "id", "stockist", "stockistId", "seller", "sellerId"];
+    for (const k of keys) {
+      if (value[k] != null) direct.push(...extractIdCandidates(value[k]));
+    }
+    return direct;
+  }
+  return [];
+};
+
+const idEquals = (a, b) => {
+  const left = extractIdCandidates(a);
+  const right = new Set(extractIdCandidates(b));
+  return left.some((v) => right.has(v));
+};
+
+const companyDisplayName = (company) =>
+  String(company?.name || company?.shortName || "").trim();
+
+const companyLinksStockist = (company, stockistId) => {
+  if (!company || !stockistId) return false;
+  const refs = Array.isArray(company.stockists) ? company.stockists : [];
+  return refs.some((ref) => idEquals(ref, stockistId));
+};
+
 const { width } = Dimensions.get("window");
 
 const Screen = ({ navigation: navProp }) => {
@@ -147,16 +177,21 @@ const Screen = ({ navigation: navProp }) => {
               medicines
                 .filter((m) =>
                   Array.isArray(m.stockists)
-                    ? m.stockists.some((st) => String(st.stockist || st).includes(String(s._id)))
+                    ? m.stockists.some((st) => idEquals(st, s._id))
                     : false
                 )
                 .map((m) => (m.company && (m.company._id || m.company) ? String(m.company._id || m.company) : null))
                 .filter(Boolean)
             );
 
+            const directCompanies = companies
+              .filter((c) => companyLinksStockist(c, s._id))
+              .map((c) => companyDisplayName(c))
+              .filter(Boolean);
+
             let companiesForStockist = companies
               .filter((c) => companyIds.has(String(c._id)))
-              .map((c) => (c.name ? c.name : c.shortName || ""))
+              .map((c) => companyDisplayName(c))
               .filter(Boolean);
 
             const deepScanCompanyReferences = (obj, sid) => {
@@ -184,10 +219,12 @@ const Screen = ({ navigation: navProp }) => {
 
             const reverseCompanies = companies
               .filter((c) => deepScanCompanyReferences(c, s._id))
-              .map((c) => (c.name ? c.name : c.shortName || ""))
+              .map((c) => companyDisplayName(c))
               .filter(Boolean);
 
-            companiesForStockist = Array.from(new Set([...companiesForStockist, ...reverseCompanies]));
+            companiesForStockist = Array.from(
+              new Set([...directCompanies, ...companiesForStockist, ...reverseCompanies])
+            );
 
             const companyIdsFromStockist = new Set(
               (s.companies || s.items || [])
@@ -216,10 +253,10 @@ const Screen = ({ navigation: navProp }) => {
             const explicitItems = (Array.isArray(s.companies) ? s.companies : [])
               .map((c) => {
                 if (typeof c === "string") {
-                  const found = companies.find((co) => String(co._id) === c || co.id === c);
-                  return found ? found.name || found.shortName || c : c;
+                  const found = companies.find((co) => idEquals(co._id || co.id, c));
+                  return found ? companyDisplayName(found) || c : c;
                 }
-                if (c && (c.name || c.shortName)) return c.name || c.shortName;
+                if (c && (c.name || c.shortName)) return companyDisplayName(c);
                 return "";
               })
               .filter(Boolean);
@@ -519,15 +556,22 @@ const Screen = ({ navigation: navProp }) => {
 
           <View style={styles.detailSectionBox}>
             <Text style={styles.detailSectionTitle}>Partner Companies</Text>
-            {currentSection.items.map((item, idxx) => (
-              <View key={idxx} style={styles.partnerRow}>
-                <View style={styles.partnerIconBox}>
-                  <Text style={styles.partnerIcon}>{getHealthIcon(item)}</Text>
+            {Array.isArray(currentSection.items) && currentSection.items.length > 0 ? (
+              currentSection.items.map((item, idxx) => (
+                <View key={idxx} style={styles.partnerRow}>
+                  <View style={styles.partnerIconBox}>
+                    <Text style={styles.partnerIcon}>{getHealthIcon(item)}</Text>
+                  </View>
+                  <Text style={styles.partnerName}>{item}</Text>
+                  <Feather name="chevron-right" size={20} color="#cbd5e1" />
                 </View>
-                <Text style={styles.partnerName}>{item}</Text>
-                <Feather name="chevron-right" size={20} color="#cbd5e1" />
+              ))
+            ) : (
+              <View style={styles.emptyPartnerRow}>
+                <Feather name="info" size={16} color="#64748b" />
+                <Text style={styles.emptyPartnerText}>No partner companies linked for this stockist yet.</Text>
               </View>
-            ))}
+            )}
           </View>
 
           {currentSection.Medicines && currentSection.Medicines.length > 0 && (
@@ -734,6 +778,8 @@ const styles = StyleSheet.create({
   partnerIconBox: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#cffafe', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   partnerIcon: { fontSize: 18 },
   partnerName: { flex: 1, fontSize: 15, fontWeight: '600', color: '#334155' },
+  emptyPartnerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f8fafc', padding: 12, borderRadius: 12 },
+  emptyPartnerText: { color: '#64748b', fontSize: 13, fontWeight: '500' },
   medHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   medCountBadge: { backgroundColor: '#cffafe', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   medCountBadgeText: { color: '#0e7490', fontSize: 11, fontWeight: 'bold' },

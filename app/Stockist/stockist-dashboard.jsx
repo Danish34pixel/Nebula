@@ -150,7 +150,7 @@ const MedicineCard = ({ medicine }) => (
     </LinearGradient>
   </View>
 );
-const StaffCard = ({ staff, onPreview }) => {
+const StaffCard = ({ staff, onPreview, onApprove }) => {
   const qrUrl = useMemo(() => {
     const profileUrl = `https://meditrap.com/Staff/${staff._id}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
@@ -184,8 +184,16 @@ const StaffCard = ({ staff, onPreview }) => {
         </View>
 
         <View style={styles.qrSectionSmall}>
-          <Image source={{ uri: qrUrl }} style={styles.qrImageSmall} />
-          <Feather name="maximize-2" size={10} color="#cbd5e1" style={styles.zoomIcon} />
+          {staff.approved === false ? (
+            <TouchableOpacity onPress={() => onApprove(staff._id)} style={styles.approveBtnSmall}>
+              <Text style={styles.approveBtnSmallText}>Approve</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <Image source={{ uri: qrUrl }} style={styles.qrImageSmall} />
+              <Feather name="maximize-2" size={10} color="#cbd5e1" style={styles.zoomIcon} />
+            </>
+          )}
         </View>
       </LinearGradient>
     </TouchableOpacity>
@@ -579,6 +587,25 @@ export default function StockistDashboard() {
     )}`;
   }, [stockist]);
 
+  const handleApproveStaff = async (staffId) => {
+    try {
+      const token = await secureStorage.getItem("token");
+      const res = await fetch(apiUrl(`/api/staff/${staffId}/approve`), {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        Alert.alert("Success", "Staff approved successfully");
+        loadStockistData();
+      } else {
+        Alert.alert("Error", data.message || "Failed to approve staff");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Action failed");
+    }
+  };
+
   const TAB_CONFIG = [
     { key: "medicines", label: "Medicines", icon: "package", color: "#3b82f6", bg: "#eff6ff" },
     { key: "companies", label: "Companies", icon: "briefcase", color: "#f97316", bg: "#fff7ed" },
@@ -701,7 +728,7 @@ export default function StockistDashboard() {
                 filteredData[activeTab].map((item, i) => {
                   if (activeTab === "companies") return <CompanyCard key={i} company={item} />;
                   if (activeTab === "medicines") return <MedicineCard key={i} medicine={item} />;
-                  if (activeTab === "staff") return <StaffCard key={i} staff={item} onPreview={setSelectedStaff} />;
+                  if (activeTab === "staff") return <StaffCard key={i} staff={item} onPreview={setSelectedStaff} onApprove={handleApproveStaff} />;
                   if (activeTab === "demands") return <DemandCard key={i} demand={item} />;
                   return null;
                 })
@@ -801,6 +828,17 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     padding: 20,
     ...shadowStyles,
+  },
+  approveBtnSmall: {
+    backgroundColor: "#10b981",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  approveBtnSmallText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
   },
   actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 20 },
   searchContainer: {

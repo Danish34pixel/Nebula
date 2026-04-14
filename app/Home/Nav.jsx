@@ -713,7 +713,7 @@ export default function Nav({ navigation: navProp }) {
                 <Feather name="x" size={24} color="#1f2937" />
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsMenuOpen(false); navigation.navigate("/"); }}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setIsMenuOpen(false); navigation.navigate("/Home"); }}>
               <Text style={styles.menuItemIcon}>🏠</Text>
               <Text style={styles.menuItemText}>Home</Text>
             </TouchableOpacity>
@@ -1020,5 +1020,6 @@ const styles = StyleSheet.create({
   filterCloseBtn: { marginTop: 16, padding: 16, backgroundColor: "#e5e7eb", borderRadius: 16, alignItems: "center" },
   filterCloseText: { fontSize: 16, fontWeight: "bold", color: "#374151" },
 });
+
 
 

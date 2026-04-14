@@ -154,7 +154,7 @@ export default function Login() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <TouchableOpacity onPress={() => router.replace("/")} style={styles.backBtn}>
               <Feather name="arrow-left" size={24} color="#1e293b" />
             </TouchableOpacity>
           </View>

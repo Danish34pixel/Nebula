@@ -525,7 +525,7 @@ export default function StockistDashboard() {
 
   const handleLogout = async () => {
     await secureStorage.multiRemove(["token", "refreshToken", "user", "pendingStockistId", "pendingUserId"]);
-    router.replace("/Stockist/stockist-login");
+    router.replace("/");
   };
 
   const qrDataUrl = useMemo(() => {

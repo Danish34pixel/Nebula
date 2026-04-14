@@ -68,7 +68,7 @@ const Profile = () => {
       await secureStorage.removeItem("refreshToken");
       await AsyncStorage.removeItem("user");
     } catch (e) { }
-    router.replace("/Stockist/stockist-login");
+    router.replace("/");
   };
 
   const normalizeImageUrl = (url) => {

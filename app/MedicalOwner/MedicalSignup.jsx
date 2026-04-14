@@ -160,7 +160,7 @@ export default function MedicalSignup() {
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Header */}
             <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <TouchableOpacity onPress={() => router.replace("/")} style={styles.backBtn}>
                 <Feather name="arrow-left" size={24} color="#0e7490" />
               </TouchableOpacity>
               <Text style={styles.title}>Create Account</Text>

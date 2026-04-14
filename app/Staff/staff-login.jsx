@@ -30,7 +30,9 @@ export default function StaffLogin() {
   useEffect(() => {
     // Load remembered email if exists
     (async () => {
-      const savedEmail = await AsyncStorage.getItem("rememberedStaffEmail");
+      const savedEmail =
+        (await AsyncStorage.getItem("rememberedStaffEmail")) ||
+        (await AsyncStorage.getItem("rememberedEmail"));
       if (savedEmail) {
         setEmail(savedEmail);
         setRememberMe(true);
@@ -65,8 +67,10 @@ export default function StaffLogin() {
 
       if (rememberMe) {
         await AsyncStorage.setItem("rememberedStaffEmail", email);
+        await AsyncStorage.removeItem("rememberedEmail");
       } else {
         await AsyncStorage.removeItem("rememberedStaffEmail");
+        await AsyncStorage.removeItem("rememberedEmail");
       }
 
       if (data?.user?._id) {
@@ -92,7 +96,7 @@ export default function StaffLogin() {
           style={styles.inner}
         >
           {/* Back Button */}
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.replace("/")} style={styles.backBtn}>
             <Feather name="arrow-left" size={24} color="#1e293b" />
           </TouchableOpacity>
 

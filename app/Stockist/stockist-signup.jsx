@@ -241,7 +241,7 @@ export default function StockistSignup() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={currentStep === 1 ? () => router.back() : prevStep} style={styles.backBtn}>
+            <TouchableOpacity onPress={currentStep === 1 ? () => router.replace("/") : prevStep} style={styles.backBtn}>
               <Feather name="arrow-left" size={24} color="#0d9488" />
             </TouchableOpacity>
             <View style={styles.titleBox}>

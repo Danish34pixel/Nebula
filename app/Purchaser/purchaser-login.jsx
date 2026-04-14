@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,24 @@ const PurchaserLogin = () => {
 
   const router = useRouter();
 
+  useEffect(() => {
+    const loadRememberedEmail = async () => {
+      try {
+        const savedEmail =
+          (await AsyncStorage.getItem('rememberedPurchaserEmail')) ||
+          (await AsyncStorage.getItem('rememberedEmail'));
+        if (savedEmail) {
+          setEmail(savedEmail);
+          setRememberMe(true);
+        }
+      } catch (e) {
+        console.warn('Failed to load remembered purchaser email', e);
+      }
+    };
+
+    loadRememberedEmail();
+  }, []);
+
   const handleSubmit = async () => {
     if (!email || !password) {
       setError('Email and password are required.');
@@ -50,6 +68,13 @@ const PurchaserLogin = () => {
         await AsyncStorage.setItem("role", "purchaser");
         const pId = res.data.purchaser?.id || res.data.purchaser?._id || "";
         await AsyncStorage.setItem("purchaserId", pId);
+        if (rememberMe) {
+          await AsyncStorage.setItem('rememberedPurchaserEmail', email);
+          await AsyncStorage.removeItem('rememberedEmail');
+        } else {
+          await AsyncStorage.removeItem('rememberedPurchaserEmail');
+          await AsyncStorage.removeItem('rememberedEmail');
+        }
 
         // Redirect to the purchaser's dashboard directly
         router.replace(`/Purchaser/${pId}`);

@@ -98,7 +98,7 @@ export default function PurchaserDashboard() {
 
   const handleLogout = async () => {
     await secureStorage.multiRemove(["token", "refreshToken", "user", "pendingPurchaserId", "pendingPurchasingRequestId"]);
-    router.replace("/Purchaser/purchaser-login");
+    router.replace("/");
   };
 
   const getImageUrl = (path) => {

@@ -208,6 +208,16 @@ export default function StaffDetails() {
               <View style={styles.detailsTable}>
                 <DetailRow label="Staff ID" value={staff.staffId || staff.id || "N/A"} />
                 <DetailRow
+                  label="Approval"
+                  value={(staff.approvalStatus || (staff.approved ? "approved" : "pending")).toUpperCase()}
+                />
+                <DetailRow
+                  label="Works For"
+                  value={
+                    `${staff.workForType === "medical" ? "Medical" : "Stockist"} - ${staff.workForName || "N/A"}`
+                  }
+                />
+                <DetailRow
                   label="Joining Date"
                   value={
                     staff.joiningDate ||

@@ -69,7 +69,11 @@ export default function StaffLogin() {
         await AsyncStorage.removeItem("rememberedStaffEmail");
       }
 
-      router.replace("/Staff/staff-dashboard");
+      if (data?.user?._id) {
+        router.replace(`/Staff/${data.user._id}`);
+      } else {
+        router.replace("/profile");
+      }
     } catch (err) {
       Alert.alert("Login Error", err.message);
     } finally {

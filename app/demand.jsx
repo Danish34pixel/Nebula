@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Alert,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +16,23 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../config/api";
 import { useRouter } from "expo-router";
 
+const normalize = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+
+const resolveMedicineFromCatalog = (catalog, inputName) => {
+  const q = normalize(inputName);
+  if (!q) return null;
+
+  const exact = catalog.find((m) => normalize(m?.name) === q);
+  if (exact) return exact;
+
+  const partial = catalog.find((m) => normalize(m?.name).includes(q) || q.includes(normalize(m?.name)));
+  return partial || null;
+};
+
 export default function Demand() {
   const router = useRouter();
   const [lines, setLines] = useState([{ id: "1", name: "" }]);
@@ -24,7 +40,7 @@ export default function Demand() {
   const [loading, setLoading] = useState(false);
   const [focusedLineId, setFocusedLineId] = useState(null);
   const [error, setError] = useState("");
-  const [summary, setSummary] = useState(null);
+  const [sessionDemand, setSessionDemand] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -37,7 +53,7 @@ export default function Demand() {
   }, []);
 
   const getSuggestions = (value) => {
-    const q = String(value || "").trim().toLowerCase();
+    const q = normalize(value);
     if (q.length < 2) return [];
     return (medicines || [])
       .map((m) => String(m?.name || "").trim())
@@ -68,6 +84,32 @@ export default function Demand() {
     return out;
   }, [lines]);
 
+  const loadOwnerDetails = async () => {
+    const raw = await AsyncStorage.getItem("user").catch(() => null);
+    if (!raw) {
+      return {
+        id: null,
+        name: "Unknown Medical Owner",
+        email: null,
+        phone: null,
+      };
+    }
+
+    const owner = JSON.parse(raw);
+    return {
+      id: owner?._id || owner?.id || null,
+      name:
+        owner?.medicalName ||
+        owner?.fullName ||
+        owner?.name ||
+        owner?.shopName ||
+        owner?.email ||
+        "Unknown Medical Owner",
+      email: owner?.email || null,
+      phone: owner?.contactNo || owner?.phone || null,
+    };
+  };
+
   const createDemand = async () => {
     if (payloadItems.length === 0) {
       setError("Please enter at least one medicine name.");
@@ -76,37 +118,54 @@ export default function Demand() {
 
     setLoading(true);
     setError("");
-    setSummary(null);
+    setSessionDemand(null);
 
     try {
-      let purchaserId = null;
-      let purchaserName = null;
-      const raw = await AsyncStorage.getItem("user").catch(() => null);
-      if (raw) {
-        const u = JSON.parse(raw);
-        purchaserId = u?._id || u?.id || null;
-        purchaserName = u?.fullName || u?.medicalName || u?.name || u?.email || null;
-      }
+      const medicalOwner = await loadOwnerDetails();
 
-      const res = await fetch(apiUrl("/api/demand/create"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          purchaserId,
-          purchaserName,
-          items: payloadItems,
-          config: { assignToAllSuppliers: true },
-        }),
+      const requestedMedicines = payloadItems.map((item) => {
+        const matched = resolveMedicineFromCatalog(medicines, item.name);
+        return {
+          inputName: item.name,
+          medicineName: matched?.name || item.name,
+          medicineId: matched?._id || null,
+          inCatalog: Boolean(matched),
+        };
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.message || "Failed to create demand");
-      }
 
-      setSummary(data?.data || null);
-      Alert.alert("Success", "Demand sent to available suppliers automatically");
+      const medicineStockists = await Promise.all(
+        requestedMedicines.map(async (item) => {
+          const url = apiUrl(
+            `/api/stockist/by-medicine?name=${encodeURIComponent(item.medicineName)}&strict=true`
+          );
+          const res = await fetch(url);
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data?.message || "Failed to fetch stockists");
+
+          const stockists = Array.isArray(data?.data)
+            ? data.data.map((s) => ({
+                id: s?._id || null,
+                name: s?.name || s?.contactPerson || "Unnamed Stockist",
+                phone: s?.phone || s?.cntxNumber || s?.contactNo || "No contact listed",
+              }))
+            : [];
+
+          return {
+            medicineName: item.medicineName,
+            requestedAs: item.inputName,
+            stockists,
+          };
+        })
+      );
+
+      setSessionDemand({
+        generatedAt: new Date().toISOString(),
+        medicalOwner,
+        requestedMedicines,
+        medicineStockists,
+      });
     } catch (e) {
-      setError(e?.message || "Something went wrong");
+      setError(e?.message || "Something went wrong while creating demand.");
     } finally {
       setLoading(false);
     }
@@ -192,15 +251,29 @@ export default function Demand() {
           </TouchableOpacity>
         </View>
 
-        {summary ? (
+        {sessionDemand ? (
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Distribution Summary</Text>
-            <Text style={styles.summaryText}>Requested: {summary.itemsRequested}</Text>
-            <Text style={styles.summaryText}>Matched: {summary.matchedItems}</Text>
-            <Text style={styles.summaryText}>Suppliers Involved: {summary.suppliersInvolved}</Text>
+            <Text style={styles.summaryTitle}>Demand Preview (Session Only)</Text>
+            <Text style={styles.summaryText}>Medical Owner: {sessionDemand.medicalOwner.name}</Text>
             <Text style={styles.summaryText}>
-              Unfulfilled: {Array.isArray(summary.unfulfilledItems) ? summary.unfulfilledItems.length : 0}
+              Requested Medicines: {sessionDemand.requestedMedicines.length}
             </Text>
+
+            {sessionDemand.medicineStockists.map((entry, idx) => (
+              <View key={`${entry.medicineName}-${idx}`} style={styles.medicineCard}>
+                <Text style={styles.medicineTitle}>{entry.medicineName}</Text>
+                {entry.stockists.length === 0 ? (
+                  <Text style={styles.notAvailableText}>Not Available</Text>
+                ) : (
+                  entry.stockists.map((stockist, sIdx) => (
+                    <View key={`${stockist.id || stockist.name}-${sIdx}`} style={styles.stockistRow}>
+                      <Text style={styles.stockistName}>{stockist.name}</Text>
+                      <Text style={styles.stockistPhone}>{stockist.phone}</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            ))}
           </View>
         ) : null}
       </ScrollView>
@@ -308,8 +381,28 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
     borderRadius: 16,
     padding: 14,
+    gap: 10,
   },
-  summaryTitle: { fontSize: 14, fontWeight: "800", color: "#0f172a", marginBottom: 8 },
-  summaryText: { fontSize: 13, color: "#334155", marginBottom: 2, fontWeight: "600" },
+  summaryTitle: { fontSize: 14, fontWeight: "800", color: "#0f172a" },
+  summaryText: { fontSize: 13, color: "#334155", fontWeight: "600" },
+  medicineCard: {
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    padding: 10,
+    gap: 6,
+  },
+  medicineTitle: { fontSize: 13, fontWeight: "800", color: "#0f172a" },
+  notAvailableText: { fontSize: 13, color: "#b91c1c", fontWeight: "700" },
+  stockistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+    paddingTop: 6,
+  },
+  stockistName: { fontSize: 13, color: "#334155", fontWeight: "700", flex: 1 },
+  stockistPhone: { fontSize: 12, color: "#0369a1", fontWeight: "700" },
 });
-

@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
@@ -17,8 +18,8 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl, fetchJson, requestJson, postJson } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 const { width, height } = Dimensions.get("window");
 
@@ -60,24 +61,28 @@ export default function AdminCreateMedicine() {
         if (mounted) setFetchingData(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Optimized filtering
   const filteredCompanies = useMemo(() => {
     const q = companySearch.toLowerCase();
-    return companies.filter((c) => 
-      (c.name || "").toLowerCase().includes(q) || 
-      (c.email || "").toLowerCase().includes(q)
+    return companies.filter(
+      (c) =>
+        (c.name || "").toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q),
     );
   }, [companies, companySearch]);
 
   const filteredStockists = useMemo(() => {
     const q = stockistSearch.toLowerCase();
-    return stockistsList.filter((s) => 
-      (s.name || "").toLowerCase().includes(q) || 
-      (s.email || "").toLowerCase().includes(q) || 
-      (s.location || "").toLowerCase().includes(q)
+    return stockistsList.filter(
+      (s) =>
+        (s.name || "").toLowerCase().includes(q) ||
+        (s.email || "").toLowerCase().includes(q) ||
+        (s.location || "").toLowerCase().includes(q),
     );
   }, [stockistsList, stockistSearch]);
 
@@ -95,29 +100,71 @@ export default function AdminCreateMedicine() {
   };
 
   const selectAllFilteredStockists = () => {
-    const filteredIds = filteredStockists.map(s => s._id);
-    setForm(f => ({
+    const filteredIds = filteredStockists.map((s) => s._id);
+    setForm((f) => ({
       ...f,
-      stockists: [...new Set([...f.stockists, ...filteredIds])]
+      stockists: [...new Set([...f.stockists, ...filteredIds])],
     }));
   };
 
   const clearAllStockists = () => {
-    setForm(f => ({ ...f, stockists: [] }));
+    setForm((f) => ({ ...f, stockists: [] }));
   };
 
   const submit = async () => {
-    if (!form.name.trim()) return Alert.alert("Error", "Enter medicine name");
-    if (!form.company) return Alert.alert("Error", "Select a company");
+    console.log("[CreateMedicine] submit start", {
+      name: form.name,
+      company: form.company,
+      stockists: form.stockists,
+    });
 
+    if (!form.name.trim()) {
+      console.warn("[CreateMedicine] validation failed: missing name");
+      return Alert.alert("Error", "Enter medicine name");
+    }
+
+    if (!form.company) {
+      console.warn("[CreateMedicine] validation failed: no company selected");
+      return Alert.alert("Error", "Select a company");
+    }
+
+    const token = await secureStorage.getItem("token");
+    console.log("[CreateMedicine] token present", Boolean(token));
+    // We proceed even without token because the backend /quick endpoint 
+    // uses optionalAuthenticate and my recent fixes handle the stockist 
+    // linkage via the payload itself.
+    if (!token) {
+      console.warn("[CreateMedicine] proceeding without token (optional)");
+    }
+
+    const payload = {
+      name: form.name.trim(),
+      company: form.company,
+      companyId: form.company,
+      stockists: form.stockists.filter(Boolean).map(String),
+      stockistIds: form.stockists.filter(Boolean).map(String),
+    };
+
+    console.log("[CreateMedicine] payload", payload);
     setLoading(true);
+
     try {
-      await postJson("/api/medicine/quick", form);
-      Alert.alert("Success", "Medicine created", [
-        { text: "OK", onPress: () => router.back() }
+      const body = await postJson("/medicine/quick", payload);
+      console.log("[CreateMedicine] created", body);
+
+      Alert.alert("Success", "Medicine has been created", [
+        { text: "OK", onPress: () => router.back() },
       ]);
     } catch (err) {
-      Alert.alert("Error", err.message || "Failed to create medicine");
+      console.warn("[CreateMedicine] create error", err);
+      if (err.status === 401) {
+        Alert.alert(
+          "Unauthorized",
+          "Invalid or expired admin token. Please sign in again or use a valid admin token.",
+        );
+      } else {
+        Alert.alert("Error", err.message || "Failed to create medicine");
+      }
     } finally {
       setLoading(false);
     }
@@ -134,13 +181,30 @@ export default function AdminCreateMedicine() {
           colors={isSelected ? ["#6366f1", "#4f46e5"] : ["#f1f5f9", "#f1f5f9"]}
           style={styles.miniIconBox}
         >
-          <Feather name="briefcase" size={16} color={isSelected ? "#fff" : "#6366f1"} />
+          <Feather
+            name="briefcase"
+            size={16}
+            color={isSelected ? "#fff" : "#6366f1"}
+          />
         </LinearGradient>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.miniTitle, isSelected ? styles.textWhite : null]}>{company.name}</Text>
-          <Text style={[styles.miniSub, isSelected ? { color: "rgba(255,255,255,0.7)" } : null]}>{company.email}</Text>
+          <Text
+            style={[styles.miniTitle, isSelected ? styles.textWhite : null]}
+          >
+            {company.name}
+          </Text>
+          <Text
+            style={[
+              styles.miniSub,
+              isSelected ? { color: "rgba(255,255,255,0.7)" } : null,
+            ]}
+          >
+            {company.email}
+          </Text>
         </View>
-        {isSelected ? <Feather name="check-circle" size={18} color="#fff" /> : null}
+        {isSelected ? (
+          <Feather name="check-circle" size={18} color="#fff" />
+        ) : null}
       </TouchableOpacity>
     );
   };
@@ -150,17 +214,35 @@ export default function AdminCreateMedicine() {
     return (
       <TouchableOpacity
         onPress={() => toggleStockist(stockist._id)}
-        style={[styles.miniCard, isSelected ? styles.miniCardSelectedGreen : null]}
+        style={[
+          styles.miniCard,
+          isSelected ? styles.miniCardSelectedGreen : null,
+        ]}
       >
         <LinearGradient
           colors={isSelected ? ["#10b981", "#059669"] : ["#f1f5f9", "#f1f5f9"]}
           style={styles.miniIconBox}
         >
-          <Feather name="box" size={16} color={isSelected ? "#fff" : "#10b981"} />
+          <Feather
+            name="box"
+            size={16}
+            color={isSelected ? "#fff" : "#10b981"}
+          />
         </LinearGradient>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.miniTitle, isSelected ? styles.textWhite : null]}>{stockist.name}</Text>
-          <Text style={[styles.miniSub, isSelected ? { color: "rgba(255,255,255,0.7)" } : null]}>{stockist.location}</Text>
+          <Text
+            style={[styles.miniTitle, isSelected ? styles.textWhite : null]}
+          >
+            {stockist.name}
+          </Text>
+          <Text
+            style={[
+              styles.miniSub,
+              isSelected ? { color: "rgba(255,255,255,0.7)" } : null,
+            ]}
+          >
+            {stockist.location}
+          </Text>
         </View>
         {isSelected ? <Feather name="check" size={18} color="#fff" /> : null}
       </TouchableOpacity>
@@ -173,139 +255,202 @@ export default function AdminCreateMedicine() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
-        <View style={StyleSheet.absoluteFill}>
-          <LinearGradient colors={["#f8fafc", "#e2e8f0", "#cbd5e1"]} style={{ flex: 1 }} />
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <LinearGradient
+            colors={["#f8fafc", "#e2e8f0", "#cbd5e1"]}
+            style={{ flex: 1 }}
+          />
           <View style={[styles.blurCircle, { top: height * 0.1, left: -50 }]} />
-          <View style={[styles.blurCircle, { bottom: height * 0.1, right: -50, backgroundColor: "#818cf822" }]} />
+          <View
+            style={[
+              styles.blurCircle,
+              {
+                bottom: height * 0.1,
+                right: -50,
+                backgroundColor: "#818cf822",
+              },
+            ]}
+          />
         </View>
 
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
             <Feather name="arrow-left" size={24} color="#1e293b" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Medicine</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+        >
           <View style={styles.mainBox}>
             <View style={styles.formHeader}>
-              <Image source={require("../../assets/images/final-logo.png")} style={styles.logo} resizeMode="contain" />
+              <Image
+                source={require("../../assets/images/final-logo.png")}
+                style={styles.logo}
+                resizeMode="contain"
+              />
               <Text style={styles.mainTitle}>Add New Medicine</Text>
-              <Text style={styles.mainSub}>Register medicine with company and stockist Assignments</Text>
+              <Text style={styles.mainSub}>
+                Register medicine with company and stockist Assignments
+              </Text>
             </View>
 
             <View style={styles.divider} />
 
             <View style={styles.section}>
-               <View style={styles.sectionLabelRow}>
-                 <Feather name="activity" size={20} color="#3b82f6" />
-                 <Text style={styles.sectionLabel}>Medicine Details</Text>
-               </View>
-               <View style={styles.inputGroup}>
-                  <Text style={styles.fieldLabel}>MEDICINE NAME</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.name}
-                    onChangeText={(v) => setField("name", v)}
-                    placeholder="Enter medicine name"
-                    placeholderTextColor="#94a3b8"
-                  />
-               </View>
+              <View style={styles.sectionLabelRow}>
+                <Feather name="activity" size={20} color="#3b82f6" />
+                <Text style={styles.sectionLabel}>Medicine Details</Text>
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.fieldLabel}>MEDICINE NAME</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.name}
+                  onChangeText={(v) => setField("name", v)}
+                  placeholder="Enter medicine name"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
             </View>
 
             <View style={styles.section}>
-               <View style={styles.sectionLabelRow}>
-                 <Feather name="briefcase" size={20} color="#6366f1" />
-                 <Text style={styles.sectionLabel}>Company Assignment</Text>
-               </View>
-               
-               <View style={styles.searchContainer}>
-                  <View style={styles.searchBox}>
-                    <Feather name="search" size={16} color="#94a3b8" />
-                    <TextInput
-                      style={styles.searchInput}
-                      value={companySearch}
-                      onChangeText={setCompanySearch}
-                      placeholder="Find company..."
-                      placeholderTextColor="#cbd5e1"
-                    />
-                    {companySearch.length > 0 ? (
-                      <TouchableOpacity onPress={() => setCompanySearch("")}>
-                        <Feather name="x" size={16} color="#94a3b8" />
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-               </View>
+              <View style={styles.sectionLabelRow}>
+                <Feather name="briefcase" size={20} color="#6366f1" />
+                <Text style={styles.sectionLabel}>Company Assignment</Text>
+              </View>
 
-               <View style={styles.listWrapper}>
-                  {fetchingData ? (
-                    <ActivityIndicator color="#6366f1" style={{ marginVertical: 30 }} />
-                  ) : filteredCompanies.length === 0 ? (
-                    <EmptyState icon="frown" text="No companies found" color="#6366f1" />
-                  ) : (
-                    <View style={styles.grid}>
-                      {filteredCompanies.map((c) => <CompanyCard key={c._id} company={c} />)}
-                    </View>
-                  )}
-               </View>
+              <View style={styles.searchContainer}>
+                <View style={styles.searchBox}>
+                  <Feather name="search" size={16} color="#94a3b8" />
+                  <TextInput
+                    style={styles.searchInput}
+                    value={companySearch}
+                    onChangeText={setCompanySearch}
+                    placeholder="Find company..."
+                    placeholderTextColor="#cbd5e1"
+                  />
+                  {companySearch.length > 0 ? (
+                    <TouchableOpacity onPress={() => setCompanySearch("")}>
+                      <Feather name="x" size={16} color="#94a3b8" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.listWrapper}>
+                {fetchingData ? (
+                  <ActivityIndicator
+                    color="#6366f1"
+                    style={{ marginVertical: 30 }}
+                  />
+                ) : filteredCompanies.length === 0 ? (
+                  <EmptyState
+                    icon="frown"
+                    text="No companies found"
+                    color="#6366f1"
+                  />
+                ) : (
+                  <View style={styles.grid}>
+                    {filteredCompanies.map((c) => (
+                      <CompanyCard key={c._id} company={c} />
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
 
             <View style={[styles.section, { marginBottom: 30 }]}>
-               <View style={styles.sectionLabelRow}>
-                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                   <Feather name="users" size={20} color="#10b981" />
-                   <Text style={[styles.sectionLabel, { marginLeft: 10 }]}>Assign Stockists</Text>
-                 </View>
-                 <View style={styles.actionLinks}>
-                    <TouchableOpacity onPress={selectAllFilteredStockists}>
-                      <Text style={styles.actionText}>Select All</Text>
-                    </TouchableOpacity>
-                    <View style={styles.miniDot} />
-                    <TouchableOpacity onPress={clearAllStockists}>
-                      <Text style={[styles.actionText, { color: "#ef4444" }]}>Clear</Text>
-                    </TouchableOpacity>
-                 </View>
-               </View>
-               
-               <View style={styles.searchContainer}>
-                  <View style={styles.searchBox}>
-                    <Feather name="search" size={16} color="#94a3b8" />
-                    <TextInput
-                      style={styles.searchInput}
-                      value={stockistSearch}
-                      onChangeText={setStockistSearch}
-                      placeholder="Search available stockists..."
-                      placeholderTextColor="#cbd5e1"
-                    />
-                    {stockistSearch.length > 0 ? (
-                      <TouchableOpacity onPress={() => setStockistSearch("")}>
-                        <Feather name="x" size={16} color="#94a3b8" />
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-               </View>
+              <View style={styles.sectionLabelRow}>
+                <View
+                  style={{
+                    flex: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <Feather name="users" size={20} color="#10b981" />
+                  <Text style={[styles.sectionLabel, { marginLeft: 10 }]}>
+                    Assign Stockists
+                  </Text>
+                </View>
+                <View style={styles.actionLinks}>
+                  <TouchableOpacity onPress={selectAllFilteredStockists}>
+                    <Text style={styles.actionText}>Select All</Text>
+                  </TouchableOpacity>
+                  <View style={styles.miniDot} />
+                  <TouchableOpacity onPress={clearAllStockists}>
+                    <Text style={[styles.actionText, { color: "#ef4444" }]}>
+                      Clear
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-               <View style={styles.listWrapper}>
-                  {fetchingData ? (
-                    <ActivityIndicator color="#10b981" style={{ marginVertical: 30 }} />
-                  ) : filteredStockists.length === 0 ? (
-                    <EmptyState icon="box" text="No stockists found" color="#10b981" />
-                  ) : (
-                    <View style={styles.grid}>
-                      {filteredStockists.map((s) => <StockistCard key={s._id} stockist={s} />)}
-                    </View>
-                  )}
-               </View>
+              <View style={styles.searchContainer}>
+                <View style={styles.searchBox}>
+                  <Feather name="search" size={16} color="#94a3b8" />
+                  <TextInput
+                    style={styles.searchInput}
+                    value={stockistSearch}
+                    onChangeText={setStockistSearch}
+                    placeholder="Search available stockists..."
+                    placeholderTextColor="#cbd5e1"
+                  />
+                  {stockistSearch.length > 0 ? (
+                    <TouchableOpacity onPress={() => setStockistSearch("")}>
+                      <Feather name="x" size={16} color="#94a3b8" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.listWrapper}>
+                {fetchingData ? (
+                  <ActivityIndicator
+                    color="#10b981"
+                    style={{ marginVertical: 30 }}
+                  />
+                ) : filteredStockists.length === 0 ? (
+                  <EmptyState
+                    icon="box"
+                    text="No stockists found"
+                    color="#10b981"
+                  />
+                ) : (
+                  <View style={styles.grid}>
+                    {filteredStockists.map((s) => (
+                      <StockistCard key={s._id} stockist={s} />
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
 
-            <TouchableOpacity
+            <Pressable
               style={[styles.submitBtn, loading ? styles.disabledBtn : null]}
-              onPress={submit}
+              onPress={() => {
+                console.log("[CreateMedicine] submit pressed");
+                submit();
+              }}
               disabled={loading}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
             >
               <LinearGradient
-                colors={loading ? ["#94a3b8", "#64748b"] : ["#3b82f6", "#4f46e5", "#3b82f6"]}
+                colors={
+                  loading
+                    ? ["#94a3b8", "#64748b"]
+                    : ["#3b82f6", "#4f46e5", "#3b82f6"]
+                }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.submitGradient}
@@ -316,7 +461,7 @@ export default function AdminCreateMedicine() {
                   <Text style={styles.submitText}>CREATE MEDICINE</Text>
                 )}
               </LinearGradient>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -353,7 +498,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  headerTitle: { fontSize: 20, fontWeight: "800", color: "#1e293b", letterSpacing: -0.5 },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#1e293b",
+    letterSpacing: -0.5,
+  },
   scrollContent: { padding: 16, paddingBottom: 100 },
   mainBox: {
     backgroundColor: "rgba(255, 255, 255, 0.95)",
@@ -368,17 +518,50 @@ const styles = StyleSheet.create({
   },
   formHeader: { alignItems: "center", marginBottom: 30 },
   logo: { width: 120, height: 70, marginBottom: 16 },
-  mainTitle: { fontSize: 28, fontWeight: "900", color: "#0f172a", letterSpacing: -1 },
-  mainSub: { fontSize: 14, color: "#64748b", fontWeight: "500", textAlign: "center", marginTop: 6, lineHeight: 20 },
+  mainTitle: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#0f172a",
+    letterSpacing: -1,
+  },
+  mainSub: {
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "500",
+    textAlign: "center",
+    marginTop: 6,
+    lineHeight: 20,
+  },
   divider: { height: 1, backgroundColor: "#f1f5f9", marginVertical: 24 },
   section: { marginBottom: 28 },
-  sectionLabelRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  sectionLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
   sectionLabel: { fontSize: 17, fontWeight: "800", color: "#334155" },
-  actionLinks: { flexDirection: 'row', alignItems: 'center' },
-  actionText: { fontSize: 13, fontWeight: "700", color: "#6366f1", marginRight: 12 },
+  actionLinks: { flexDirection: "row", alignItems: "center" },
+  actionText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6366f1",
+    marginRight: 12,
+  },
   miniDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#cbd5e1" },
-  inputGroup: { backgroundColor: "#f8fafc", padding: 18, borderRadius: 24, borderWidth: 1, borderColor: "#e2e8f0" },
-  fieldLabel: { fontSize: 11, fontWeight: "900", color: "#94a3b8", marginBottom: 10, letterSpacing: 1 },
+  inputGroup: {
+    backgroundColor: "#f8fafc",
+    padding: 18,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#94a3b8",
+    marginBottom: 10,
+    letterSpacing: 1,
+  },
   input: { fontSize: 17, color: "#0f172a", fontWeight: "700" },
   searchContainer: { marginBottom: 14 },
   searchBox: {
@@ -393,7 +576,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 15, fontWeight: "600", color: "#1e293b" },
   listWrapper: { paddingVertical: 2 },
-  grid: { },
+  grid: {},
   miniCard: {
     marginVertical: 5,
     flexDirection: "row",
@@ -407,16 +590,55 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.02,
     shadowRadius: 10,
   },
-  miniCardSelected: { backgroundColor: "#4f46e5", borderColor: "#4338ca", elevation: 4 },
-  miniCardSelectedGreen: { backgroundColor: "#10b981", borderColor: "#059669", elevation: 4 },
-  miniIconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 14 },
+  miniCardSelected: {
+    backgroundColor: "#4f46e5",
+    borderColor: "#4338ca",
+    elevation: 4,
+  },
+  miniCardSelectedGreen: {
+    backgroundColor: "#10b981",
+    borderColor: "#059669",
+    elevation: 4,
+  },
+  miniIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
   miniTitle: { fontSize: 15, fontWeight: "800", color: "#1e293b" },
   miniSub: { fontSize: 11, fontWeight: "600", color: "#64748b", marginTop: 2 },
   textWhite: { color: "#fff" },
-  emptyContainer: { alignItems: 'center', paddingVertical: 30 },
-  emptyText: { fontSize: 14, fontWeight: "700", textAlign: "center", marginTop: 10 },
-  submitBtn: { marginTop: 10, borderRadius: 22, overflow: "hidden", elevation: 8, shadowColor: "#3b82f6", shadowOpacity: 0.3, shadowRadius: 15 },
-  submitGradient: { paddingVertical: 20, alignItems: "center", justifyContent: "center" },
-  submitText: { color: "#fff", fontSize: 17, fontWeight: "900", letterSpacing: 2 },
+  emptyContainer: { alignItems: "center", paddingVertical: 30 },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 10,
+  },
+  submitBtn: {
+    width: "100%",
+    marginTop: 10,
+    borderRadius: 22,
+    overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#3b82f6",
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+  },
+  submitGradient: {
+    width: "100%",
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  submitText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: 2,
+  },
   disabledBtn: { opacity: 0.6 },
 });

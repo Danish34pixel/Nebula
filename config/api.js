@@ -1,39 +1,37 @@
 // Central API configuration helper for Meditrap (React Native / Expo)
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 import { secureStorage } from "../utils/secureStore";
 
 // Public env vars are embedded into the frontend bundle by Expo.
 const ENV_API_DEFAULT =
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  '';
-const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || '';
-const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || '';
+  process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "";
+const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || "";
+const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || "";
 
 // Normalize to remove any trailing slashes
 const normalizeBase = (url) =>
-  url && url.endsWith('/') ? url.slice(0, -1) : url;
+  url && url.endsWith("/") ? url.slice(0, -1) : url;
 
 const extractExpoHost = () => {
   const hostUri =
     Constants.expoConfig?.hostUri ||
     Constants.manifest2?.extra?.expoGo?.debuggerHost ||
     Constants.manifest?.debuggerHost ||
-    '';
-  return String(hostUri).split(':')[0] || '';
+    "";
+  return String(hostUri).split(":")[0] || "";
 };
 
 const rewriteLocalhostForDevice = (url) => {
   if (!url) return url;
-  if (Platform.OS === 'web') return url;
+  if (Platform.OS === "web") return url;
 
   try {
     const parsed = new URL(url);
     const isLocalHost =
-      parsed.hostname === 'localhost' ||
-      parsed.hostname === '127.0.0.1' ||
-      parsed.hostname === '::1';
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "::1";
 
     if (!isLocalHost) return url;
 
@@ -48,7 +46,7 @@ const rewriteLocalhostForDevice = (url) => {
 };
 
 const selectedBase =
-  Platform.OS === 'web'
+  Platform.OS === "web"
     ? ENV_API_WEB || ENV_API_DEFAULT
     : ENV_API_NATIVE || ENV_API_DEFAULT;
 
@@ -56,7 +54,7 @@ const resolvedBase = rewriteLocalhostForDevice(normalizeBase(selectedBase));
 
 if (!resolvedBase) {
   throw new Error(
-    'Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. http://localhost:5000).'
+    "Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. http://localhost:5000).",
   );
 }
 
@@ -75,14 +73,14 @@ if (
  * Helper to safely build complete URLs.
  * Automatically ensures the '/api' prefix unless already present.
  */
-export const apiUrl = (path = '') => {
+export const apiUrl = (path = "") => {
   if (!path) return `${API_BASE}/api`;
 
   // If path already starts with /api, don't duplicate it
-  if (path.startsWith('/api')) return `${API_BASE}${path}`;
-  if (path.startsWith('api')) return `${API_BASE}/${path}`;
+  if (path.startsWith("/api")) return `${API_BASE}${path}`;
+  if (path.startsWith("api")) return `${API_BASE}/${path}`;
 
-  const p = path.startsWith('/') ? path : `/${path}`;
+  const p = path.startsWith("/") ? path : `/${path}`;
   return `${API_BASE}/api${p}`;
 };
 
@@ -90,21 +88,30 @@ export const apiUrl = (path = '') => {
 export const fetchJson = async (path, options = {}) => {
   const url = apiUrl(path);
   const token = await secureStorage.getItem("token");
-  if (__DEV__) console.log(`[API] ${options.method || 'GET'} -> ${url}`);
+  if (__DEV__) console.log(`[API] ${options.method || "GET"} -> ${url}`);
 
   const opts = {
-    method: options.method || 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-      ...(options.token || token ? { Authorization: `Bearer ${options.token || token}` } : {}),
-    },
     ...options,
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+      ...(options.token || token
+        ? { Authorization: `Bearer ${options.token || token}` }
+        : {}),
+    },
   };
+
+  if (__DEV__) {
+    console.log(
+      `[API] request -> ${opts.method} ${url}`,
+      opts.method === "POST" ? { body: options.body, path } : null,
+    );
+  }
 
   const res = await fetch(url, opts);
   const text = await res.text();
-  const isJson = res.headers.get('content-type')?.includes('application/json');
+  const isJson = res.headers.get("content-type")?.includes("application/json");
   const body = text && isJson ? JSON.parse(text) : text;
 
   if (!res.ok) {
@@ -136,7 +143,7 @@ export const postForm = async (path, formData, options = {}) => {
 
   try {
     const res = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       body: formData,
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -147,7 +154,9 @@ export const postForm = async (path, formData, options = {}) => {
 
     clearTimeout(timer);
     const text = await res.text();
-    const isJson = res.headers.get('content-type')?.includes('application/json');
+    const isJson = res.headers
+      .get("content-type")
+      ?.includes("application/json");
     const body = text && isJson ? JSON.parse(text) : text;
 
     if (!res.ok) {
@@ -166,9 +175,12 @@ export const postForm = async (path, formData, options = {}) => {
 
 // POST JSON Helper
 export const postJson = async (path, data, options = {}) => {
+  if (__DEV__) {
+    console.log("[API] postJson payload", path, data);
+  }
   return fetchJson(path, {
     ...options,
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(data),
   });
 };

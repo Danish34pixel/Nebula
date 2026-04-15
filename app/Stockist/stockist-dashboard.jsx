@@ -127,10 +127,7 @@ const MedicineCard = ({ medicine }) => (
       style={[styles.cardContainer, { borderColor: "#dbeafe" }]}
     >
       <View style={styles.cardHeader}>
-        <LinearGradient
-          colors={["#3b82f6", "#06b6d4"]}
-          style={styles.iconBox}
-        >
+        <LinearGradient colors={["#3b82f6", "#06b6d4"]} style={styles.iconBox}>
           <Feather name="package" size={24} color="#fff" />
         </LinearGradient>
         <View style={{ flex: 1, marginLeft: 12 }}>
@@ -154,7 +151,7 @@ const StaffCard = ({ staff, onPreview, onApprove }) => {
   const qrUrl = useMemo(() => {
     const profileUrl = `https://meditrap.com/Staff/${staff._id}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-      profileUrl
+      profileUrl,
     )}`;
   }, [staff._id]);
 
@@ -168,7 +165,11 @@ const StaffCard = ({ staff, onPreview, onApprove }) => {
         colors={["#ffffff", "#f8fafc"]}
         style={styles.staffCardContainer}
       >
-        <Avatar name={staff.fullName || staff.name || "S"} size={60} style={styles.staffAvatar} />
+        <Avatar
+          name={staff.fullName || staff.name || "S"}
+          size={60}
+          style={styles.staffAvatar}
+        />
 
         <View style={styles.staffInfo}>
           <Text style={styles.cardTitle} numberOfLines={1}>
@@ -190,13 +191,21 @@ const StaffCard = ({ staff, onPreview, onApprove }) => {
 
         <View style={styles.qrSectionSmall}>
           {staff.approved === false ? (
-            <TouchableOpacity onPress={() => onApprove(staff._id)} style={styles.approveBtnSmall}>
+            <TouchableOpacity
+              onPress={() => onApprove(staff._id)}
+              style={styles.approveBtnSmall}
+            >
               <Text style={styles.approveBtnSmallText}>Approve</Text>
             </TouchableOpacity>
           ) : (
             <>
               <Image source={{ uri: qrUrl }} style={styles.qrImageSmall} />
-              <Feather name="maximize-2" size={10} color="#cbd5e1" style={styles.zoomIcon} />
+              <Feather
+                name="maximize-2"
+                size={10}
+                color="#cbd5e1"
+                style={styles.zoomIcon}
+              />
             </>
           )}
         </View>
@@ -221,7 +230,7 @@ const LoadingSkeleton = () => {
           duration: 800,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [opacity]);
 
@@ -262,7 +271,7 @@ export default function StockistDashboard() {
       medicines: medicinesList.length,
       staff: staffs.length,
     }),
-    [companiesList.length, medicinesList.length, staffs.length]
+    [companiesList.length, medicinesList.length, staffs.length],
   );
 
   const displayName = useMemo(() => {
@@ -289,19 +298,30 @@ export default function StockistDashboard() {
           keys.some((key) =>
             String(item?.[key] || "")
               .toLowerCase()
-              .includes(q)
+              .includes(q),
           )
-        ) return true;
+        )
+          return true;
 
-        const extraKeys = ["title", "shortName", "fullName", "brandName", "medicineName", "companyName", "email", "role", "contactPerson"];
+        const extraKeys = [
+          "title",
+          "shortName",
+          "fullName",
+          "brandName",
+          "medicineName",
+          "companyName",
+          "email",
+          "role",
+          "contactPerson",
+        ];
         return extraKeys.some((key) =>
           String(item?.[key] || "")
             .toLowerCase()
-            .includes(q)
+            .includes(q),
         );
       });
     },
-    [query]
+    [query],
   );
 
   const filteredData = useMemo(
@@ -311,8 +331,38 @@ export default function StockistDashboard() {
       staff: filterByQuery(staffs, ["fullName", "name"]),
       approvals: [],
     }),
-    [companiesList, medicinesList, staffs, filterByQuery]
+    [companiesList, medicinesList, staffs, filterByQuery],
   );
+
+  const extractReferenceIds = (value) => {
+    if (value == null) return [];
+    if (typeof value === "string" || typeof value === "number")
+      return [String(value)];
+    if (Array.isArray(value))
+      return value.flatMap(extractReferenceIds).filter(Boolean);
+    if (typeof value === "object") {
+      const ids = [];
+      if (value._id) ids.push(String(value._id));
+      if (value.id) ids.push(String(value.id));
+      if (value.stockist) ids.push(...extractReferenceIds(value.stockist));
+      if (value.stockistId) ids.push(...extractReferenceIds(value.stockistId));
+      if (value.seller) ids.push(...extractReferenceIds(value.seller));
+      if (value.sellerId) ids.push(...extractReferenceIds(value.sellerId));
+      if (value.vendor) ids.push(...extractReferenceIds(value.vendor));
+      if (value.vendorId) ids.push(...extractReferenceIds(value.vendorId));
+      if (value.supplier) ids.push(...extractReferenceIds(value.supplier));
+      if (value.supplierId) ids.push(...extractReferenceIds(value.supplierId));
+      if (value.owner) ids.push(...extractReferenceIds(value.owner));
+      if (value.ownerId) ids.push(...extractReferenceIds(value.ownerId));
+      if (value.user) ids.push(...extractReferenceIds(value.user));
+      return ids.filter(Boolean);
+    }
+    return [];
+  };
+
+  const hasMatchingReference = (value, ids) => {
+    return extractReferenceIds(value).some((id) => ids.has(id));
+  };
 
   const medicineReferencesStockist = (med, stockistId) => {
     if (!med) return false;
@@ -327,11 +377,11 @@ export default function StockistDashboard() {
       if (med.vendorId) candidates.push(med.vendorId);
       if (med.supplier) candidates.push(med.supplier);
       if (med.supplierId) candidates.push(med.supplierId);
-    } catch { }
-    return candidates.some((c) => {
-      const id = c?._id || c?.id || c;
-      return String(id) === String(stockistId);
-    });
+    } catch {}
+    const targetSet = new Set(extractReferenceIds(stockistId));
+    return candidates.some((c) =>
+      extractReferenceIds(c).some((id) => targetSet.has(id)),
+    );
   };
 
   const loadStockistData = useCallback(async () => {
@@ -363,9 +413,12 @@ export default function StockistDashboard() {
       if (candidateIds.length > 0) {
         for (const idToFetch of candidateIds) {
           try {
-            const singleRes = await fetch(apiUrl(`/api/stockist/${idToFetch}`), {
-              headers,
-            });
+            const singleRes = await fetch(
+              apiUrl(`/api/stockist/${idToFetch}`),
+              {
+                headers,
+              },
+            );
             if (singleRes.status === 401) {
               setAuthError(true);
               throw new Error("Unauthorized");
@@ -398,7 +451,8 @@ export default function StockistDashboard() {
         [storedUser._id, storedUser.id, storedUser?.userId]
           .filter(Boolean)
           .forEach((v) => userIds.add(String(v)));
-        if (storedUser.email) userEmails.add(String(storedUser.email).toLowerCase());
+        if (storedUser.email)
+          userEmails.add(String(storedUser.email).toLowerCase());
       }
 
       const matchStockistWithUser = (s) => {
@@ -413,7 +467,9 @@ export default function StockistDashboard() {
 
       if (routeId && routeId !== "me") {
         target = list.find(
-          (s) => String(s._id) === String(routeId) || String(s.id) === String(routeId)
+          (s) =>
+            String(s._id) === String(routeId) ||
+            String(s.id) === String(routeId),
         );
       } else {
         // Find by ID match first, then by email
@@ -423,18 +479,23 @@ export default function StockistDashboard() {
         if (!target && list.length > 0) target = list[0];
       }
 
-      // Final attempt: if we still don't have a robust profile but have a storedUser, 
+      // Final attempt: if we still don't have a robust profile but have a storedUser,
       // see if any item in the list matches the storedUser's email even if IDs didn't match.
       if (storedUser && (!target || !target.dob)) {
-        const emailMatch = list.find(s =>
-          (s.email && s.email.toLowerCase() === storedUser.email?.toLowerCase()) ||
-          (s.ownerEmail && s.ownerEmail.toLowerCase() === storedUser.email?.toLowerCase())
+        const emailMatch = list.find(
+          (s) =>
+            (s.email &&
+              s.email.toLowerCase() === storedUser.email?.toLowerCase()) ||
+            (s.ownerEmail &&
+              s.ownerEmail.toLowerCase() === storedUser.email?.toLowerCase()),
         );
         if (emailMatch) target = emailMatch;
       }
 
       if (!target && storedUser) target = storedUser;
       if (!target) throw new Error("Stockist not found");
+
+      const targetIds = new Set(extractReferenceIds(target).map(String));
 
       setStockist(target);
 
@@ -461,10 +522,11 @@ export default function StockistDashboard() {
 
       const filteredCompanies = allCompanies.filter((company) => {
         try {
-          if (Array.isArray(company.stockists))
-            return company.stockists.some(
-              (s) => String(s?._id || s) === String(target._id)
+          if (Array.isArray(company.stockists) && company.stockists.length > 0)
+            return company.stockists.some((s) =>
+              hasMatchingReference(s, targetIds),
             );
+
           const keys = [
             company.stockist,
             company.stockistId,
@@ -475,22 +537,44 @@ export default function StockistDashboard() {
             company.supplier,
             company.supplierId,
           ];
-          return keys.some(
-            (key) => key && String(key._id || key.id || key) === String(target._id)
-          );
+          if (keys.some((key) => key && hasMatchingReference(key, targetIds)))
+            return true;
+
+          if (
+            Array.isArray(company.stockistNames) &&
+            company.stockistNames.length > 0
+          ) {
+            const nameSet = new Set(
+              company.stockistNames.map((n) =>
+                String(n || "")
+                  .toLowerCase()
+                  .trim(),
+              ),
+            );
+            const currentName = String(
+              displayName || stockist?.name || stockist?.companyName || "",
+            )
+              .toLowerCase()
+              .trim();
+            if (currentName && nameSet.has(currentName)) return true;
+          }
+
+          return false;
         } catch {
           return false;
         }
       });
 
       const filteredMeds = allMeds.filter((med) =>
-        medicineReferencesStockist(med, target._id)
+        medicineReferencesStockist(med, target._id || target.id || target),
       );
 
       const filteredStaffs = staffList.filter((s) => {
         try {
-          const sid = s.stockist?._id || s.stockist || s.stockistId || s.owner?._id || s.owner || s.ownerId || s.medical?._id || s.medical;
-          return sid && String(sid) === String(target._id);
+          return hasMatchingReference(
+            s.stockist || s.stockistId || s.owner || s.ownerId || s.medical,
+            targetIds,
+          );
         } catch {
           return false;
         }
@@ -524,7 +608,13 @@ export default function StockistDashboard() {
   }, [authError, router]);
 
   const handleLogout = async () => {
-    await secureStorage.multiRemove(["token", "refreshToken", "user", "pendingStockistId", "pendingUserId"]);
+    await secureStorage.multiRemove([
+      "token",
+      "refreshToken",
+      "user",
+      "pendingStockistId",
+      "pendingUserId",
+    ]);
     router.replace("/");
   };
 
@@ -532,7 +622,7 @@ export default function StockistDashboard() {
     if (!stockist?._id) return null;
     const shareUrl = `https://meditrap.com/stockist/${stockist._id}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-      shareUrl
+      shareUrl,
     )}`;
   }, [stockist]);
 
@@ -556,10 +646,34 @@ export default function StockistDashboard() {
   };
 
   const TAB_CONFIG = [
-    { key: "medicines", label: "Medicines", icon: "package", color: "#3b82f6", bg: "#eff6ff" },
-    { key: "companies", label: "Companies", icon: "briefcase", color: "#f97316", bg: "#fff7ed" },
-    { key: "staff", label: "Staff", icon: "users", color: "#8b5cf6", bg: "#faf5ff" },
-    { key: "approvals", label: "Approvals", icon: "check-circle", color: "#10b981", bg: "#f0fdf4" },
+    {
+      key: "medicines",
+      label: "Medicines",
+      icon: "package",
+      color: "#3b82f6",
+      bg: "#eff6ff",
+    },
+    {
+      key: "companies",
+      label: "Companies",
+      icon: "briefcase",
+      color: "#f97316",
+      bg: "#fff7ed",
+    },
+    {
+      key: "staff",
+      label: "Staff",
+      icon: "users",
+      color: "#8b5cf6",
+      bg: "#faf5ff",
+    },
+    {
+      key: "approvals",
+      label: "Approvals",
+      icon: "check-circle",
+      color: "#10b981",
+      bg: "#f0fdf4",
+    },
   ];
 
   if (loading) {
@@ -594,10 +708,15 @@ export default function StockistDashboard() {
               {displayName}
             </Text>
             <Text style={styles.headerSubtitle}>
-              {stockist?.email || stockist?.contactPerson || "Authorized Stockist"}
+              {stockist?.email ||
+                stockist?.contactPerson ||
+                "Authorized Stockist"}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => router.push("/profile")} style={styles.profileBtn}>
+          <TouchableOpacity
+            onPress={() => router.push("/profile")}
+            style={styles.profileBtn}
+          >
             <Feather name="user" size={20} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
@@ -608,7 +727,11 @@ export default function StockistDashboard() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={loadStockistData} tintColor="#8b5cf6" />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={loadStockistData}
+              tintColor="#8b5cf6"
+            />
           }
           contentContainerStyle={styles.scrollContent}
         >
@@ -619,14 +742,31 @@ export default function StockistDashboard() {
               contactPerson: stockist?.contactPerson || displayName,
             }}
             qrDataUrl={qrDataUrl}
-            onPrint={() => Alert.alert("Print", "Connect to a printer to print this ID.")}
+            onPrint={() =>
+              Alert.alert("Print", "Connect to a printer to print this ID.")
+            }
           />
 
           {/* Stats */}
           <View style={styles.statsRow}>
-            <StatCard icon="briefcase" count={stats.companies} label="Companies" colors={["#fb923c", "#f59e0b"]} />
-            <StatCard icon="package" count={stats.medicines} label="Medicines" colors={["#3b82f6", "#06b6d4"]} />
-            <StatCard icon="users" count={stats.staff} label="Staff Members" colors={["#8b5cf6", "#d946ef"]} />
+            <StatCard
+              icon="briefcase"
+              count={stats.companies}
+              label="Companies"
+              colors={["#fb923c", "#f59e0b"]}
+            />
+            <StatCard
+              icon="package"
+              count={stats.medicines}
+              label="Medicines"
+              colors={["#3b82f6", "#06b6d4"]}
+            />
+            <StatCard
+              icon="users"
+              count={stats.staff}
+              label="Staff Members"
+              colors={["#8b5cf6", "#d946ef"]}
+            />
           </View>
 
           {/* Main Content */}
@@ -661,8 +801,17 @@ export default function StockistDashboard() {
                     { backgroundColor: activeTab === t.key ? t.color : t.bg },
                   ]}
                 >
-                  <Feather name={t.icon} size={16} color={activeTab === t.key ? "#fff" : t.color} />
-                  <Text style={[styles.tabText, { color: activeTab === t.key ? "#fff" : t.color }]}>
+                  <Feather
+                    name={t.icon}
+                    size={16}
+                    color={activeTab === t.key ? "#fff" : t.color}
+                  />
+                  <Text
+                    style={[
+                      styles.tabText,
+                      { color: activeTab === t.key ? "#fff" : t.color },
+                    ]}
+                  >
                     {t.label}
                   </Text>
                 </TouchableOpacity>
@@ -674,16 +823,28 @@ export default function StockistDashboard() {
                 <StockistApprovals />
               ) : filteredData[activeTab].length > 0 ? (
                 filteredData[activeTab].map((item, i) => {
-                  if (activeTab === "companies") return <CompanyCard key={i} company={item} />;
-                  if (activeTab === "medicines") return <MedicineCard key={i} medicine={item} />;
-                  if (activeTab === "staff") return <StaffCard key={i} staff={item} onPreview={setSelectedStaff} onApprove={handleApproveStaff} />;
+                  if (activeTab === "companies")
+                    return <CompanyCard key={i} company={item} />;
+                  if (activeTab === "medicines")
+                    return <MedicineCard key={i} medicine={item} />;
+                  if (activeTab === "staff")
+                    return (
+                      <StaffCard
+                        key={i}
+                        staff={item}
+                        onPreview={setSelectedStaff}
+                        onApprove={handleApproveStaff}
+                      />
+                    );
                   return null;
                 })
               ) : (
                 <View style={styles.emptyContainer}>
                   <Feather name="inbox" size={48} color="#cbd5e1" />
                   <Text style={styles.emptyTitle}>No {activeTab} found</Text>
-                  <Text style={styles.emptyText}>Try searching for something else</Text>
+                  <Text style={styles.emptyText}>
+                    Try searching for something else
+                  </Text>
                 </View>
               )}
             </View>
@@ -692,7 +853,10 @@ export default function StockistDashboard() {
       </LinearGradient>
 
       {/* Staff Quick View Modal */}
-      <StaffModel staff={selectedStaff} onClose={() => setSelectedStaff(null)} />
+      <StaffModel
+        staff={selectedStaff}
+        onClose={() => setSelectedStaff(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -712,7 +876,12 @@ const StatCard = ({ icon, count, label, colors }) => (
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -723,7 +892,12 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f1f5f9",
   },
   headerTitle: { fontSize: 20, fontWeight: "900", color: "#1e293b" },
-  headerSubtitle: { fontSize: 13, color: "#64748b", fontWeight: "600", marginTop: 2 },
+  headerSubtitle: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+    marginTop: 2,
+  },
   profileBtn: {
     width: 40,
     height: 40,
@@ -768,7 +942,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statCount: { fontSize: 22, fontWeight: "900", color: "#1e293b" },
-  statLabel: { fontSize: 9, fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", textAlign: "center" },
+  statLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
   contentSection: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
@@ -787,7 +967,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "bold",
   },
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 20 },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
   searchContainer: {
     flex: 1,
     flexDirection: "row",
@@ -799,10 +984,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
-  searchInput: { flex: 1, marginLeft: 12, fontSize: 14, color: "#1e293b", fontWeight: "600" },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 14,
+    color: "#1e293b",
+    fontWeight: "600",
+  },
   addStaffBtn: { width: 52, height: 52, borderRadius: 16, overflow: "hidden" },
   addStaffGradient: { flex: 1, justifyContent: "center", alignItems: "center" },
-  tabsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
+  tabsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+  },
   tabBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -882,7 +1078,12 @@ const styles = StyleSheet.create({
   zoomIcon: { position: "absolute", bottom: 2, right: 2 },
 
   emptyContainer: { alignItems: "center", paddingVertical: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: "900", color: "#1e293b", marginTop: 12 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#1e293b",
+    marginTop: 12,
+  },
   emptyText: { fontSize: 14, color: "#94a3b8", marginTop: 4 },
   retryBtn: {
     marginTop: 16,
@@ -895,9 +1096,24 @@ const styles = StyleSheet.create({
 
   // Skeleton Styles
   skeletonContainer: { padding: 20, flex: 1, backgroundColor: "#fff" },
-  skeletonHeader: { height: 60, borderRadius: 16, backgroundColor: "#f1f5f9", marginBottom: 20 },
-  skeletonIdentity: { height: 200, borderRadius: 24, backgroundColor: "#f1f5f9", marginBottom: 20 },
+  skeletonHeader: {
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: "#f1f5f9",
+    marginBottom: 20,
+  },
+  skeletonIdentity: {
+    height: 200,
+    borderRadius: 24,
+    backgroundColor: "#f1f5f9",
+    marginBottom: 20,
+  },
   skeletonStatsRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
-  skeletonStat: { flex: 1, height: 100, borderRadius: 20, backgroundColor: "#f1f5f9" },
+  skeletonStat: {
+    flex: 1,
+    height: 100,
+    borderRadius: 20,
+    backgroundColor: "#f1f5f9",
+  },
   skeletonContent: { flex: 1, borderRadius: 32, backgroundColor: "#f1f5f9" },
 });

@@ -69,6 +69,12 @@ if (
   throw new Error("In production, EXPO_PUBLIC_API_BASE_URL must use HTTPS.");
 }
 
+const normalizeToken = (token) => {
+  if (token == null) return null;
+  const normalized = String(token).trim();
+  return normalized.replace(/^Bearer\s+/i, "").trim() || null;
+};
+
 /**
  * Helper to safely build complete URLs.
  * Automatically ensures the '/api' prefix unless already present.
@@ -87,18 +93,18 @@ export const apiUrl = (path = "") => {
 // JSON Fetch Helper
 export const fetchJson = async (path, options = {}) => {
   const url = apiUrl(path);
-  const token = await secureStorage.getItem("token");
+  const token = normalizeToken(await secureStorage.getItem("token"));
+  const headerToken = normalizeToken(options.token || token);
   if (__DEV__) console.log(`[API] ${options.method || "GET"} -> ${url}`);
 
   const opts = {
     ...options,
     method: options.method || "GET",
     headers: {
+      Accept: "application/json",
       "Content-Type": "application/json",
       ...(options.headers || {}),
-      ...(options.token || token
-        ? { Authorization: `Bearer ${options.token || token}` }
-        : {}),
+      ...(headerToken ? { Authorization: `Bearer ${headerToken}` } : {}),
     },
   };
 
@@ -112,7 +118,16 @@ export const fetchJson = async (path, options = {}) => {
   const res = await fetch(url, opts);
   const text = await res.text();
   const isJson = res.headers.get("content-type")?.includes("application/json");
-  const body = text && isJson ? JSON.parse(text) : text;
+  let body = text && isJson ? JSON.parse(text) : text;
+
+  if (__DEV__) {
+    console.log(`[API] response status: ${res.status}`, {
+      url,
+      statusOk: res.ok,
+      contentType: res.headers.get("content-type"),
+      bodyPreview: typeof body === "string" ? body.substring(0, 100) : body,
+    });
+  }
 
   if (!res.ok) {
     if (res.status === 401) {
@@ -126,6 +141,10 @@ export const fetchJson = async (path, options = {}) => {
     throw err;
   }
 
+  if (Array.isArray(body)) {
+    return { data: body };
+  }
+
   return body;
 };
 
@@ -135,7 +154,7 @@ export const requestJson = fetchJson;
 // POST FormData Helper (Image Uploads)
 export const postForm = async (path, formData, options = {}) => {
   const url = apiUrl(path);
-  const token = await secureStorage.getItem("token");
+  const token = normalizeToken(await secureStorage.getItem("token"));
 
   const controller = new AbortController();
   const timeout = options.timeout || 120000;

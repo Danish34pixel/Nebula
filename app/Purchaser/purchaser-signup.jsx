@@ -62,13 +62,13 @@ export default function PurchaserSignup() {
 
   const pickImage = async (fieldName) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Sorry, we need camera roll permissions to make this work!');
+    if (status !== "granted") {
+      alert("Sorry, we need camera roll permissions to make this work!");
       return;
     }
 
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
@@ -81,7 +81,7 @@ export default function PurchaserSignup() {
         [fieldName]: {
           uri: asset.uri,
           name: asset.fileName || `${fieldName}.jpg`,
-          type: asset.mimeType || 'image/jpeg',
+          type: asset.mimeType || "image/jpeg",
         },
       }));
       setPreviews((prev) => ({
@@ -166,15 +166,23 @@ export default function PurchaserSignup() {
       // On web, we need to convert the URI to a Blob for FormData to send it as a file
       if (Platform.OS === "web") {
         if (formData.aadharImage) {
-          const aadharBlob = await (await fetch(formData.aadharImage.uri)).blob();
-          let name = formData.aadharImage.name || formData.aadharImage.fileName || "aadhar.jpg";
-          if (!name.includes(".")) name += (aadharBlob.type.includes("png") ? ".png" : ".jpg");
+          const aadharBlob = await (
+            await fetch(formData.aadharImage.uri)
+          ).blob();
+          let name =
+            formData.aadharImage.name ||
+            formData.aadharImage.fileName ||
+            "aadhar.jpg";
+          if (!name.includes("."))
+            name += aadharBlob.type.includes("png") ? ".png" : ".jpg";
           submitData.append("aadharImage", aadharBlob, name);
         }
         if (formData.photo) {
           const photoBlob = await (await fetch(formData.photo.uri)).blob();
-          let name = formData.photo.name || formData.photo.fileName || "photo.jpg";
-          if (!name.includes(".")) name += (photoBlob.type.includes("png") ? ".png" : ".jpg");
+          let name =
+            formData.photo.name || formData.photo.fileName || "photo.jpg";
+          if (!name.includes("."))
+            name += photoBlob.type.includes("png") ? ".png" : ".jpg";
           submitData.append("personalPhoto", photoBlob, name);
         }
       } else {
@@ -184,10 +192,14 @@ export default function PurchaserSignup() {
 
       let purchaserId = null;
       try {
-        const created = await postForm("/api/auth/purchaser-signup", submitData);
+        const created = await postForm(
+          "/api/auth/purchaser-signup",
+          submitData,
+        );
         const accessToken = created?.accessToken || created?.token;
         if (accessToken) await secureStorage.setItem("token", accessToken);
-        if (created?.refreshToken) await secureStorage.setItem("refreshToken", created.refreshToken);
+        if (created?.refreshToken)
+          await secureStorage.setItem("refreshToken", created.refreshToken);
         purchaserId = created?.purchaser?._id || created?.user?._id || null;
       } catch (signupErr) {
         if (signupErr?.status !== 409) throw signupErr;
@@ -198,7 +210,9 @@ export default function PurchaserSignup() {
         });
         const loginData = loginRes?.data || {};
         if (!loginData?.accessToken) {
-          throw new Error("Email already exists. Please login from purchaser login.");
+          throw new Error(
+            "Email already exists. Please login from purchaser login.",
+          );
         }
         await secureStorage.setItem("token", loginData.accessToken);
         if (loginData?.refreshToken) {
@@ -228,7 +242,9 @@ export default function PurchaserSignup() {
 
       router.push("/purchasermiddle");
     } catch (error) {
-      setErrorMessage(error.message || "Something went wrong. Please try again.");
+      setErrorMessage(
+        error.message || "Something went wrong. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -240,11 +256,14 @@ export default function PurchaserSignup() {
     try {
       console.log(`[Signup] Fetching stockists from API...`);
       // We use a high limit to ensure we get a good initial list of stockists
-      const json = await fetchJson("/api/stockist?limit=500");
+      const json = await fetchJson("/stockist?limit=500");
       const list = json.data || [];
       console.log(`[Signup] Received ${list.length} stockists.`);
       if (list.length > 0) {
-        console.log("[Signup] First stockist sample:", JSON.stringify(list[0]).slice(0, 100));
+        console.log(
+          "[Signup] First stockist sample:",
+          JSON.stringify(list[0]).slice(0, 100),
+        );
       }
       setStockists(list);
     } catch (e) {
@@ -261,7 +280,7 @@ export default function PurchaserSignup() {
 
   const toggleStockist = (id) => {
     setSelectedStockists((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
     setErrors((prev) => ({ ...prev, stockists: "" }));
   };
@@ -269,7 +288,7 @@ export default function PurchaserSignup() {
   const filteredStockists = stockists.filter((s) => {
     const q = stockistQuery.trim().toLowerCase();
     if (!q) return true;
-    
+
     // Expanded search fields to be more robust
     const fields = [
       s.contactPerson,
@@ -280,10 +299,10 @@ export default function PurchaserSignup() {
       s.phone,
       s.contactNo,
       s._id,
-      s.id
-    ].map(v => String(v || "").toLowerCase());
+      s.id,
+    ].map((v) => String(v || "").toLowerCase());
 
-    return fields.some(field => field.includes(q));
+    return fields.some((field) => field.includes(q));
   });
 
   return (
@@ -306,7 +325,9 @@ export default function PurchaserSignup() {
             </View>
             <View>
               <Text style={styles.headerTitle}>Purchaser Registration</Text>
-              <Text style={styles.headerSubtitle}>Complete your profile to get started</Text>
+              <Text style={styles.headerSubtitle}>
+                Complete your profile to get started
+              </Text>
             </View>
           </View>
           <View style={styles.card}>
@@ -317,11 +338,13 @@ export default function PurchaserSignup() {
                   <Text style={styles.errorText}>{errorMessage}</Text>
                 </View>
                 {errorMessage.toLowerCase().includes("already registered") ? (
-                  <TouchableOpacity 
-                    style={styles.errorActionBtn} 
+                  <TouchableOpacity
+                    style={styles.errorActionBtn}
                     onPress={() => router.push("/Purchaser/purchaser-login")}
                   >
-                    <Text style={styles.errorActionText}>Login to existing account</Text>
+                    <Text style={styles.errorActionText}>
+                      Login to existing account
+                    </Text>
                     <Feather name="arrow-right" size={14} color="#0891b2" />
                   </TouchableOpacity>
                 ) : null}
@@ -331,38 +354,54 @@ export default function PurchaserSignup() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>FULL NAME</Text>
               <TextInput
-                style={[styles.input, errors.fullName ? styles.inputError : null]}
+                style={[
+                  styles.input,
+                  errors.fullName ? styles.inputError : null,
+                ]}
                 value={formData.fullName}
                 onChangeText={(v) => handleInputChange("fullName", v)}
                 placeholder="Enter your full name"
               />
-              {errors.fullName ? <Text style={styles.fieldError}>{errors.fullName}</Text> : null}
+              {errors.fullName ? (
+                <Text style={styles.fieldError}>{errors.fullName}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>ADDRESS</Text>
               <TextInput
-                style={[styles.input, styles.textArea, errors.address ? styles.inputError : null]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  errors.address ? styles.inputError : null,
+                ]}
                 value={formData.address}
                 onChangeText={(v) => handleInputChange("address", v)}
                 placeholder="Enter your complete address"
                 multiline
                 numberOfLines={3}
               />
-              {errors.address ? <Text style={styles.fieldError}>{errors.address}</Text> : null}
+              {errors.address ? (
+                <Text style={styles.fieldError}>{errors.address}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>CONTACT NUMBER</Text>
               <TextInput
-                style={[styles.input, errors.contactNo ? styles.inputError : null]}
+                style={[
+                  styles.input,
+                  errors.contactNo ? styles.inputError : null,
+                ]}
                 value={formData.contactNo}
                 onChangeText={(v) => handleInputChange("contactNo", v)}
                 keyboardType="phone-pad"
                 maxLength={10}
                 placeholder="10-digit mobile number"
               />
-              {errors.contactNo ? <Text style={styles.fieldError}>{errors.contactNo}</Text> : null}
+              {errors.contactNo ? (
+                <Text style={styles.fieldError}>{errors.contactNo}</Text>
+              ) : null}
             </View>
 
             <View style={styles.inputGroup}>
@@ -375,13 +414,20 @@ export default function PurchaserSignup() {
                 autoCapitalize="none"
                 placeholder="Enter your mail"
               />
-              {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
+              {errors.email ? (
+                <Text style={styles.fieldError}>{errors.email}</Text>
+              ) : null}
             </View>
 
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.label}>PASSWORD</Text>
-                <View style={[styles.passwordWrapper, errors.password ? styles.inputError : null]}>
+                <View
+                  style={[
+                    styles.passwordWrapper,
+                    errors.password ? styles.inputError : null,
+                  ]}
+                >
                   <TextInput
                     style={styles.passwordInput}
                     value={formData.password}
@@ -401,15 +447,24 @@ export default function PurchaserSignup() {
                     />
                   </TouchableOpacity>
                 </View>
-                {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
+                {errors.password ? (
+                  <Text style={styles.fieldError}>{errors.password}</Text>
+                ) : null}
               </View>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>CONFIRM</Text>
-                <View style={[styles.passwordWrapper, errors.confirmPassword ? styles.inputError : null]}>
+                <View
+                  style={[
+                    styles.passwordWrapper,
+                    errors.confirmPassword ? styles.inputError : null,
+                  ]}
+                >
                   <TextInput
                     style={styles.passwordInput}
                     value={formData.confirmPassword}
-                    onChangeText={(v) => handleInputChange("confirmPassword", v)}
+                    onChangeText={(v) =>
+                      handleInputChange("confirmPassword", v)
+                    }
                     secureTextEntry={!showConfirmPassword}
                     placeholder="••••••"
                     placeholderTextColor="#9ca3af"
@@ -425,22 +480,35 @@ export default function PurchaserSignup() {
                     />
                   </TouchableOpacity>
                 </View>
-                {errors.confirmPassword ? <Text style={styles.fieldError}>{errors.confirmPassword}</Text> : null}
+                {errors.confirmPassword ? (
+                  <Text style={styles.fieldError}>
+                    {errors.confirmPassword}
+                  </Text>
+                ) : null}
               </View>
             </View>
 
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.label}>AADHAR CARD</Text>
-                <TouchableOpacity 
-                   style={[styles.imageUpload, errors.aadharImage ? styles.imageError : null]} 
-                   onPress={() => pickImage("aadharImage")}
+                <TouchableOpacity
+                  style={[
+                    styles.imageUpload,
+                    errors.aadharImage ? styles.imageError : null,
+                  ]}
+                  onPress={() => pickImage("aadharImage")}
                 >
                   {previews.aadharImage ? (
-                    <Image source={{ uri: previews.aadharImage }} style={styles.previewImage} />
+                    <Image
+                      source={{ uri: previews.aadharImage }}
+                      style={styles.previewImage}
+                    />
                   ) : (
                     <View style={styles.uploadPlaceholder}>
-                      <LinearGradient colors={["#22d3ee", "#06b6d4"]} style={styles.uploadIconCircle}>
+                      <LinearGradient
+                        colors={["#22d3ee", "#06b6d4"]}
+                        style={styles.uploadIconCircle}
+                      >
                         <Feather name="image" size={20} color="#fff" />
                       </LinearGradient>
                       <Text style={styles.uploadText}>Upload Aadhar</Text>
@@ -450,15 +518,24 @@ export default function PurchaserSignup() {
               </View>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>YOUR PHOTO</Text>
-                <TouchableOpacity 
-                  style={[styles.imageUpload, errors.photo ? styles.imageError : null]} 
+                <TouchableOpacity
+                  style={[
+                    styles.imageUpload,
+                    errors.photo ? styles.imageError : null,
+                  ]}
                   onPress={() => pickImage("photo")}
                 >
                   {previews.photo ? (
-                    <Image source={{ uri: previews.photo }} style={styles.previewImage} />
+                    <Image
+                      source={{ uri: previews.photo }}
+                      style={styles.previewImage}
+                    />
                   ) : (
                     <View style={styles.uploadPlaceholder}>
-                      <LinearGradient colors={["#fb923c", "#ef4444"]} style={styles.uploadIconCircle}>
+                      <LinearGradient
+                        colors={["#fb923c", "#ef4444"]}
+                        style={styles.uploadIconCircle}
+                      >
                         <Feather name="camera" size={20} color="#fff" />
                       </LinearGradient>
                       <Text style={styles.uploadText}>Upload Photo</Text>
@@ -476,7 +553,9 @@ export default function PurchaserSignup() {
                     const s = stockists.find((x) => x._id === id) || {};
                     return (
                       <View key={id} style={styles.token}>
-                        <Text style={styles.tokenText}>{s.contactPerson || s.name || id}</Text>
+                        <Text style={styles.tokenText}>
+                          {s.contactPerson || s.name || id}
+                        </Text>
                         <TouchableOpacity onPress={() => toggleStockist(id)}>
                           <Feather name="x" size={14} color="#0891b2" />
                         </TouchableOpacity>
@@ -485,8 +564,18 @@ export default function PurchaserSignup() {
                   })}
                 </View>
               ) : null}
-              <View style={[styles.searchBox, stockistDropdownOpen && styles.searchBoxActive]}>
-                <Feather name="search" size={18} color="#9ca3af" style={styles.searchIcon} />
+              <View
+                style={[
+                  styles.searchBox,
+                  stockistDropdownOpen && styles.searchBoxActive,
+                ]}
+              >
+                <Feather
+                  name="search"
+                  size={18}
+                  color="#9ca3af"
+                  style={styles.searchIcon}
+                />
                 <TextInput
                   style={styles.searchInput}
                   value={stockistQuery}
@@ -506,60 +595,102 @@ export default function PurchaserSignup() {
                 <View style={styles.dropdown}>
                   {loadingStockists ? (
                     <View style={styles.loaderBox}>
-                       <ActivityIndicator color="#06b6d4" />
-                       <Text style={styles.loaderText}>Finding Stockists...</Text>
+                      <ActivityIndicator color="#06b6d4" />
+                      <Text style={styles.loaderText}>
+                        Finding Stockists...
+                      </Text>
                     </View>
                   ) : filteredStockists.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                      <Text style={styles.dropdownSub}>No stockists found matching your search</Text>
+                      <Text style={styles.dropdownSub}>
+                        No stockists found matching your search
+                      </Text>
                       {stockists.length === 0 && (
-                        <TouchableOpacity style={styles.retryBtn} onPress={fetchStockists}>
+                        <TouchableOpacity
+                          style={styles.retryBtn}
+                          onPress={fetchStockists}
+                        >
                           <Text style={styles.retryText}>Retry Loading</Text>
                         </TouchableOpacity>
                       )}
                     </View>
                   ) : (
                     <ScrollView nestedScrollEnabled style={{ maxHeight: 220 }}>
-                    {filteredStockists.map((s) => {
-                      const isSelected = selectedStockists.includes(s._id);
-                      const name = s.firmName || s.contactPerson || s.name || "Unnamed Stockist";
-                      const sub = s.email || s.contactNo || s.phone || "";
-                      
-                      return (
-                        <TouchableOpacity 
-                          key={s._id} 
-                          style={[styles.dropdownItem, isSelected ? styles.dropdownItemActive : null]} 
-                          onPress={() => { 
-                            if (!isSelected) toggleStockist(s._id); 
-                            setStockistQuery(""); 
-                            setStockistDropdownOpen(false); 
-                          }}
-                        >
-                          <View style={{ flex: 1, paddingRight: 8 }}>
-                            <Text style={styles.dropdownTitle} numberOfLines={1}>{name}</Text>
-                            {sub ? <Text style={styles.dropdownSub} numberOfLines={1}>{sub}</Text> : null}
-                          </View>
-                          {isSelected ? <Feather name="check-circle" size={18} color="#06b6d4" /> : null}
-                        </TouchableOpacity>
-                      );
-                    })}
+                      {filteredStockists.map((s) => {
+                        const isSelected = selectedStockists.includes(s._id);
+                        const name =
+                          s.firmName ||
+                          s.contactPerson ||
+                          s.name ||
+                          "Unnamed Stockist";
+                        const sub = s.email || s.contactNo || s.phone || "";
+
+                        return (
+                          <TouchableOpacity
+                            key={s._id}
+                            style={[
+                              styles.dropdownItem,
+                              isSelected ? styles.dropdownItemActive : null,
+                            ]}
+                            onPress={() => {
+                              if (!isSelected) toggleStockist(s._id);
+                              setStockistQuery("");
+                              setStockistDropdownOpen(false);
+                            }}
+                          >
+                            <View style={{ flex: 1, paddingRight: 8 }}>
+                              <Text
+                                style={styles.dropdownTitle}
+                                numberOfLines={1}
+                              >
+                                {name}
+                              </Text>
+                              {sub ? (
+                                <Text
+                                  style={styles.dropdownSub}
+                                  numberOfLines={1}
+                                >
+                                  {sub}
+                                </Text>
+                              ) : null}
+                            </View>
+                            {isSelected ? (
+                              <Feather
+                                name="check-circle"
+                                size={18}
+                                color="#06b6d4"
+                              />
+                            ) : null}
+                          </TouchableOpacity>
+                        );
+                      })}
                     </ScrollView>
                   )}
-                  <TouchableOpacity style={styles.closeDropdown} onPress={() => setStockistDropdownOpen(false)}>
+                  <TouchableOpacity
+                    style={styles.closeDropdown}
+                    onPress={() => setStockistDropdownOpen(false)}
+                  >
                     <Text style={styles.closeDropdownText}>Hide List</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
-              {errors.stockists ? <Text style={styles.fieldError}>{errors.stockists}</Text> : null}
+              {errors.stockists ? (
+                <Text style={styles.fieldError}>{errors.stockists}</Text>
+              ) : null}
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, isSubmitting ? styles.submitBtnDisabled : null]}
+              style={[
+                styles.submitBtn,
+                isSubmitting ? styles.submitBtnDisabled : null,
+              ]}
               onPress={handleSubmit}
               disabled={isSubmitting}
             >
               <LinearGradient
-                colors={isSubmitting ? ["#d1d5db", "#9ca3af"] : ["#22d3ee", "#06b6d4"]}
+                colors={
+                  isSubmitting ? ["#d1d5db", "#9ca3af"] : ["#22d3ee", "#06b6d4"]
+                }
                 style={styles.submitGradient}
               >
                 {isSubmitting ? (
@@ -570,10 +701,12 @@ export default function PurchaserSignup() {
               </LinearGradient>
             </TouchableOpacity>
             <View style={styles.footer}>
-               <Text style={styles.footerText}>Already have an account?</Text>
-               <TouchableOpacity onPress={() => router.push("/Purchaser/purchaser-login")}>
-                 <Text style={styles.signInLink}>Sign In Here</Text>
-               </TouchableOpacity>
+              <Text style={styles.footerText}>Already have an account?</Text>
+              <TouchableOpacity
+                onPress={() => router.push("/Purchaser/purchaser-login")}
+              >
+                <Text style={styles.signInLink}>Sign In Here</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -621,7 +754,13 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   inputGroup: { marginBottom: 20 },
-  label: { fontSize: 12, fontWeight: "bold", color: "#6b7280", marginBottom: 8, letterSpacing: 0.5 },
+  label: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#6b7280",
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
   input: {
     backgroundColor: "#f9fafb",
     borderWidth: 1,
@@ -643,9 +782,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
   },
   imageError: { borderWidth: 1, borderColor: "#fecaca" },
-  uploadPlaceholder: { flex: 1, justifyContent: "center", alignItems: "center", padding: 12 },
-  uploadIconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginBottom: 8 },
-  uploadText: { fontSize: 11, fontWeight: "600", color: "#6b7280", textAlign: "center" },
+  uploadPlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 12,
+  },
+  uploadIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  uploadText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6b7280",
+    textAlign: "center",
+  },
   previewImage: { width: "100%", height: "100%" },
   searchBox: {
     flexDirection: "row",
@@ -674,7 +830,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#cffafe",
   },
-  tokenText: { fontSize: 12, color: "#0891b2", fontWeight: "500", marginRight: 4 },
+  tokenText: {
+    fontSize: 12,
+    color: "#0891b2",
+    fontWeight: "500",
+    marginRight: 4,
+  },
   dropdown: {
     marginTop: 8,
     backgroundColor: "#fff",
@@ -731,10 +892,18 @@ const styles = StyleSheet.create({
   dropdownTitle: { fontSize: 14, fontWeight: "600", color: "#1f2937" },
   dropdownSub: { fontSize: 11, color: "#9ca3af" },
   loader: { padding: 20 },
-  closeDropdown: { padding: 10, alignItems: "center", backgroundColor: "#f9fafb" },
+  closeDropdown: {
+    padding: 10,
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
+  },
   closeDropdownText: { fontSize: 12, fontWeight: "bold", color: "#6b7280" },
   submitBtn: { marginTop: 10, borderRadius: 16, overflow: "hidden" },
-  submitGradient: { paddingVertical: 16, alignItems: "center", justifyContent: "center" },
+  submitGradient: {
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   submitText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   submitBtnDisabled: { opacity: 0.6 },
   footer: { marginTop: 24, alignItems: "center" },

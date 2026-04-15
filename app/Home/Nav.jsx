@@ -17,14 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
-
-// Safely require backend config
-const fallbackApiUrl = (p) => p;
-let apiUrl = fallbackApiUrl;
-try {
-  const api = require("../../config/api");
-  apiUrl = api.apiUrl || fallbackApiUrl;
-} catch (e) {}
+import { fetchJson } from "../../config/api";
 
 const medicineReferencesStockist = (med, stockistId) => {
   if (!med) return false;
@@ -89,7 +82,13 @@ const idEquals = (a, b) => {
 };
 
 const companyDisplayName = (company) =>
-  String(company?.name || company?.shortName || "").trim();
+  String(
+    company?.name ||
+      company?.shortName ||
+      company?.companyName ||
+      company?.title ||
+      "",
+  ).trim();
 
 const normalizeString = (value) =>
   String(value || "")
@@ -100,7 +99,22 @@ const companyLinksStockist = (company, stockist) => {
   if (!company || !stockist) return false;
 
   const stockistId = stockist._id || stockist.id || stockist;
-  const refs = Array.isArray(company.stockists) ? company.stockists : [];
+  const refs = [
+    company.stockists,
+    company.stockist,
+    company.stockistId,
+    company.stockistIds,
+    company.seller,
+    company.sellerId,
+    company.sellerIds,
+    company.vendor,
+    company.vendorId,
+    company.vendorIds,
+    company.supplier,
+    company.supplierId,
+    company.supplierIds,
+  ];
+
   if (refs.some((ref) => idEquals(ref, stockistId))) return true;
 
   const stockistName = normalizeString(
@@ -109,10 +123,22 @@ const companyLinksStockist = (company, stockist) => {
       stockist.companyName ||
       stockist.contactPerson,
   );
-  if (stockistName && Array.isArray(company.stockistNames)) {
-    return company.stockistNames
-      .map(normalizeString)
-      .some((name) => name && name === stockistName);
+  const stockistNameArrays = [
+    company.stockistNames,
+    company.stockistName,
+    company.sellerNames,
+    company.vendorNames,
+    company.supplierNames,
+  ];
+
+  if (stockistName) {
+    return stockistNameArrays.some((names) =>
+      Array.isArray(names)
+        ? names
+            .map(normalizeString)
+            .some((name) => name && name === stockistName)
+        : false,
+    );
   }
 
   return false;
@@ -179,25 +205,59 @@ export default function Nav({ navigation: navProp }) {
     let mounted = true;
     (async () => {
       try {
-        const token = await secureStorage.getItem("token");
-        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-
-        const [resStockist, resMedicine, resCompany] = await Promise.all([
-          fetch(apiUrl("/api/stockist?limit=1000"), { headers: authHeaders }),
-          fetch(apiUrl("/api/medicine?limit=1000"), { headers: authHeaders }),
-          fetch(apiUrl("/api/company?limit=1000"), { headers: authHeaders }),
-        ]);
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
-          resStockist.json(),
-          resMedicine.json(),
-          resCompany.json(),
+          fetchJson("/stockist?limit=1000"),
+          fetchJson("/medicine?limit=1000"),
+          fetchJson("/company?limit=1000"),
         ]);
 
-        const medicines = (jsonMedicine && jsonMedicine.data) || [];
-        const companies = (jsonCompany && jsonCompany.data) || [];
+        if (__DEV__) {
+          console.log("[Nav] Initial data loaded:", {
+            stockistCount: Array.isArray(jsonStockist)
+              ? jsonStockist.length
+              : jsonStockist?.data?.length || 0,
+            medicineCount: Array.isArray(jsonMedicine)
+              ? jsonMedicine.length
+              : jsonMedicine?.data?.length || 0,
+            companyCount: Array.isArray(jsonCompany)
+              ? jsonCompany.length
+              : jsonCompany?.data?.length || 0,
+          });
+        }
 
-        if (mounted && jsonStockist && jsonStockist.data) {
-          const mapped = jsonStockist.data.map((s) => {
+        const medicines = Array.isArray(jsonMedicine)
+          ? jsonMedicine
+          : (jsonMedicine && jsonMedicine.data) ||
+            jsonMedicine?.medicines ||
+            jsonMedicine?.items ||
+            [];
+        const companies = Array.isArray(jsonCompany)
+          ? jsonCompany
+          : (jsonCompany && jsonCompany.data) ||
+            jsonCompany?.companies ||
+            jsonCompany?.items ||
+            [];
+        const stockists = Array.isArray(jsonStockist)
+          ? jsonStockist
+          : (jsonStockist && jsonStockist.data) ||
+            jsonStockist?.stockists ||
+            jsonStockist?.items ||
+            [];
+
+        if (__DEV__) {
+          console.log("[Nav] Parsed data structure:", {
+            rawStockist: typeof jsonStockist,
+            rawMedicine: typeof jsonMedicine,
+            rawCompany: typeof jsonCompany,
+            stockistsLength: stockists.length,
+            medicinesLength: medicines.length,
+            companiesLength: companies.length,
+            firstStockist: stockists[0],
+          });
+        }
+
+        if (mounted && stockists.length > 0) {
+          const mapped = stockists.map((s) => {
             let medsForStockist = medicines
               .filter((m) => medicineReferencesStockist(m, s._id))
               .map((m) => medicineDisplayName(m))
@@ -283,6 +343,41 @@ export default function Nav({ navigation: navProp }) {
               .map((c) => companyDisplayName(c))
               .filter(Boolean);
 
+            const reverseCompanies = companies
+              .filter((c) => deepScanCompanyReferences(c, s._id))
+              .map((c) => companyDisplayName(c))
+              .filter(Boolean);
+
+            companiesForStockist = Array.from(
+              new Set([
+                ...directCompanies,
+                ...companiesForStockist,
+                ...reverseCompanies,
+              ]),
+            );
+
+            const companyMedicinesMap = {};
+            companiesForStockist.forEach((cName) => {
+              const company = companies.find(
+                (c) => companyDisplayName(c) === cName,
+              );
+              if (company) {
+                const companyMeds = medicines
+                  .filter((m) => {
+                    const mCompId = m.company && (m.company._id || m.company);
+                    const cId = company._id || company.id;
+                    return (
+                      String(mCompId) === String(cId) &&
+                      Array.isArray(m.stockists) &&
+                      m.stockists.some((st) => idEquals(st, s._id))
+                    );
+                  })
+                  .map((m) => medicineDisplayName(m))
+                  .filter(Boolean);
+                companyMedicinesMap[cName] = companyMeds;
+              }
+            });
+
             const explicitItems = (
               Array.isArray(s.companies) ? s.companies : []
             )
@@ -298,25 +393,16 @@ export default function Nav({ navigation: navProp }) {
               })
               .filter(Boolean);
 
-            const reverseCompanies = companies
-              .filter((c) => deepScanCompanyReferences(c, s._id))
-              .map((c) => companyDisplayName(c))
-              .filter(Boolean);
-
-            companiesForStockist = Array.from(
-              new Set([
-                ...directCompanies,
-                ...companiesForStockist,
-                ...reverseCompanies,
-              ]),
-            );
 
             const items = Array.from(
               new Set([
                 ...(explicitItems || []),
                 ...(companiesForStockist || []),
               ]),
-            );
+            ).map((itemName) => ({
+              name: itemName,
+              Medicines: companyMedicinesMap[itemName] || [],
+            }));
 
             let meds = [];
             if (Array.isArray(s.medicines) && s.medicines.length > 0) {
@@ -360,9 +446,22 @@ export default function Nav({ navigation: navProp }) {
             };
           });
           setSectionData(mapped);
+          setSelectedStockists(mapped);
+          if (__DEV__) {
+            console.log("[Nav] State updated with", mapped.length, "stockists");
+          }
         }
       } catch (err) {
-        console.warn("Nav: failed to load stockists", err);
+        console.error("[Nav] Error loading stockists:", {
+          message: err?.message,
+          status: err?.status,
+          body: err?.body,
+          stack: err?.stack,
+        });
+        if (err?.status === 401) {
+          await secureStorage.multiRemove(["token", "refreshToken", "user"]);
+          router.replace("/");
+        }
       }
     })();
     return () => (mounted = false);
@@ -371,27 +470,27 @@ export default function Nav({ navigation: navProp }) {
   const fetchStockistsPage = async (p = page) => {
     setPageLoading(true);
     try {
-      const token = await secureStorage.getItem("token");
-      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-
-      const [resStockist, resMedicine, resCompany] = await Promise.all([
-        fetch(apiUrl(`/api/stockist?page=${p}&limit=${limit}`), {
-          headers: authHeaders,
-        }),
-        fetch(apiUrl("/api/medicine"), { headers: authHeaders }),
-        fetch(apiUrl("/api/company"), { headers: authHeaders }),
-      ]);
-
       const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
-        resStockist.json(),
-        resMedicine.json(),
-        resCompany.json(),
+        fetchJson(`/stockist?page=${p}&limit=${limit}`),
+        fetchJson("/medicine"),
+        fetchJson("/company"),
       ]);
 
-      const medicines = (jsonMedicine && jsonMedicine.data) || [];
-      const companies = (jsonCompany && jsonCompany.data) || [];
-
-      const data = (jsonStockist && jsonStockist.data) || [];
+      const medicines = Array.isArray(jsonMedicine)
+        ? jsonMedicine
+        : (jsonMedicine && jsonMedicine.data) ||
+          jsonMedicine?.medicines ||
+          jsonMedicine?.items ||
+          [];
+      const companies = Array.isArray(jsonCompany)
+        ? jsonCompany
+        : (jsonCompany && jsonCompany.data) ||
+          jsonCompany?.companies ||
+          jsonCompany?.items ||
+          [];
+      const data = Array.isArray(jsonStockist)
+        ? jsonStockist
+        : (jsonStockist && jsonStockist.data) || [];
 
       const mapped = data.map((s) => {
         let medsForStockist = medicines
@@ -479,19 +578,6 @@ export default function Nav({ navigation: navProp }) {
             ];
         }
 
-        const explicitItems = (Array.isArray(s.companies) ? s.companies : [])
-          .map((c) => {
-            if (typeof c === "string") {
-              const found = companies.find((co) =>
-                idEquals(co._id || co.id, c),
-              );
-              return found ? companyDisplayName(found) || c : c;
-            }
-            if (c && (c.name || c.shortName)) return companyDisplayName(c);
-            return "";
-          })
-          .filter(Boolean);
-
         const reverseCompanies = companies
           .filter((c) => deepScanCompanyReferences(c, s._id))
           .map((c) => companyDisplayName(c))
@@ -505,9 +591,49 @@ export default function Nav({ navigation: navProp }) {
           ]),
         );
 
+        const companyMedicinesMap = {};
+        companiesForStockist.forEach((cName) => {
+          const company = companies.find(
+            (c) => companyDisplayName(c) === cName,
+          );
+          if (company) {
+            const companyMeds = medicines
+              .filter((m) => {
+                const mCompId = m.company && (m.company._id || m.company);
+                const cId = company._id || company.id;
+                return (
+                  String(mCompId) === String(cId) &&
+                  Array.isArray(m.stockists) &&
+                  m.stockists.some((st) => idEquals(st, s._id))
+                );
+              })
+              .map((m) => medicineDisplayName(m))
+              .filter(Boolean);
+            companyMedicinesMap[cName] = companyMeds;
+          }
+        });
+
+        const explicitItems = (Array.isArray(s.companies) ? s.companies : [])
+          .map((c) => {
+            if (typeof c === "string") {
+              const found = companies.find((co) =>
+                idEquals(co._id || co.id, c),
+              );
+              return found ? companyDisplayName(found) || c : c;
+            }
+            if (c && (c.name || c.shortName)) return companyDisplayName(c);
+            return "";
+          })
+          .filter(Boolean);
+
         const items = Array.from(
           new Set([...(explicitItems || []), ...(companiesForStockist || [])]),
-        );
+        ).map((itemName) => ({
+          name: itemName,
+          Medicines: companyMedicinesMap[itemName] || [],
+        }));
+
+
 
         let meds = [];
         if (Array.isArray(s.medicines) && s.medicines.length > 0) {
@@ -840,20 +966,22 @@ export default function Nav({ navigation: navProp }) {
             <Text style={styles.tagSectionTitle}>PARTNER COMPANIES</Text>
             <View style={styles.tagRow}>
               {item.items.slice(0, 10).map((comp, i) => {
+                const compName = typeof comp === "string" ? comp : comp?.name || "";
+                const compMeds = typeof comp === "string" ? 0 : (comp?.Medicines || []).length;
                 const isMatched =
                   searchQuery &&
-                  comp.toLowerCase().includes(searchQuery.toLowerCase());
+                  compName.toLowerCase().includes(searchQuery.toLowerCase());
                 return (
                   <View
                     key={i}
                     style={[
                       styles.tag,
                       isMatched && styles.tagMatched,
-                      { flexDirection: "row" },
+                      { flexDirection: "column", alignItems: "center" },
                     ]}
                   >
                     <Text style={{ marginRight: 4 }}>
-                      {getHealthIcon(comp)}
+                      {getHealthIcon(compName)}
                     </Text>
                     <Text
                       style={[
@@ -861,7 +989,15 @@ export default function Nav({ navigation: navProp }) {
                         isMatched && styles.tagTextMatched,
                       ]}
                     >
-                      {comp}
+                      {compName}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.tagMedCount,
+                        isMatched && styles.tagMedCountMatched,
+                      ]}
+                    >
+                      {compMeds} meds
                     </Text>
                   </View>
                 );
@@ -1402,6 +1538,8 @@ const styles = StyleSheet.create({
   },
   tagMatched: { backgroundColor: "#f97316" },
   tagText: { color: "#334155", fontSize: 13, fontWeight: "600" },
+  tagMedCount: { color: "#94a3b8", fontSize: 11, fontWeight: "500", marginTop: 2 },
+  tagMedCountMatched: { color: "#10b981" },
   tagTextMatched: { color: "#fff" },
   cardFooter: {
     flexDirection: "row",

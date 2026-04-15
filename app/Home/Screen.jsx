@@ -17,15 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
-
-const fallbackApiUrl = (path) => path;
-let apiUrl = fallbackApiUrl;
-let fetchJson = async (path) => (await fetch(apiUrl(path))).json();
-try {
-  const api = require("../../config/api");
-  apiUrl = api.apiUrl || fallbackApiUrl;
-  if (api.fetchJson) fetchJson = api.fetchJson;
-} catch (e) {}
+import { fetchJson } from "../../config/api";
 
 const medicineReferencesStockist = (med, stockistId) => {
   if (!med || !stockistId) return false;
@@ -102,7 +94,13 @@ const idEquals = (a, b) => {
 };
 
 const companyDisplayName = (company) =>
-  String(company?.name || company?.shortName || "").trim();
+  String(
+    company?.name ||
+      company?.shortName ||
+      company?.companyName ||
+      company?.title ||
+      "",
+  ).trim();
 
 const normalizeString = (value) =>
   String(value || "")
@@ -113,7 +111,22 @@ const companyLinksStockist = (company, stockist) => {
   if (!company || !stockist) return false;
 
   const stockistId = stockist._id || stockist.id || stockist;
-  const refs = Array.isArray(company.stockists) ? company.stockists : [];
+  const refs = [
+    company.stockists,
+    company.stockist,
+    company.stockistId,
+    company.stockistIds,
+    company.seller,
+    company.sellerId,
+    company.sellerIds,
+    company.vendor,
+    company.vendorId,
+    company.vendorIds,
+    company.supplier,
+    company.supplierId,
+    company.supplierIds,
+  ];
+
   if (refs.some((ref) => idEquals(ref, stockistId))) return true;
 
   const stockistName = normalizeString(
@@ -122,10 +135,22 @@ const companyLinksStockist = (company, stockist) => {
       stockist.companyName ||
       stockist.contactPerson,
   );
-  if (stockistName && Array.isArray(company.stockistNames)) {
-    return company.stockistNames
-      .map(normalizeString)
-      .some((name) => name && name === stockistName);
+  const stockistNameArrays = [
+    company.stockistNames,
+    company.stockistName,
+    company.sellerNames,
+    company.vendorNames,
+    company.supplierNames,
+  ];
+
+  if (stockistName) {
+    return stockistNameArrays.some((names) =>
+      Array.isArray(names)
+        ? names
+            .map(normalizeString)
+            .some((name) => name && name === stockistName)
+        : false,
+    );
   }
 
   return false;
@@ -157,31 +182,56 @@ const Screen = ({ navigation: navProp }) => {
     (async () => {
       try {
         setPageLoading(true);
-        const token = await secureStorage.getItem("token");
-        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-
-        const [resStockist, resMedicine, resCompany] = await Promise.all([
-          fetch(apiUrl(`/api/stockist?page=${page}&limit=${limit}`), {
-            headers: authHeaders,
-          }).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/medicine?limit=1000"), {
-            headers: authHeaders,
-          }).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/company?limit=1000"), {
-            headers: authHeaders,
-          }).catch(() => ({ json: () => ({ data: [] }) })),
-        ]);
 
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
-          resStockist.json().catch(() => ({ data: [] })),
-          resMedicine.json().catch(() => ({ data: [] })),
-          resCompany.json().catch(() => ({ data: [] })),
+          fetchJson(`/stockist?page=${page}&limit=${limit}`),
+          fetchJson("/medicine?limit=1000"),
+          fetchJson("/company?limit=1000"),
         ]);
 
-        const medicines = (jsonMedicine && jsonMedicine.data) || [];
-        const companies = (jsonCompany && jsonCompany.data) || [];
+        if (__DEV__) {
+          console.log("[Screen] Page data loaded:", {
+            page,
+            stockistCount: Array.isArray(jsonStockist)
+              ? jsonStockist.length
+              : jsonStockist?.data?.length || 0,
+            medicineCount: Array.isArray(jsonMedicine)
+              ? jsonMedicine.length
+              : jsonMedicine?.data?.length || 0,
+            companyCount: Array.isArray(jsonCompany)
+              ? jsonCompany.length
+              : jsonCompany?.data?.length || 0,
+          });
+        }
 
-        if (mounted && jsonStockist && jsonStockist.data) {
+        const medicines = Array.isArray(jsonMedicine)
+          ? jsonMedicine
+          : (jsonMedicine && jsonMedicine.data) ||
+            jsonMedicine?.medicines ||
+            jsonMedicine?.items ||
+            [];
+        const companies = Array.isArray(jsonCompany)
+          ? jsonCompany
+          : (jsonCompany && jsonCompany.data) ||
+            jsonCompany?.companies ||
+            jsonCompany?.items ||
+            [];
+        const stockists = Array.isArray(jsonStockist)
+          ? jsonStockist
+          : (jsonStockist && jsonStockist.data) ||
+            jsonStockist?.stockists ||
+            jsonStockist?.items ||
+            [];
+
+        if (__DEV__) {
+          console.log("[Screen] Parsed data:", {
+            stockistsLength: stockists.length,
+            medicinesLength: medicines.length,
+            companiesLength: companies.length,
+          });
+        }
+
+        if (mounted && stockists.length > 0) {
           try {
             const tp =
               jsonStockist.totalPages ||
@@ -191,7 +241,7 @@ const Screen = ({ navigation: navProp }) => {
             if (tp != null) setTotalPages(Number(tp));
           } catch (e) {}
 
-          const mapped = jsonStockist.data.map((s) => {
+          const mapped = stockists.map((s) => {
             let medsForStockist = medicines
               .filter((m) => medicineReferencesStockist(m, s._id))
               .map((m) => medicineDisplayName(m))
@@ -315,9 +365,33 @@ const Screen = ({ navigation: navProp }) => {
                 ];
             }
 
-            const explicitItems = (
-              Array.isArray(s.companies) ? s.companies : []
-            )
+            const companyMedicinesMap = {};
+            companiesForStockist.forEach((cName) => {
+              const company = companies.find(
+                (c) => companyDisplayName(c) === cName,
+              );
+              if (company) {
+                const companyMeds = medicines
+                  .filter((m) => {
+                    const mCompId = m.company && (m.company._id || m.company);
+                    const cId = company._id || company.id;
+                    return (
+                      String(mCompId) === String(cId) &&
+                      Array.isArray(m.stockists) &&
+                      m.stockists.some((st) => idEquals(st, s._id))
+                    );
+                  })
+                  .map((m) => medicineDisplayName(m))
+                  .filter(Boolean);
+                companyMedicinesMap[cName] = companyMeds;
+              }
+            });
+
+            const explicitItems = [
+              ...(Array.isArray(s.companies) ? s.companies : []),
+              ...(Array.isArray(s.companyNames) ? s.companyNames : []),
+              ...(Array.isArray(s.partnerCompanies) ? s.partnerCompanies : []),
+            ]
               .map((c) => {
                 if (typeof c === "string") {
                   const found = companies.find((co) =>
@@ -325,7 +399,11 @@ const Screen = ({ navigation: navProp }) => {
                   );
                   return found ? companyDisplayName(found) || c : c;
                 }
-                if (c && (c.name || c.shortName)) return companyDisplayName(c);
+                if (c && typeof c === "object") {
+                  if (c.name || c.shortName || c.companyName || c.title)
+                    return companyDisplayName(c);
+                  if (typeof c === "string") return String(c);
+                }
                 return "";
               })
               .filter(Boolean);
@@ -335,7 +413,10 @@ const Screen = ({ navigation: navProp }) => {
                 ...(explicitItems || []),
                 ...(companiesForStockist || []),
               ]),
-            );
+            ).map((itemName) => ({
+              name: itemName,
+              Medicines: companyMedicinesMap[itemName] || [],
+            }));
 
             let meds = [];
             if (Array.isArray(s.medicines) && s.medicines.length > 0) {
@@ -380,11 +461,25 @@ const Screen = ({ navigation: navProp }) => {
 
           setSectionData(mapped);
 
-          if (jsonStockist.data.length === 0 && page > 1) {
+          if (__DEV__) {
+            console.log("[Screen] State updated with", mapped.length, "stockists");
+          }
+
+          if (stockists.length === 0 && page > 1) {
             setPage((p) => Math.max(1, p - 1));
           }
         }
       } catch (err) {
+        console.error("[Screen] Error loading stockists:", {
+          message: err?.message,
+          status: err?.status,
+          body: err?.body,
+          stack: err?.stack,
+        });
+        if (err?.status === 401) {
+          await secureStorage.multiRemove(["token", "refreshToken", "user"]);
+          router.replace("/");
+        }
       } finally {
         setPageLoading(false);
       }
@@ -691,17 +786,26 @@ const Screen = ({ navigation: navProp }) => {
             <Text style={styles.detailSectionTitle}>Partner Companies</Text>
             {Array.isArray(currentSection.items) &&
             currentSection.items.length > 0 ? (
-              currentSection.items.map((item, idxx) => (
-                <View key={idxx} style={styles.partnerRow}>
-                  <View style={styles.partnerIconBox}>
-                    <Text style={styles.partnerIcon}>
-                      {getHealthIcon(item)}
-                    </Text>
+              currentSection.items.map((item, idxx) => {
+                const itemName = typeof item === "string" ? item : item?.name || "";
+                const itemMeds = typeof item === "string" ? [] : item?.Medicines || [];
+                return (
+                  <View key={idxx} style={styles.partnerRow}>
+                    <View style={styles.partnerIconBox}>
+                      <Text style={styles.partnerIcon}>
+                        {getHealthIcon(itemName)}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.partnerName}>{itemName}</Text>
+                      <Text style={styles.partnerMedCount}>
+                        {itemMeds.length} medicines
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={20} color="#cbd5e1" />
                   </View>
-                  <Text style={styles.partnerName}>{item}</Text>
-                  <Feather name="chevron-right" size={20} color="#cbd5e1" />
-                </View>
-              ))
+                );
+              })
             ) : (
               <View style={styles.emptyPartnerRow}>
                 <Feather name="info" size={16} color="#64748b" />
@@ -1248,6 +1352,7 @@ const styles = StyleSheet.create({
   },
   partnerIcon: { fontSize: 18 },
   partnerName: { flex: 1, fontSize: 15, fontWeight: "600", color: "#334155" },
+  partnerMedCount: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
   emptyPartnerRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Dimensions,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl, fetchJson, requestJson, postJson } from "../../config/api";
@@ -42,32 +42,56 @@ export default function AdminCreateCompany() {
     return stockist._id || stockist.id || stockist;
   };
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const token = await secureStorage.getItem("token");
-        if (!token) {
-          throw new Error(
-            "Admin token missing. Please sign in or paste a valid token before loading stockists.",
-          );
-        }
+  const fetchStockists = useCallback(async () => {
+    setStockistsLoading(true);
+    try {
+      const json = await requestJson("/stockist");
 
-        const json = await requestJson("/api/stockist", { token });
-        if (mounted) setStockistsList(json.data || []);
-      } catch (err) {
-        console.warn(
-          "[AdminCreateCompany] Failed to load stockists:",
-          err.message,
-        );
-      } finally {
-        if (mounted) setStockistsLoading(false);
+      console.log("[AdminCreateCompany] Full API response:", json);
+
+      // Extract data from multiple possible response formats
+      let stockistsData = [];
+      if (Array.isArray(json)) {
+        stockistsData = json;
+      } else if (json?.data && Array.isArray(json.data)) {
+        stockistsData = json.data;
+      } else if (json?.stockists && Array.isArray(json.stockists)) {
+        stockistsData = json.stockists;
+      } else if (json?.result && Array.isArray(json.result)) {
+        stockistsData = json.result;
+      } else if (json?.items && Array.isArray(json.items)) {
+        stockistsData = json.items;
       }
-    })();
-    return () => {
-      mounted = false;
-    };
+
+      console.log("[AdminCreateCompany] Extracted data:", {
+        stockistsCount: stockistsData.length,
+        firstItem: stockistsData[0],
+      });
+
+      setStockistsList(stockistsData);
+    } catch (err) {
+      console.error("[AdminCreateCompany] Full error:", err);
+      console.error("[AdminCreateCompany] Error details:", {
+        message: err?.message,
+        status: err?.status,
+        body: err?.body,
+        stack: err?.stack,
+      });
+    } finally {
+      setStockistsLoading(false);
+    }
   }, []);
+
+  // Fetch stockists on mount and whenever screen comes into focus
+  useEffect(() => {
+    fetchStockists();
+  }, [fetchStockists]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchStockists();
+    }, [fetchStockists]),
+  );
 
   const toggleStockist = (id) => {
     const stockistId = getStockistId(id);
@@ -126,7 +150,7 @@ export default function AdminCreateCompany() {
     console.log("[CreateCompany] payload", payload);
     setLoading(true);
     try {
-      await postJson("/api/company", payload, {
+      await postJson("/company", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

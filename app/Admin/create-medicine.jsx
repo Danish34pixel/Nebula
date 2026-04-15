@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -15,7 +21,7 @@ import {
   Image,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl, fetchJson, requestJson, postJson } from "../../config/api";
@@ -41,30 +47,78 @@ export default function AdminCreateMedicine() {
   const [stockistSearch, setStockistSearch] = useState("");
   const [fetchingData, setFetchingData] = useState(true);
 
-  // Use central helpers for API calls
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const [jsonC, jsonS] = await Promise.all([
-          requestJson("/api/company"),
-          requestJson("/api/stockist"),
-        ]);
+  const fetchData = useCallback(async () => {
+    setFetchingData(true);
+    try {
+      const [jsonC, jsonS] = await Promise.all([
+        requestJson("/company"),
+        requestJson("/stockist"),
+      ]);
 
-        if (mounted) {
-          setCompanies(jsonC.data || []);
-          setStockistsList(jsonS.data || []);
-        }
-      } catch (e) {
-        console.warn("[AdminCreateMedicine] Failed to load data:", e.message);
-      } finally {
-        if (mounted) setFetchingData(false);
+      console.log("[AdminCreateMedicine] Full API responses:", {
+        company: jsonC,
+        stockist: jsonS,
+      });
+
+      // Extract data from multiple possible response formats
+      let companiesData = [];
+      if (Array.isArray(jsonC)) {
+        companiesData = jsonC;
+      } else if (jsonC?.data && Array.isArray(jsonC.data)) {
+        companiesData = jsonC.data;
+      } else if (jsonC?.companies && Array.isArray(jsonC.companies)) {
+        companiesData = jsonC.companies;
+      } else if (jsonC?.result && Array.isArray(jsonC.result)) {
+        companiesData = jsonC.result;
+      } else if (jsonC?.items && Array.isArray(jsonC.items)) {
+        companiesData = jsonC.items;
       }
-    })();
-    return () => {
-      mounted = false;
-    };
+
+      let stockistsData = [];
+      if (Array.isArray(jsonS)) {
+        stockistsData = jsonS;
+      } else if (jsonS?.data && Array.isArray(jsonS.data)) {
+        stockistsData = jsonS.data;
+      } else if (jsonS?.stockists && Array.isArray(jsonS.stockists)) {
+        stockistsData = jsonS.stockists;
+      } else if (jsonS?.result && Array.isArray(jsonS.result)) {
+        stockistsData = jsonS.result;
+      } else if (jsonS?.items && Array.isArray(jsonS.items)) {
+        stockistsData = jsonS.items;
+      }
+
+      console.log("[AdminCreateMedicine] Extracted data:", {
+        companies: companiesData.length,
+        stockists: stockistsData.length,
+        companiesFirstItem: companiesData[0],
+        stockistsFirstItem: stockistsData[0],
+      });
+
+      setCompanies(companiesData);
+      setStockistsList(stockistsData);
+    } catch (e) {
+      console.error("[AdminCreateMedicine] Full error:", e);
+      console.error("[AdminCreateMedicine] Error details:", {
+        message: e?.message,
+        status: e?.status,
+        body: e?.body,
+        stack: e?.stack,
+      });
+    } finally {
+      setFetchingData(false);
+    }
   }, []);
+
+  // Fetch data on mount and whenever screen comes into focus
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData]),
+  );
 
   // Optimized filtering
   const filteredCompanies = useMemo(() => {
@@ -130,8 +184,8 @@ export default function AdminCreateMedicine() {
 
     const token = await secureStorage.getItem("token");
     console.log("[CreateMedicine] token present", Boolean(token));
-    // We proceed even without token because the backend /quick endpoint 
-    // uses optionalAuthenticate and my recent fixes handle the stockist 
+    // We proceed even without token because the backend /quick endpoint
+    // uses optionalAuthenticate and my recent fixes handle the stockist
     // linkage via the payload itself.
     if (!token) {
       console.warn("[CreateMedicine] proceeding without token (optional)");

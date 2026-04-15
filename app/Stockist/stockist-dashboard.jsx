@@ -15,7 +15,7 @@ import {
   Platform,
   Animated,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -500,9 +500,9 @@ export default function StockistDashboard() {
       setStockist(target);
 
       const [cRes, mRes, sRes] = await Promise.all([
-        fetch(apiUrl("/api/company"), { headers }),
-        fetch(apiUrl("/api/medicine"), { headers }),
-        fetch(apiUrl(`/api/staff?stockist=${target._id}`), { headers }),
+        fetch(apiUrl("/company"), { headers }),
+        fetch(apiUrl("/medicine"), { headers }),
+        fetch(apiUrl(`/staff?stockist=${target._id}`), { headers }),
       ]);
 
       if ([cRes.status, mRes.status, sRes.status].includes(401)) {
@@ -516,9 +516,9 @@ export default function StockistDashboard() {
         sRes.json().catch(() => ({})),
       ]);
 
-      const allCompanies = cJson?.data || [];
-      const allMeds = mJson?.data || [];
-      const staffList = sJson?.data || [];
+      const allCompanies = Array.isArray(cJson) ? cJson : cJson?.data || [];
+      const allMeds = Array.isArray(mJson) ? mJson : mJson?.data || [];
+      const staffList = Array.isArray(sJson) ? sJson : sJson?.data || [];
 
       const filteredCompanies = allCompanies.filter((company) => {
         try {
@@ -599,6 +599,13 @@ export default function StockistDashboard() {
   useEffect(() => {
     loadStockistData();
   }, [loadStockistData]);
+
+  // Refresh data whenever the screen comes back into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadStockistData();
+    }, [loadStockistData]),
+  );
 
   useEffect(() => {
     if (!authError) return;

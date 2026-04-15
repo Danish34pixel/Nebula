@@ -38,10 +38,14 @@ const StockistAdmin = () => {
       const token = await secureStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const limit = 100;
-      const firstRes = await fetch(apiUrl(`/api/stockist?page=1&limit=${limit}`), { headers });
+      const firstRes = await fetch(apiUrl(`/stockist?page=1&limit=${limit}`), {
+        headers,
+      });
       const firstJson = await firstRes.json();
       if (!firstRes.ok) {
-        throw new Error(firstJson.message || `Failed to load stockists (${firstRes.status})`);
+        throw new Error(
+          firstJson.message || `Failed to load stockists (${firstRes.status})`,
+        );
       }
 
       let fetched = firstJson.data || [];
@@ -50,7 +54,9 @@ const StockistAdmin = () => {
       if (totalPages > 1) {
         const pageRequests = [];
         for (let p = 2; p <= totalPages; p += 1) {
-          pageRequests.push(fetch(apiUrl(`/api/stockist?page=${p}&limit=${limit}`), { headers }));
+          pageRequests.push(
+            fetch(apiUrl(`/stockist?page=${p}&limit=${limit}`), { headers }),
+          );
         }
         const responses = await Promise.all(pageRequests);
         for (const res of responses) {
@@ -69,7 +75,7 @@ const StockistAdmin = () => {
             fetched = fetched.map((st) =>
               approvedIds.includes(st._id)
                 ? { ...st, approved: true, status: "approved" }
-                : st
+                : st,
             );
           }
         }
@@ -87,7 +93,7 @@ const StockistAdmin = () => {
 
   useEffect(() => {
     fetchStockists();
-    
+
     // Load dev token if exists
     (async () => {
       const savedToken = await secureStorage.getItem("token");
@@ -105,7 +111,7 @@ const StockistAdmin = () => {
     setApproving((p) => ({ ...p, [id]: true }));
     try {
       const token = await secureStorage.getItem("token");
-      const headers = { 
+      const headers = {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       };
@@ -114,17 +120,16 @@ const StockistAdmin = () => {
         method: "PATCH",
         headers,
       });
-      
+
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || `Approval failed (${res.status})`);
+      if (!res.ok)
+        throw new Error(json.message || `Approval failed (${res.status})`);
 
       // Update local state
       setStockists((s) =>
         s.map((st) =>
-          st._id === id
-            ? { ...st, approved: true, status: "approved" }
-            : st
-        )
+          st._id === id ? { ...st, approved: true, status: "approved" } : st,
+        ),
       );
 
       // Persist locally
@@ -149,7 +154,7 @@ const StockistAdmin = () => {
     setDeclining((p) => ({ ...p, [id]: true }));
     try {
       const token = await secureStorage.getItem("token");
-      const headers = { 
+      const headers = {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
       };
@@ -158,9 +163,10 @@ const StockistAdmin = () => {
         method: "PATCH",
         headers,
       });
-      
+
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || `Decline failed (${res.status})`);
+      if (!res.ok)
+        throw new Error(json.message || `Decline failed (${res.status})`);
 
       setStockists((s) => s.filter((st) => st._id !== id));
 
@@ -169,9 +175,11 @@ const StockistAdmin = () => {
         const raw = await AsyncStorage.getItem(APPROVED_STORAGE_KEY);
         const arr = raw ? JSON.parse(raw) : [];
         const newArr = arr.filter((x) => x !== id);
-        await AsyncStorage.setItem(APPROVED_STORAGE_KEY, JSON.stringify(newArr));
+        await AsyncStorage.setItem(
+          APPROVED_STORAGE_KEY,
+          JSON.stringify(newArr),
+        );
       } catch (e) {}
-
     } catch (e) {
       Alert.alert("Error", e.message || String(e));
     } finally {
@@ -183,12 +191,15 @@ const StockistAdmin = () => {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
             <Feather name="arrow-left" size={24} color="#1f2937" />
           </TouchableOpacity>
           <Text style={styles.title}>Stockists (Admin)</Text>
           <TouchableOpacity onPress={fetchStockists} style={styles.refreshBtn}>
-             <Feather name="refresh-cw" size={20} color="#0d9488" />
+            <Feather name="refresh-cw" size={20} color="#0d9488" />
           </TouchableOpacity>
         </View>
 
@@ -209,14 +220,24 @@ const StockistAdmin = () => {
           </View>
         )}
 
-        {loading && <ActivityIndicator size="large" color="#0d9488" style={{ marginTop: 20 }} />}
+        {loading && (
+          <ActivityIndicator
+            size="large"
+            color="#0d9488"
+            style={{ marginTop: 20 }}
+          />
+        )}
         {error && <Text style={styles.errorText}>{error}</Text>}
 
         <ScrollView contentContainerStyle={styles.list}>
           {stockists.map((s) => {
             const imgSrc = s.profileImageUrl || s.licenseImageUrl;
-            const isApproved = s.approved || s.status === "approved" || s.status === "Approved";
-            const isProcessing = s.status === "processing" || s.status === "Processing" || (!isApproved && s.status !== "declined");
+            const isApproved =
+              s.approved || s.status === "approved" || s.status === "Approved";
+            const isProcessing =
+              s.status === "processing" ||
+              s.status === "Processing" ||
+              (!isApproved && s.status !== "declined");
 
             return (
               <View key={s._id} style={styles.card}>
@@ -224,10 +245,18 @@ const StockistAdmin = () => {
                   {imgSrc ? (
                     <Image
                       source={{ uri: imgSrc }}
-                      style={[styles.avatar, isApproved && styles.approvedOpacity]}
+                      style={[
+                        styles.avatar,
+                        isApproved && styles.approvedOpacity,
+                      ]}
                     />
                   ) : (
-                    <View style={[styles.avatarPlaceholder, isApproved && styles.approvedOpacity]}>
+                    <View
+                      style={[
+                        styles.avatarPlaceholder,
+                        isApproved && styles.approvedOpacity,
+                      ]}
+                    >
                       <Feather name="package" size={24} color="#9ca3af" />
                     </View>
                   )}
@@ -236,13 +265,11 @@ const StockistAdmin = () => {
                     <Text style={styles.userName}>
                       {s.title || s.name || s.companyName}
                     </Text>
-                    <Text style={styles.userSub}>
-                      {s.email || s.phone}
-                    </Text>
+                    <Text style={styles.userSub}>{s.email || s.phone}</Text>
                     {isApproved && (
                       <View style={styles.approvedBadge}>
-                         <Feather name="check" size={12} color="#10b981" />
-                         <Text style={styles.approvedText}>Approved</Text>
+                        <Feather name="check" size={12} color="#10b981" />
+                        <Text style={styles.approvedText}>Approved</Text>
                       </View>
                     )}
                   </View>
@@ -262,7 +289,7 @@ const StockistAdmin = () => {
                           <Text style={styles.actionBtnText}>Approve</Text>
                         )}
                       </TouchableOpacity>
-                      
+
                       <TouchableOpacity
                         style={[styles.actionBtn, styles.declineBtn]}
                         onPress={() => declineStockist(s._id)}
@@ -278,7 +305,7 @@ const StockistAdmin = () => {
                   )}
                   {isApproved && (
                     <View style={styles.statusLabel}>
-                       <Text style={styles.statusLabelText}>APPROVED</Text>
+                      <Text style={styles.statusLabelText}>APPROVED</Text>
                     </View>
                   )}
                 </View>
@@ -311,7 +338,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
   },
-  devLabel: { fontSize: 12, fontWeight: "600", color: "#4b5563", marginBottom: 6 },
+  devLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4b5563",
+    marginBottom: 6,
+  },
   devInputRow: { flexDirection: "row", gap: 8 },
   devInput: {
     flex: 1,
@@ -357,13 +389,29 @@ const styles = StyleSheet.create({
   userName: { fontSize: 16, fontWeight: "bold", color: "#1f2937" },
   userSub: { fontSize: 14, color: "#6b7280" },
   approvedBadge: { flexDirection: "row", alignItems: "center", marginTop: 4 },
-  approvedText: { color: "#10b981", fontSize: 12, fontWeight: "600", marginLeft: 4 },
+  approvedText: {
+    color: "#10b981",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
   actions: { flexDirection: "row", gap: 8, justifyContent: "flex-end" },
-  actionBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, minWidth: 100, alignItems: "center" },
+  actionBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: "center",
+  },
   approveBtn: { backgroundColor: "#0d9488" },
   declineBtn: { backgroundColor: "#ef4444" },
   actionBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-  statusLabel: { backgroundColor: "#f3f4f6", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+  statusLabel: {
+    backgroundColor: "#f3f4f6",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
   statusLabelText: { fontSize: 12, fontWeight: "700", color: "#9ca3af" },
 });
 

@@ -29,7 +29,9 @@ const resolveMedicineFromCatalog = (catalog, inputName) => {
   const exact = catalog.find((m) => normalize(m?.name) === q);
   if (exact) return exact;
 
-  const partial = catalog.find((m) => normalize(m?.name).includes(q) || q.includes(normalize(m?.name)));
+  const partial = catalog.find(
+    (m) => normalize(m?.name).includes(q) || q.includes(normalize(m?.name)),
+  );
   return partial || null;
 };
 
@@ -45,9 +47,9 @@ export default function Demand() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(apiUrl("/api/medicine?limit=500"));
+        const res = await fetch(apiUrl("/medicine?limit=500"));
         const data = await res.json().catch(() => ({}));
-        if (res.ok) setMedicines(data?.data || []);
+        if (res.ok) setMedicines(Array.isArray(data) ? data : data?.data || []);
       } catch (_) {}
     })();
   }, []);
@@ -128,7 +130,7 @@ export default function Demand() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": token ? `Bearer ${token}` : "",
+          Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({
           items: payloadItems,
@@ -144,13 +146,13 @@ export default function Demand() {
       setSessionDemand({
         generatedAt: new Date().toISOString(),
         medicalOwner,
-        requestedMedicines: data.data.inventory.map(inv => ({
+        requestedMedicines: data.data.inventory.map((inv) => ({
           inputName: inv.requestedAs,
           medicineName: inv.medicineName,
           medicineId: null, // IDs are in stockists
           inCatalog: true, // Backend did the check
         })),
-        medicineStockists: data.data.inventory.map(inv => ({
+        medicineStockists: data.data.inventory.map((inv) => ({
           medicineName: inv.medicineName,
           requestedAs: inv.requestedAs,
           stockists: inv.stockists,
@@ -176,11 +178,15 @@ export default function Demand() {
         <View style={styles.backBtn} />
       </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.card}>
           <Text style={styles.label}>Medicines</Text>
           {lines.map((line) => {
-            const suggestions = focusedLineId === line.id ? getSuggestions(line.name) : [];
+            const suggestions =
+              focusedLineId === line.id ? getSuggestions(line.name) : [];
             return (
               <View key={line.id} style={styles.lineBlock}>
                 <View style={styles.lineRow}>
@@ -194,7 +200,10 @@ export default function Demand() {
                     onBlur={() => setTimeout(() => setFocusedLineId(null), 150)}
                   />
                   {lines.length > 1 ? (
-                    <TouchableOpacity onPress={() => removeLine(line.id)} style={styles.iconBtn}>
+                    <TouchableOpacity
+                      onPress={() => removeLine(line.id)}
+                      style={styles.iconBtn}
+                    >
                       <Feather name="x" size={16} color="#ef4444" />
                     </TouchableOpacity>
                   ) : null}
@@ -205,7 +214,12 @@ export default function Demand() {
                     {suggestions.map((s, idx) => (
                       <TouchableOpacity
                         key={`${line.id}-${idx}`}
-                        style={[styles.suggestionItem, idx === suggestions.length - 1 && { borderBottomWidth: 0 }]}
+                        style={[
+                          styles.suggestionItem,
+                          idx === suggestions.length - 1 && {
+                            borderBottomWidth: 0,
+                          },
+                        ]}
                         onPress={() => {
                           updateLine(line.id, { name: s });
                           setFocusedLineId(null);
@@ -232,13 +246,25 @@ export default function Demand() {
             </View>
           ) : null}
 
-          <TouchableOpacity onPress={createDemand} disabled={loading} style={styles.submitWrap}>
-            <LinearGradient colors={["#06b6d4", "#0ea5e9"]} style={styles.submitBtn}>
+          <TouchableOpacity
+            onPress={createDemand}
+            disabled={loading}
+            style={styles.submitWrap}
+          >
+            <LinearGradient
+              colors={["#06b6d4", "#0ea5e9"]}
+              style={styles.submitBtn}
+            >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Feather name="send" size={16} color="#fff" style={{ marginRight: 8 }} />
+                  <Feather
+                    name="send"
+                    size={16}
+                    color="#fff"
+                    style={{ marginRight: 8 }}
+                  />
                   <Text style={styles.submitText}>Create Demand</Text>
                 </>
               )}
@@ -248,20 +274,30 @@ export default function Demand() {
 
         {sessionDemand ? (
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Demand Preview (Session Only)</Text>
-            <Text style={styles.summaryText}>Medical Owner: {sessionDemand.medicalOwner.name}</Text>
+            <Text style={styles.summaryTitle}>
+              Demand Preview (Session Only)
+            </Text>
+            <Text style={styles.summaryText}>
+              Medical Owner: {sessionDemand.medicalOwner.name}
+            </Text>
             <Text style={styles.summaryText}>
               Requested Medicines: {sessionDemand.requestedMedicines.length}
             </Text>
 
             {sessionDemand.medicineStockists.map((entry, idx) => (
-              <View key={`${entry.medicineName}-${idx}`} style={styles.medicineCard}>
+              <View
+                key={`${entry.medicineName}-${idx}`}
+                style={styles.medicineCard}
+              >
                 <Text style={styles.medicineTitle}>{entry.medicineName}</Text>
                 {entry.stockists.length === 0 ? (
                   <Text style={styles.notAvailableText}>Not Available</Text>
                 ) : (
                   entry.stockists.map((stockist, sIdx) => (
-                    <View key={`${stockist.id || stockist.name}-${sIdx}`} style={styles.stockistRow}>
+                    <View
+                      key={`${stockist.id || stockist.name}-${sIdx}`}
+                      style={styles.stockistRow}
+                    >
                       <Text style={styles.stockistName}>{stockist.name}</Text>
                       <Text style={styles.stockistPhone}>{stockist.phone}</Text>
                     </View>
@@ -302,7 +338,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
-  label: { fontSize: 14, fontWeight: "700", color: "#334155", marginBottom: 10 },
+  label: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#334155",
+    marginBottom: 10,
+  },
   lineBlock: { marginBottom: 10 },
   lineRow: {
     flexDirection: "row",

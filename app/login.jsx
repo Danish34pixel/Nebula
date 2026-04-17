@@ -108,12 +108,18 @@ export default function Login() {
 
       if (data.success && data.accessToken && data.user) {
         // Evaluate approval status
-        const isApproved = data.user.approved === true || data.user.status === "approved" || data.user.status === "Approved";
+        const isApproved =
+          data.user.approved === true ||
+          data.user.status === "approved" ||
+          data.user.status === "Approved";
 
         if (!isApproved && data.user._id) {
           // Not approved yet; redirect to waiting room
           await AsyncStorage.setItem("pendingUserId", String(data.user._id));
-          Alert.alert("Pending", "Your account is still under verification by the admin.");
+          Alert.alert(
+            "Pending",
+            "Your account is still under verification by the admin.",
+          );
           router.replace("/MedicalOwner/MedicalMiddle");
           return;
         }
@@ -139,7 +145,10 @@ export default function Login() {
         throw new Error("Invalid response format from server");
       }
     } catch (err) {
-      Alert.alert("Login Error", err.message || "Login failed. Please check your credentials.");
+      Alert.alert(
+        "Login Error",
+        err.message || "Login failed. Please check your credentials.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -147,14 +156,22 @@ export default function Login() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LinearGradient colors={["#eff6ff", "#ffffff", "#f0fdf4"]} style={styles.container}>
+      <LinearGradient
+        colors={["#eff6ff", "#ffffff", "#f0fdf4"]}
+        style={styles.container}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.replace("/")} style={styles.backBtn}>
+            <TouchableOpacity
+              onPress={() =>
+                router.canGoBack() ? router.back() : router.replace("/")
+              }
+              style={styles.backBtn}
+            >
               <Feather name="arrow-left" size={24} color="#1e293b" />
             </TouchableOpacity>
           </View>
@@ -172,7 +189,9 @@ export default function Login() {
             {/* Title */}
             <View style={styles.titleContainer}>
               <Text style={styles.title}>Welcome Back</Text>
-              <Text style={styles.subtitle}>Sign in to your MedTrap account</Text>
+              <Text style={styles.subtitle}>
+                Sign in to your MedTrap account
+              </Text>
             </View>
 
             {/* Form Card */}
@@ -204,8 +223,15 @@ export default function Login() {
                   style={styles.rememberRow}
                   onPress={() => setRememberMe(!rememberMe)}
                 >
-                  <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                    {rememberMe && <Feather name="check" size={12} color="#fff" />}
+                  <View
+                    style={[
+                      styles.checkbox,
+                      rememberMe && styles.checkboxActive,
+                    ]}
+                  >
+                    {rememberMe && (
+                      <Feather name="check" size={12} color="#fff" />
+                    )}
                   </View>
                   <Text style={styles.rememberText}>Remember me</Text>
                 </TouchableOpacity>
@@ -240,8 +266,12 @@ export default function Login() {
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>New to MedTrap?</Text>
-              <TouchableOpacity onPress={() => router.push("/MedicalOwner/MedicalSignup")}>
-                <Text style={styles.createAccountText}>Create your account</Text>
+              <TouchableOpacity
+                onPress={() => router.push("/MedicalOwner/MedicalSignup")}
+              >
+                <Text style={styles.createAccountText}>
+                  Create your account
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -347,7 +377,11 @@ const styles = StyleSheet.create({
   rememberText: { fontSize: 14, color: "#64748b", fontWeight: "500" },
   forgotText: { fontSize: 14, color: "#2563eb", fontWeight: "600" },
   submitBtn: { borderRadius: 16, overflow: "hidden" },
-  submitGradient: { height: 56, justifyContent: "center", alignItems: "center" },
+  submitGradient: {
+    height: 56,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   footer: {
     marginTop: 32,

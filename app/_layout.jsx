@@ -20,6 +20,7 @@ export default function RootLayout() {
         <Stack.Screen name="Admin/index" />
         <Stack.Screen name="Admin/users" />
         <Stack.Screen name="Admin/stockists" />
+        <Stack.Screen name="Admin/medical-management" />
         <Stack.Screen name="Admin/create-company" />
         <Stack.Screen name="Admin/create-medicine" />
         <Stack.Screen name="Staff/Createstaff" />

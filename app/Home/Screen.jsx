@@ -17,15 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
-
-const fallbackApiUrl = (path) => path;
-let apiUrl = fallbackApiUrl;
-let fetchJson = async (path) => (await fetch(apiUrl(path))).json();
-try {
-  const api = require("../../config/api");
-  apiUrl = api.apiUrl || fallbackApiUrl;
-  if (api.fetchJson) fetchJson = api.fetchJson;
-} catch (e) {}
+import { fetchJson } from "../../config/api";
 
 const medicineReferencesStockist = (med, stockistId) => {
   if (!med || !stockistId) return false;
@@ -41,11 +33,18 @@ const medicineReferencesStockist = (med, stockistId) => {
     if (med.supplier) candidates.push(med.supplier);
     if (med.supplierId) candidates.push(med.supplierId);
   } catch {}
-  
+
   return candidates.some((c) => {
     if (!c) return false;
     // Support nested objects like { stockist: ID } or { seller: ID }
-    const refId = c.stockist || c.seller || c.stockistId || c.sellerId || c._id || c.id || (typeof c === 'string' ? c : null);
+    const refId =
+      c.stockist ||
+      c.seller ||
+      c.stockistId ||
+      c.sellerId ||
+      c._id ||
+      c.id ||
+      (typeof c === "string" ? c : null);
     return String(refId) === String(stockistId);
   });
 };
@@ -57,20 +56,48 @@ const medicineDisplayName = (m) => {
   return "";
 };
 
+const getPhoneString = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" || typeof value === "number")
+    return String(value).trim();
+  if (typeof value === "object") {
+    const candidates = [
+      value.phone,
+      value.contactNo,
+      value.cntxNumber,
+      value.contactNumber,
+      value.number,
+      value.value,
+    ];
+    for (const candidate of candidates) {
+      if (candidate != null && candidate !== "") {
+        const normalized = getPhoneString(candidate);
+        if (normalized) return normalized;
+      }
+    }
+  }
+  return "";
+};
+
 const nameMatchesStockistItems = (name, s) => {
   if (!name || !s) return false;
   const n = String(name).toLowerCase().trim();
   const items = s.items || s.companies || s.medicines || s.Medicines || [];
-  return items.some(i => {
+  return items.some((i) => {
     if (!i) return false;
-    const str = String(typeof i === 'string' ? i : (i.name || i.shortName || i.brandName || "")).toLowerCase().trim();
+    const str = String(
+      typeof i === "string" ? i : i.name || i.shortName || i.brandName || "",
+    )
+      .toLowerCase()
+      .trim();
     return str && (str.includes(n) || n.includes(str));
   });
 };
 
 const extractIdCandidates = (value) => {
   if (value == null) return [];
-  if (typeof value === "string" || typeof value === "number") return [String(value)];
+  if (typeof value === "string" || typeof value === "number")
+    return [String(value)];
   if (Array.isArray(value)) return value.flatMap(extractIdCandidates);
   if (typeof value === "object") {
     const direct = [];
@@ -90,12 +117,66 @@ const idEquals = (a, b) => {
 };
 
 const companyDisplayName = (company) =>
-  String(company?.name || company?.shortName || "").trim();
+  String(
+    company?.name ||
+      company?.shortName ||
+      company?.companyName ||
+      company?.title ||
+      "",
+  ).trim();
 
-const companyLinksStockist = (company, stockistId) => {
-  if (!company || !stockistId) return false;
-  const refs = Array.isArray(company.stockists) ? company.stockists : [];
-  return refs.some((ref) => idEquals(ref, stockistId));
+const normalizeString = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .trim();
+
+const companyLinksStockist = (company, stockist) => {
+  if (!company || !stockist) return false;
+
+  const stockistId = stockist._id || stockist.id || stockist;
+  const refs = [
+    company.stockists,
+    company.stockist,
+    company.stockistId,
+    company.stockistIds,
+    company.seller,
+    company.sellerId,
+    company.sellerIds,
+    company.vendor,
+    company.vendorId,
+    company.vendorIds,
+    company.supplier,
+    company.supplierId,
+    company.supplierIds,
+  ];
+
+  if (refs.some((ref) => idEquals(ref, stockistId))) return true;
+
+  const stockistName = normalizeString(
+    stockist.name ||
+      stockist.title ||
+      stockist.companyName ||
+      stockist.contactPerson,
+  );
+  const stockistNameArrays = [
+    company.stockistNames,
+    company.stockistName,
+    company.sellerNames,
+    company.vendorNames,
+    company.supplierNames,
+  ];
+
+  if (stockistName) {
+    return stockistNameArrays.some((names) =>
+      Array.isArray(names)
+        ? names
+            .map(normalizeString)
+            .some((name) => name && name === stockistName)
+        : false,
+    );
+  }
+
+  return false;
 };
 
 const { width } = Dimensions.get("window");
@@ -124,38 +205,80 @@ const Screen = ({ navigation: navProp }) => {
     (async () => {
       try {
         setPageLoading(true);
-        const token = await secureStorage.getItem("token");
-        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-
-        const [resStockist, resMedicine, resCompany] = await Promise.all([
-          fetch(apiUrl(`/api/stockist?page=${page}&limit=${limit}`), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/medicine?limit=1000"), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
-          fetch(apiUrl("/api/company?limit=1000"), { headers: authHeaders }).catch(() => ({ json: () => ({ data: [] }) })),
-        ]);
 
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
-          resStockist.json().catch(() => ({ data: [] })),
-          resMedicine.json().catch(() => ({ data: [] })),
-          resCompany.json().catch(() => ({ data: [] })),
+          fetchJson(`/stockist?page=${page}&limit=${limit}`),
+          fetchJson("/medicine?limit=1000"),
+          fetchJson("/company?limit=1000"),
         ]);
 
-        const medicines = (jsonMedicine && jsonMedicine.data) || [];
-        const companies = (jsonCompany && jsonCompany.data) || [];
+        if (__DEV__) {
+          console.log("[Screen] Page data loaded:", {
+            page,
+            stockistCount: Array.isArray(jsonStockist)
+              ? jsonStockist.length
+              : jsonStockist?.data?.length || 0,
+            medicineCount: Array.isArray(jsonMedicine)
+              ? jsonMedicine.length
+              : jsonMedicine?.data?.length || 0,
+            companyCount: Array.isArray(jsonCompany)
+              ? jsonCompany.length
+              : jsonCompany?.data?.length || 0,
+          });
+        }
 
-        if (mounted && jsonStockist && jsonStockist.data) {
+        const medicines = Array.isArray(jsonMedicine)
+          ? jsonMedicine
+          : (jsonMedicine && jsonMedicine.data) ||
+            jsonMedicine?.medicines ||
+            jsonMedicine?.items ||
+            [];
+        const companies = Array.isArray(jsonCompany)
+          ? jsonCompany
+          : (jsonCompany && jsonCompany.data) ||
+            jsonCompany?.companies ||
+            jsonCompany?.items ||
+            [];
+        const stockists = Array.isArray(jsonStockist)
+          ? jsonStockist
+          : (jsonStockist && jsonStockist.data) ||
+            jsonStockist?.stockists ||
+            jsonStockist?.items ||
+            [];
+
+        if (__DEV__) {
+          console.log("[Screen] Parsed data:", {
+            stockistsLength: stockists.length,
+            medicinesLength: medicines.length,
+            companiesLength: companies.length,
+          });
+        }
+
+        if (mounted && stockists.length > 0) {
           try {
-            const tp = jsonStockist.totalPages || jsonStockist.pages || (jsonStockist.totalStockists && Math.ceil(jsonStockist.totalStockists / limit));
+            const tp =
+              jsonStockist.totalPages ||
+              jsonStockist.pages ||
+              (jsonStockist.totalStockists &&
+                Math.ceil(jsonStockist.totalStockists / limit));
             if (tp != null) setTotalPages(Number(tp));
           } catch (e) {}
-          
-          const mapped = jsonStockist.data.map((s) => {
+
+          const mapped = stockists.map((s) => {
             let medsForStockist = medicines
               .filter((m) => medicineReferencesStockist(m, s._id))
               .map((m) => medicineDisplayName(m))
               .filter(Boolean);
 
-            if ((!medsForStockist || medsForStockist.length === 0) && medicines.length > 0) {
-              const stockistNames = new Set((s.Medicines || s.medicines || s.items || []).map((x) => String(x).toLowerCase()));
+            if (
+              (!medsForStockist || medsForStockist.length === 0) &&
+              medicines.length > 0
+            ) {
+              const stockistNames = new Set(
+                (s.Medicines || s.medicines || s.items || []).map((x) =>
+                  String(x).toLowerCase(),
+                ),
+              );
               const fallback = medicines
                 .filter((m) => {
                   const name = medicineDisplayName(m) || "";
@@ -178,14 +301,18 @@ const Screen = ({ navigation: navProp }) => {
                 .filter((m) =>
                   Array.isArray(m.stockists)
                     ? m.stockists.some((st) => idEquals(st, s._id))
-                    : false
+                    : false,
                 )
-                .map((m) => (m.company && (m.company._id || m.company) ? String(m.company._id || m.company) : null))
-                .filter(Boolean)
+                .map((m) =>
+                  m.company && (m.company._id || m.company)
+                    ? String(m.company._id || m.company)
+                    : null,
+                )
+                .filter(Boolean),
             );
 
             const directCompanies = companies
-              .filter((c) => companyLinksStockist(c, s._id))
+              .filter((c) => companyLinksStockist(c, s))
               .map((c) => companyDisplayName(c))
               .filter(Boolean);
 
@@ -201,7 +328,8 @@ const Screen = ({ navigation: navProp }) => {
               const walk = (value) => {
                 if (value == null) return false;
                 if (seen.has(value)) return false;
-                if (typeof value === "string" || typeof value === "number") return String(value) === target;
+                if (typeof value === "string" || typeof value === "number")
+                  return String(value) === target;
                 if (Array.isArray(value)) {
                   for (const item of value) if (walk(item)) return true;
                   return false;
@@ -209,7 +337,8 @@ const Screen = ({ navigation: navProp }) => {
                 if (typeof value === "object") {
                   if (seen.has(value)) return false;
                   seen.add(value);
-                  for (const k of Object.keys(value)) if (walk(value[k])) return true;
+                  for (const k of Object.keys(value))
+                    if (walk(value[k])) return true;
                   return false;
                 }
                 return false;
@@ -223,7 +352,11 @@ const Screen = ({ navigation: navProp }) => {
               .filter(Boolean);
 
             companiesForStockist = Array.from(
-              new Set([...directCompanies, ...companiesForStockist, ...reverseCompanies])
+              new Set([
+                ...directCompanies,
+                ...companiesForStockist,
+                ...reverseCompanies,
+              ]),
             );
 
             const companyIdsFromStockist = new Set(
@@ -235,10 +368,13 @@ const Screen = ({ navigation: navProp }) => {
                   if (c.id) return String(c.id);
                   return null;
                 })
-                .filter(Boolean)
+                .filter(Boolean),
             );
 
-            if ((!medsForStockist || medsForStockist.length === 0) && companyIdsFromStockist.size > 0) {
+            if (
+              (!medsForStockist || medsForStockist.length === 0) &&
+              companyIdsFromStockist.size > 0
+            ) {
               const byCompany = medicines
                 .filter((m) => {
                   const comp = m.company && (m.company._id || m.company);
@@ -247,35 +383,81 @@ const Screen = ({ navigation: navProp }) => {
                 .map((m) => medicineDisplayName(m))
                 .filter(Boolean);
               if (byCompany.length > 0)
-                medsForStockist = [...new Set([...(medsForStockist || []), ...byCompany])];
+                medsForStockist = [
+                  ...new Set([...(medsForStockist || []), ...byCompany]),
+                ];
             }
 
-            const explicitItems = (Array.isArray(s.companies) ? s.companies : [])
+            const companyMedicinesMap = {};
+            companiesForStockist.forEach((cName) => {
+              const company = companies.find(
+                (c) => companyDisplayName(c) === cName,
+              );
+              if (company) {
+                const companyMeds = medicines
+                  .filter((m) => {
+                    const mCompId = m.company && (m.company._id || m.company);
+                    const cId = company._id || company.id;
+                    return (
+                      String(mCompId) === String(cId) &&
+                      Array.isArray(m.stockists) &&
+                      m.stockists.some((st) => idEquals(st, s._id))
+                    );
+                  })
+                  .map((m) => medicineDisplayName(m))
+                  .filter(Boolean);
+                companyMedicinesMap[cName] = companyMeds;
+              }
+            });
+
+            const explicitItems = [
+              ...(Array.isArray(s.companies) ? s.companies : []),
+              ...(Array.isArray(s.companyNames) ? s.companyNames : []),
+              ...(Array.isArray(s.partnerCompanies) ? s.partnerCompanies : []),
+            ]
               .map((c) => {
                 if (typeof c === "string") {
-                  const found = companies.find((co) => idEquals(co._id || co.id, c));
+                  const found = companies.find((co) =>
+                    idEquals(co._id || co.id, c),
+                  );
                   return found ? companyDisplayName(found) || c : c;
                 }
-                if (c && (c.name || c.shortName)) return companyDisplayName(c);
+                if (c && typeof c === "object") {
+                  if (c.name || c.shortName || c.companyName || c.title)
+                    return companyDisplayName(c);
+                  if (typeof c === "string") return String(c);
+                }
                 return "";
               })
               .filter(Boolean);
 
-            const items = Array.from(new Set([...(explicitItems || []), ...(companiesForStockist || [])]));
+            const items = Array.from(
+              new Set([
+                ...(explicitItems || []),
+                ...(companiesForStockist || []),
+              ]),
+            ).map((itemName) => ({
+              name: itemName,
+              Medicines: companyMedicinesMap[itemName] || [],
+            }));
 
             let meds = [];
             if (Array.isArray(s.medicines) && s.medicines.length > 0) {
               meds = s.medicines
                 .map((m) => {
                   if (typeof m === "string") return m;
-                  if (m && (m.name || m.brandName)) return m.name || m.brandName;
+                  if (m && (m.name || m.brandName))
+                    return m.name || m.brandName;
                   try {
                     const candidateId = m && (m._id || m.id || m);
                     if (candidateId && medicines && medicines.length > 0) {
                       const found = medicines.find(
                         (md) =>
                           String(md._id) === String(candidateId) ||
-                          String(md._id) === String(candidateId._id || candidateId.id || candidateId)
+                          String(md._id) ===
+                            String(
+                              candidateId._id || candidateId.id || candidateId,
+                            ),
                       );
                       if (found) return medicineDisplayName(found);
                     }
@@ -290,8 +472,17 @@ const Screen = ({ navigation: navProp }) => {
             return {
               _id: s._id,
               title: s.name,
-              phone: s.phone,
-              address: s.address ? `${s.address.street || ""}${s.address.city ? ", " + s.address.city : ""}` : "",
+              phone: getPhoneString(
+                s.phone ||
+                  s.contactNo ||
+                  s.cntxNumber ||
+                  s.cntxNo ||
+                  s.cntx ||
+                  "",
+              ),
+              address: s.address
+                ? `${s.address.street || ""}${s.address.city ? ", " + s.address.city : ""}`
+                : "",
               image: (s.logo && s.logo.url) || null,
               items,
               Medicines: meds,
@@ -300,16 +491,36 @@ const Screen = ({ navigation: navProp }) => {
 
           setSectionData(mapped);
 
-          if (jsonStockist.data.length === 0 && page > 1) {
+          if (__DEV__) {
+            console.log(
+              "[Screen] State updated with",
+              mapped.length,
+              "stockists",
+            );
+          }
+
+          if (stockists.length === 0 && page > 1) {
             setPage((p) => Math.max(1, p - 1));
           }
         }
       } catch (err) {
+        console.error("[Screen] Error loading stockists:", {
+          message: err?.message,
+          status: err?.status,
+          body: err?.body,
+          stack: err?.stack,
+        });
+        if (err?.status === 401) {
+          await secureStorage.multiRemove(["token", "refreshToken", "user"]);
+          router.replace("/");
+        }
       } finally {
         setPageLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [page]);
 
   useEffect(() => {
@@ -337,8 +548,9 @@ const Screen = ({ navigation: navProp }) => {
   };
 
   const makePhoneCall = (phoneNumber) => {
-    if (!phoneNumber) return;
-    Linking.openURL(`tel:${phoneNumber}`);
+    const safePhone = getPhoneString(phoneNumber);
+    if (!safePhone) return;
+    Linking.openURL(`tel:${safePhone}`);
   };
 
   const getHealthIcon = (item) => {
@@ -384,19 +596,30 @@ const Screen = ({ navigation: navProp }) => {
   };
 
   const ListHeader = () => (
-    <LinearGradient colors={["#f8fafc", "#eff6ff", "#ecfeff"]} style={styles.headerContainer}>
+    <LinearGradient
+      colors={["#f8fafc", "#eff6ff", "#ecfeff"]}
+      style={styles.headerContainer}
+    >
       <View style={styles.headerTop}>
         <View style={styles.headerLeftRow}>
-          <LinearGradient colors={["#38bdf8", "#3b82f6"]} style={styles.iconBox}>
+          <LinearGradient
+            colors={["#38bdf8", "#3b82f6"]}
+            style={styles.iconBox}
+          >
             <Text style={styles.emojiText}>🏥</Text>
           </LinearGradient>
           <View>
             <Text style={styles.headerTitle}>Your Stockists</Text>
-            <Text style={styles.headerSubtitle}>Trusted Healthcare Network</Text>
+            <Text style={styles.headerSubtitle}>
+              Trusted Healthcare Network
+            </Text>
           </View>
         </View>
         <View style={styles.headerRightRow}>
-          <LinearGradient colors={["#fb923c", "#ec4899"]} style={styles.smallIconBox}>
+          <LinearGradient
+            colors={["#fb923c", "#ec4899"]}
+            style={styles.smallIconBox}
+          >
             <Text style={styles.emojiTextWhite}>❤</Text>
           </LinearGradient>
           <View style={styles.outlinedIconBox}>
@@ -405,10 +628,15 @@ const Screen = ({ navigation: navProp }) => {
         </View>
       </View>
 
-      <LinearGradient colors={["#fb923c", "#f97316", "#ea580c"]} style={styles.banner}>
+      <LinearGradient
+        colors={["#fb923c", "#f97316", "#ea580c"]}
+        style={styles.banner}
+      >
         <View style={styles.bannerContent}>
           <Text style={styles.bannerTitle}>Find Your Medical Partners</Text>
-          <Text style={styles.bannerSubtitle}>Connect with trusted healthcare suppliers & stockists</Text>
+          <Text style={styles.bannerSubtitle}>
+            Connect with trusted healthcare suppliers & stockists
+          </Text>
           <View style={styles.bannerPillRow}>
             <View style={styles.bannerPill}>
               <View style={[styles.dot, { backgroundColor: "#4ade80" }]} />
@@ -424,8 +652,14 @@ const Screen = ({ navigation: navProp }) => {
       </LinearGradient>
 
       {isAdmin && (
-        <TouchableOpacity onPress={() => navigation.navigate("/Admin")} style={styles.adminButtonContainer}>
-          <LinearGradient colors={["#8b5cf6", "#9333ea"]} style={styles.adminGradient}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("/Admin")}
+          style={styles.adminButtonContainer}
+        >
+          <LinearGradient
+            colors={["#8b5cf6", "#9333ea"]}
+            style={styles.adminGradient}
+          >
             <Text style={styles.adminText}>Admin Panel</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -435,7 +669,8 @@ const Screen = ({ navigation: navProp }) => {
         <View>
           <Text style={styles.subHeaderTitle}>Medical Suppliers</Text>
           <Text style={styles.subHeaderSubtitle}>
-            {sectionData.length} trusted stockist{sectionData.length !== 1 ? "s" : ""} available
+            {sectionData.length} trusted stockist
+            {sectionData.length !== 1 ? "s" : ""} available
           </Text>
         </View>
         <LinearGradient colors={["#3b82f6", "#06b6d4"]} style={styles.countBox}>
@@ -457,8 +692,13 @@ const Screen = ({ navigation: navProp }) => {
         {section.image ? (
           <Image source={{ uri: section.image }} style={styles.cardCover} />
         ) : (
-          <LinearGradient colors={[c1 || "#00C4B3", c2 || "#007BFF"]} style={styles.cardCoverPlaceholder}>
-            <Text style={styles.cardCoverInitial}>{section.title?.charAt(0)}</Text>
+          <LinearGradient
+            colors={[c1 || "#00C4B3", c2 || "#007BFF"]}
+            style={styles.cardCoverPlaceholder}
+          >
+            <Text style={styles.cardCoverInitial}>
+              {section.title?.charAt(0)}
+            </Text>
           </LinearGradient>
         )}
 
@@ -478,17 +718,27 @@ const Screen = ({ navigation: navProp }) => {
             <Text style={styles.cardRowText}>{section.address || "N/A"}</Text>
           </View>
           <View style={styles.servicesBox}>
-            <Text style={styles.servicesTitle}>Services</Text>
+            <Text style={styles.servicesTitle}>Company</Text>
             <View style={styles.servicesRow}>
-              {section.items.slice(0, 2).map((it, idx) => (
-                <View key={idx} style={styles.serviceTag}>
-                  <Text style={styles.serviceIcon}>{getHealthIcon(it)}</Text>
-                  <Text style={styles.serviceText}>{it}</Text>
-                </View>
-              ))}
+              {section.items.slice(0, 2).map((it, idx) => {
+                const itemName =
+                  typeof it === "string"
+                    ? it
+                    : String(it?.name || it?.title || it?.companyName || "");
+                return (
+                  <View key={idx} style={styles.serviceTag}>
+                    <Text style={styles.serviceIcon}>
+                      {getHealthIcon(itemName)}
+                    </Text>
+                    <Text style={styles.serviceText}>{itemName}</Text>
+                  </View>
+                );
+              })}
               {section.items.length > 2 && (
                 <View style={styles.serviceMoreTag}>
-                  <Text style={styles.serviceMoreText}>+{section.items.length - 2} more</Text>
+                  <Text style={styles.serviceMoreText}>
+                    +{section.items.length - 2} more
+                  </Text>
                 </View>
               )}
             </View>
@@ -497,7 +747,9 @@ const Screen = ({ navigation: navProp }) => {
           <View style={styles.cardFooter}>
             <View style={styles.medCountTag}>
               <Text style={styles.medCountText}>
-                {section.Medicines ? `${section.Medicines.length} medicines` : "0 medicines"}
+                {section.Medicines
+                  ? `${section.Medicines.length} medicines`
+                  : "0 medicines"}
               </Text>
             </View>
             <View style={styles.viewDetailsRow}>
@@ -512,7 +764,10 @@ const Screen = ({ navigation: navProp }) => {
     );
   };
 
-  const renderDetailView = (section = sectionData[selectedSection], idx = selectedSection) => {
+  const renderDetailView = (
+    section = sectionData[selectedSection],
+    idx = selectedSection,
+  ) => {
     const currentSection = section;
     if (!currentSection) return null;
     const [color1, color2] = generateHealthColor(idx || 0);
@@ -520,8 +775,11 @@ const Screen = ({ navigation: navProp }) => {
     return (
       <View style={styles.detailContainer}>
         <View style={styles.detailHeader}>
-          <TouchableOpacity onPress={() => setFullscreenStockist(null)} style={styles.closeBtn}>
-             <Feather name="x" size={24} color="#1e293b" />
+          <TouchableOpacity
+            onPress={() => setFullscreenStockist(null)}
+            style={styles.closeBtn}
+          >
+            <Feather name="x" size={24} color="#1e293b" />
           </TouchableOpacity>
           <Text style={styles.detailHeaderTitle}>{currentSection.title}</Text>
         </View>
@@ -530,15 +788,25 @@ const Screen = ({ navigation: navProp }) => {
           <View style={styles.detailInfoCard}>
             <View style={styles.detailInfoRow}>
               {currentSection.image ? (
-                <Image source={{ uri: currentSection.image }} style={styles.detailImage} />
+                <Image
+                  source={{ uri: currentSection.image }}
+                  style={styles.detailImage}
+                />
               ) : (
-                <LinearGradient colors={[color1, color2]} style={styles.detailImagePlaceholder}>
-                  <Text style={styles.detailImageInitial}>{currentSection.title?.charAt(0)}</Text>
+                <LinearGradient
+                  colors={[color1, color2]}
+                  style={styles.detailImagePlaceholder}
+                >
+                  <Text style={styles.detailImageInitial}>
+                    {currentSection.title?.charAt(0)}
+                  </Text>
                 </LinearGradient>
               )}
               <View style={styles.detailInfoText}>
                 <Text style={styles.detailTitle}>{currentSection.title}</Text>
-                <Text style={styles.detailSubtitle}>{currentSection.address}</Text>
+                <Text style={styles.detailSubtitle}>
+                  {currentSection.address}
+                </Text>
                 <View style={styles.ratingRow}>
                   <View style={styles.ratingBadge}>
                     <Text style={{ fontSize: 12 }}>⭐ 4.8</Text>
@@ -549,27 +817,46 @@ const Screen = ({ navigation: navProp }) => {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.callButton} onPress={() => makePhoneCall(currentSection.phone)}>
+          <TouchableOpacity
+            style={styles.callButton}
+            onPress={() => makePhoneCall(currentSection.phone)}
+          >
             <Text style={styles.callButtonIcon}>📞</Text>
             <Text style={styles.callButtonText}>Call Now</Text>
           </TouchableOpacity>
 
           <View style={styles.detailSectionBox}>
             <Text style={styles.detailSectionTitle}>Partner Companies</Text>
-            {Array.isArray(currentSection.items) && currentSection.items.length > 0 ? (
-              currentSection.items.map((item, idxx) => (
-                <View key={idxx} style={styles.partnerRow}>
-                  <View style={styles.partnerIconBox}>
-                    <Text style={styles.partnerIcon}>{getHealthIcon(item)}</Text>
+            {Array.isArray(currentSection.items) &&
+            currentSection.items.length > 0 ? (
+              currentSection.items.map((item, idxx) => {
+                const itemName =
+                  typeof item === "string" ? item : item?.name || "";
+                const itemMeds =
+                  typeof item === "string" ? [] : item?.Medicines || [];
+                return (
+                  <View key={idxx} style={styles.partnerRow}>
+                    <View style={styles.partnerIconBox}>
+                      <Text style={styles.partnerIcon}>
+                        {getHealthIcon(itemName)}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.partnerName}>{itemName}</Text>
+                      <Text style={styles.partnerMedCount}>
+                        {itemMeds.length} medicines
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={20} color="#cbd5e1" />
                   </View>
-                  <Text style={styles.partnerName}>{item}</Text>
-                  <Feather name="chevron-right" size={20} color="#cbd5e1" />
-                </View>
-              ))
+                );
+              })
             ) : (
               <View style={styles.emptyPartnerRow}>
                 <Feather name="info" size={16} color="#64748b" />
-                <Text style={styles.emptyPartnerText}>No partner companies linked for this stockist yet.</Text>
+                <Text style={styles.emptyPartnerText}>
+                  No partner companies linked for this stockist yet.
+                </Text>
               </View>
             )}
           </View>
@@ -577,9 +864,13 @@ const Screen = ({ navigation: navProp }) => {
           {currentSection.Medicines && currentSection.Medicines.length > 0 && (
             <View style={styles.detailSectionBox}>
               <View style={styles.medHeaderRow}>
-                <Text style={styles.detailSectionTitle}>Medicines In Stock</Text>
+                <Text style={styles.detailSectionTitle}>
+                  Medicines In Stock
+                </Text>
                 <View style={styles.medCountBadge}>
-                  <Text style={styles.medCountBadgeText}>{currentSection.Medicines.length} items</Text>
+                  <Text style={styles.medCountBadgeText}>
+                    {currentSection.Medicines.length} items
+                  </Text>
                 </View>
               </View>
               {currentSection.Medicines.slice(0, 5).map((medicine, i) => (
@@ -595,7 +886,9 @@ const Screen = ({ navigation: navProp }) => {
               ))}
               {currentSection.Medicines.length > 5 && (
                 <TouchableOpacity style={styles.viewAllBtn}>
-                  <Text style={styles.viewAllText}>View All {currentSection.Medicines.length} Medicines</Text>
+                  <Text style={styles.viewAllText}>
+                    View All {currentSection.Medicines.length} Medicines
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -608,21 +901,33 @@ const Screen = ({ navigation: navProp }) => {
   const renderBottomNavigation = () => (
     <View style={styles.bottomNavContainer}>
       <View style={styles.bottomNavInner}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("/Home")}>
-          <LinearGradient colors={["#cffafe", "#dbeafe"]} style={styles.navIconBoxActive}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => navigation.navigate("/Home")}
+        >
+          <LinearGradient
+            colors={["#cffafe", "#dbeafe"]}
+            style={styles.navIconBoxActive}
+          >
             <Text style={{ fontSize: 24 }}>🏠</Text>
           </LinearGradient>
           <Text style={styles.navItemTextActive}>Home</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity onPress={() => navigation.navigate("/demand")} style={styles.navItem}>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate("/demand")}
+          style={styles.navItem}
+        >
           <View style={styles.navIconBoxInactive}>
             <Text style={{ fontSize: 24 }}>📋</Text>
           </View>
           <Text style={styles.navItemTextInactive}>Demand</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate("/profile")} style={styles.navItem}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("/profile")}
+          style={styles.navItem}
+        >
           <View style={styles.navIconBoxInactive}>
             <Text style={{ fontSize: 24 }}>👤</Text>
           </View>
@@ -636,7 +941,10 @@ const Screen = ({ navigation: navProp }) => {
     <View style={{ flex: 1 }}>
       {fullscreenStockist === null ? (
         <>
-          <ScrollView contentContainerStyle={{ paddingBottom: 150 }} style={{ flex: 1 }}>
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 150 }}
+            style={{ flex: 1 }}
+          >
             <ListHeader />
             {sectionData.map((s, i) => renderCard(s, i))}
 
@@ -645,32 +953,72 @@ const Screen = ({ navigation: navProp }) => {
               <TouchableOpacity
                 onPress={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1 || pageLoading}
-                style={[styles.pageBtn, (page <= 1 || pageLoading) && styles.pageBtnDisabled]}
+                style={[
+                  styles.pageBtn,
+                  (page <= 1 || pageLoading) && styles.pageBtnDisabled,
+                ]}
               >
-                <Feather name="chevron-left" size={20} color={(page <= 1 || pageLoading) ? "#9ca3af" : "#fff"} />
-                <Text style={[(page <= 1 || pageLoading) ? styles.pageBtnTextDisabled : styles.pageBtnText]}>Prev</Text>
+                <Feather
+                  name="chevron-left"
+                  size={20}
+                  color={page <= 1 || pageLoading ? "#9ca3af" : "#fff"}
+                />
+                <Text
+                  style={[
+                    page <= 1 || pageLoading
+                      ? styles.pageBtnTextDisabled
+                      : styles.pageBtnText,
+                  ]}
+                >
+                  Prev
+                </Text>
               </TouchableOpacity>
 
               <View style={styles.pageIndicator}>
-                <Text style={styles.pageIndicatorText}>Page {page}{totalPages ? ` of ${totalPages}` : ""}</Text>
+                <Text style={styles.pageIndicatorText}>
+                  Page {page}
+                  {totalPages ? ` of ${totalPages}` : ""}
+                </Text>
               </View>
 
               <TouchableOpacity
                 onPress={() => setPage((p) => p + 1)}
-                disabled={pageLoading || (totalPages != null && page >= totalPages)}
-                style={[styles.pageBtn, (pageLoading || (totalPages != null && page >= totalPages)) && styles.pageBtnDisabled]}
+                disabled={
+                  pageLoading || (totalPages != null && page >= totalPages)
+                }
+                style={[
+                  styles.pageBtn,
+                  (pageLoading || (totalPages != null && page >= totalPages)) &&
+                    styles.pageBtnDisabled,
+                ]}
               >
-                <Text style={[(pageLoading || (totalPages != null && page >= totalPages)) ? styles.pageBtnTextDisabled : styles.pageBtnText]}>Next</Text>
-                <Feather name="chevron-right" size={20} color={(pageLoading || (totalPages != null && page >= totalPages)) ? "#9ca3af" : "#fff"} />
+                <Text
+                  style={[
+                    pageLoading || (totalPages != null && page >= totalPages)
+                      ? styles.pageBtnTextDisabled
+                      : styles.pageBtnText,
+                  ]}
+                >
+                  Next
+                </Text>
+                <Feather
+                  name="chevron-right"
+                  size={20}
+                  color={
+                    pageLoading || (totalPages != null && page >= totalPages)
+                      ? "#9ca3af"
+                      : "#fff"
+                  }
+                />
               </TouchableOpacity>
             </View>
           </ScrollView>
           {renderBottomNavigation()}
         </>
       ) : (
-        <Modal 
-          visible={true} 
-          animationType="slide" 
+        <Modal
+          visible={true}
+          animationType="slide"
           presentationStyle="formSheet"
           onRequestClose={() => setFullscreenStockist(null)}
         >
@@ -689,110 +1037,417 @@ const Screen = ({ navigation: navProp }) => {
 
 const styles = StyleSheet.create({
   headerContainer: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
-  headerLeftRow: { flexDirection: 'row', alignItems: 'center' },
-  iconBox: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  headerLeftRow: { flexDirection: "row", alignItems: "center" },
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
   emojiText: { fontSize: 24 },
-  emojiTextWhite: { fontSize: 20, color: 'white' },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#334155' },
-  headerSubtitle: { fontSize: 14, color: '#64748b' },
-  headerRightRow: { flexDirection: 'row' },
-  smallIconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
-  outlinedIconBox: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
-  banner: { padding: 24, borderRadius: 24, marginBottom: 32, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  bannerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
-  bannerSubtitle: { color: '#ffedd5', fontSize: 14, marginBottom: 16 },
-  bannerPillRow: { flexDirection: 'row' },
-  bannerPill: { flexDirection: 'row', alignItems: 'center', marginRight: 12 },
+  emojiTextWhite: { fontSize: 20, color: "white" },
+  headerTitle: { fontSize: 18, fontWeight: "600", color: "#334155" },
+  headerSubtitle: { fontSize: 14, color: "#64748b" },
+  headerRightRow: { flexDirection: "row" },
+  smallIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  outlinedIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+  },
+  banner: {
+    padding: 24,
+    borderRadius: 24,
+    marginBottom: 32,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  bannerTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  bannerSubtitle: { color: "#ffedd5", fontSize: 14, marginBottom: 16 },
+  bannerPillRow: { flexDirection: "row" },
+  bannerPill: { flexDirection: "row", alignItems: "center", marginRight: 12 },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  bannerPillText: { color: 'rgba(255,255,255,0.9)', fontSize: 12 },
+  bannerPillText: { color: "rgba(255,255,255,0.9)", fontSize: 12 },
   bannerIcon: { fontSize: 48, opacity: 0.9 },
-  adminButtonContainer: { marginBottom: 32, borderRadius: 16, overflow: 'hidden' },
-  adminGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  adminText: { color: '#ffffff', fontWeight: 'bold' },
-  subHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  subHeaderTitle: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
-  subHeaderSubtitle: { fontSize: 14, color: '#475569', marginTop: 4 },
+  adminButtonContainer: {
+    marginBottom: 32,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  adminGradient: {
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  adminText: { color: "#ffffff", fontWeight: "bold" },
+  subHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  subHeaderTitle: { fontSize: 24, fontWeight: "bold", color: "#1e293b" },
+  subHeaderSubtitle: { fontSize: 14, color: "#475569", marginTop: 4 },
   countBox: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 16 },
-  countText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  card: { backgroundColor: '#fff', borderRadius: 24, marginHorizontal: 24, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 4, overflow: 'hidden' },
-  cardCover: { height: 200, width: '100%' },
-  cardCoverPlaceholder: { height: 200, width: '100%', justifyContent: 'center', alignItems: 'center' },
-  cardCoverInitial: { fontSize: 64, fontWeight: '800', color: 'rgba(255,255,255,0.9)' },
+  countText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 4,
+    overflow: "hidden",
+  },
+  cardCover: { height: 200, width: "100%" },
+  cardCoverPlaceholder: {
+    height: 200,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardCoverInitial: {
+    fontSize: 64,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.9)",
+  },
   cardBody: { padding: 24 },
-  cardTitle: { fontSize: 22, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 },
-  cardRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  cardIconBoxPhone: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#dbeafe', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  cardIconBoxMap: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ccfbf1', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  cardRowText: { flex: 1, fontSize: 15, color: '#374151', marginTop: 4 },
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#1f2937",
+    marginBottom: 16,
+  },
+  cardRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 12 },
+  cardIconBoxPhone: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#dbeafe",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  cardIconBoxMap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#ccfbf1",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  cardRowText: { flex: 1, fontSize: 15, color: "#374151", marginTop: 4 },
   servicesBox: { marginTop: 12, marginBottom: 24 },
-  servicesTitle: { fontSize: 16, fontWeight: '600', color: '#4b5563', marginBottom: 12 },
-  servicesRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  serviceTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdfa', borderColor: '#ccfbf1', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8, marginBottom: 8 },
+  servicesTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#4b5563",
+    marginBottom: 12,
+  },
+  servicesRow: { flexDirection: "row", flexWrap: "wrap" },
+  serviceTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0fdfa",
+    borderColor: "#ccfbf1",
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
   serviceIcon: { marginRight: 6 },
-  serviceText: { color: '#0d9488', fontSize: 13, fontWeight: '500' },
-  serviceMoreTag: { backgroundColor: '#f1f5f9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginBottom: 8, justifyContent: 'center' },
-  serviceMoreText: { color: '#475569', fontSize: 13, fontWeight: '500' },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderColor: '#f1f5f9', paddingTop: 20, marginTop: 4 },
-  medCountTag: { backgroundColor: '#ecfccb', borderColor: '#d9f99d', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  medCountText: { color: '#4d7c0f', fontWeight: 'bold', fontSize: 13 },
-  viewDetailsRow: { flexDirection: 'row', alignItems: 'center' },
-  viewDetailsText: { fontSize: 15, fontWeight: 'bold', color: '#9333ea', marginRight: 8 },
-  viewDetailsIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f3e8ff', justifyContent: 'center', alignItems: 'center' },
-  paginationRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24 },
-  pageBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0ea5e9', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  pageBtnDisabled: { backgroundColor: '#f1f5f9' },
-  pageBtnText: { color: '#fff', fontWeight: 'bold', marginHorizontal: 4 },
-  pageBtnTextDisabled: { color: '#9ca3af', fontWeight: 'bold', marginHorizontal: 4 },
-  pageIndicator: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginHorizontal: 16, borderWidth: 1, borderColor: '#e0f2fe' },
-  pageIndicatorText: { color: '#0369a1', fontWeight: '600' },
-  bottomNavContainer: { position: 'absolute', bottom: 24, left: 24, right: 24 },
-  bottomNavInner: { backgroundColor: 'rgba(255,255,255,0.95)', flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 16, borderRadius: 24, shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: -4 }, shadowRadius: 10, elevation: 8 },
-  navItem: { alignItems: 'center' },
-  navIconBoxActive: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  navIconBoxInactive: { width: 56, height: 56, borderRadius: 20, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  navItemTextActive: { fontSize: 13, fontWeight: 'bold', color: '#0891b2' },
-  navItemTextInactive: { fontSize: 13, fontWeight: '500', color: '#94a3b8' },
-  detailContainer: { flex: 1, backgroundColor: '#f8fafc' },
-  detailHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, borderBottomWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#fff' },
+  serviceText: { color: "#0d9488", fontSize: 13, fontWeight: "500" },
+  serviceMoreTag: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 8,
+    justifyContent: "center",
+  },
+  serviceMoreText: { color: "#475569", fontSize: 13, fontWeight: "500" },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderColor: "#f1f5f9",
+    paddingTop: 20,
+    marginTop: 4,
+  },
+  medCountTag: {
+    backgroundColor: "#ecfccb",
+    borderColor: "#d9f99d",
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  medCountText: { color: "#4d7c0f", fontWeight: "bold", fontSize: 13 },
+  viewDetailsRow: { flexDirection: "row", alignItems: "center" },
+  viewDetailsText: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#9333ea",
+    marginRight: 8,
+  },
+  viewDetailsIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#f3e8ff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  paginationRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+  },
+  pageBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0ea5e9",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  pageBtnDisabled: { backgroundColor: "#f1f5f9" },
+  pageBtnText: { color: "#fff", fontWeight: "bold", marginHorizontal: 4 },
+  pageBtnTextDisabled: {
+    color: "#9ca3af",
+    fontWeight: "bold",
+    marginHorizontal: 4,
+  },
+  pageIndicator: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#e0f2fe",
+  },
+  pageIndicatorText: { color: "#0369a1", fontWeight: "600" },
+  bottomNavContainer: { position: "absolute", bottom: 24, left: 24, right: 24 },
+  bottomNavInner: {
+    backgroundColor: "rgba(255,255,255,0.95)",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 16,
+    borderRadius: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: -4 },
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  navItem: { alignItems: "center" },
+  navIconBoxActive: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  navIconBoxInactive: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: "#f1f5f9",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  navItemTextActive: { fontSize: 13, fontWeight: "bold", color: "#0891b2" },
+  navItemTextInactive: { fontSize: 13, fontWeight: "500", color: "#94a3b8" },
+  detailContainer: { flex: 1, backgroundColor: "#f8fafc" },
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#fff",
+  },
   closeBtn: { padding: 8 },
-  detailHeaderTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', flex: 1, textAlign: 'center', marginRight: 40 },
+  detailHeaderTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1e293b",
+    flex: 1,
+    textAlign: "center",
+    marginRight: 40,
+  },
   detailScroll: { padding: 16, paddingBottom: 40 },
-  detailInfoCard: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: '#f1f5f9' },
-  detailInfoRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  detailInfoCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  detailInfoRow: { flexDirection: "row", alignItems: "flex-start" },
   detailImage: { width: 80, height: 80, borderRadius: 12, marginRight: 16 },
-  detailImagePlaceholder: { width: 80, height: 80, borderRadius: 12, marginRight: 16, justifyContent: 'center', alignItems: 'center' },
-  detailImageInitial: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
+  detailImagePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginRight: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  detailImageInitial: { fontSize: 32, fontWeight: "bold", color: "#fff" },
   detailInfoText: { flex: 1 },
-  detailTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginBottom: 4 },
-  detailSubtitle: { fontSize: 13, color: '#64748b', marginBottom: 8 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center' },
-  ratingBadge: { backgroundColor: '#ffedd5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, marginRight: 8 },
-  reviewText: { fontSize: 13, color: '#94a3b8' },
-  callButton: { backgroundColor: '#06b6d4', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 16, marginBottom: 16 },
+  detailTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
+  detailSubtitle: { fontSize: 13, color: "#64748b", marginBottom: 8 },
+  ratingRow: { flexDirection: "row", alignItems: "center" },
+  ratingBadge: {
+    backgroundColor: "#ffedd5",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  reviewText: { fontSize: 13, color: "#94a3b8" },
+  callButton: {
+    backgroundColor: "#06b6d4",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
   callButtonIcon: { fontSize: 20, marginRight: 8 },
-  callButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  detailSectionBox: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: '#f1f5f9' },
-  detailSectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e293b', marginBottom: 16 },
-  partnerRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', padding: 12, borderRadius: 12, marginBottom: 12 },
-  partnerIconBox: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#cffafe', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  callButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  detailSectionBox: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  detailSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1e293b",
+    marginBottom: 16,
+  },
+  partnerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  partnerIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "#cffafe",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
   partnerIcon: { fontSize: 18 },
-  partnerName: { flex: 1, fontSize: 15, fontWeight: '600', color: '#334155' },
-  emptyPartnerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f8fafc', padding: 12, borderRadius: 12 },
-  emptyPartnerText: { color: '#64748b', fontSize: 13, fontWeight: '500' },
-  medHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  medCountBadge: { backgroundColor: '#cffafe', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  medCountBadgeText: { color: '#0e7490', fontSize: 11, fontWeight: 'bold' },
-  medItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#f1f5f9' },
-  medIconBox: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#ffedd5', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  partnerName: { flex: 1, fontSize: 15, fontWeight: "600", color: "#334155" },
+  partnerMedCount: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
+  emptyPartnerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    borderRadius: 12,
+  },
+  emptyPartnerText: { color: "#64748b", fontSize: 13, fontWeight: "500" },
+  medHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  medCountBadge: {
+    backgroundColor: "#cffafe",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  medCountBadgeText: { color: "#0e7490", fontSize: 11, fontWeight: "bold" },
+  medItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  medIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "#ffedd5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
   medIcon: { fontSize: 16 },
   medItemTextCol: { flex: 1 },
-  medName: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  medStatus: { fontSize: 13, color: '#64748b' },
-  viewAllBtn: { marginTop: 12, padding: 12, backgroundColor: '#f1f5f9', borderRadius: 12, alignItems: 'center' },
-  viewAllText: { color: '#334155', fontWeight: '600', fontSize: 14 }
+  medName: { fontSize: 15, fontWeight: "600", color: "#334155" },
+  medStatus: { fontSize: 13, color: "#64748b" },
+  viewAllBtn: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  viewAllText: { color: "#334155", fontWeight: "600", fontSize: 14 },
 });
 
 export default Screen;
-
-

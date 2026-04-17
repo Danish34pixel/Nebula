@@ -61,9 +61,12 @@ export default function StaffLogin() {
       }
 
       // Store Auth State
-      if (data.accessToken) await secureStorage.setItem("token", data.accessToken);
-      if (data.refreshToken) await secureStorage.setItem("refreshToken", data.refreshToken);
-      if (data.user) await AsyncStorage.setItem("user", JSON.stringify(data.user));
+      if (data.accessToken)
+        await secureStorage.setItem("token", data.accessToken);
+      if (data.refreshToken)
+        await secureStorage.setItem("refreshToken", data.refreshToken);
+      if (data.user)
+        await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
       if (rememberMe) {
         await AsyncStorage.setItem("rememberedStaffEmail", email);
@@ -96,7 +99,12 @@ export default function StaffLogin() {
           style={styles.inner}
         >
           {/* Back Button */}
-          <TouchableOpacity onPress={() => router.replace("/")} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() =>
+              router.canGoBack() ? router.back() : router.replace("/")
+            }
+            style={styles.backBtn}
+          >
             <Feather name="arrow-left" size={24} color="#1e293b" />
           </TouchableOpacity>
 
@@ -104,10 +112,10 @@ export default function StaffLogin() {
             {/* Logo Section */}
             <View style={styles.logoContainer}>
               <View style={styles.logoIcon}>
-                <Image 
-                  source={require("../../assets/images/main-logo.png")} 
-                  style={styles.logoImage} 
-                  resizeMode="contain" 
+                <Image
+                  source={require("../../assets/images/main-logo.png")}
+                  style={styles.logoImage}
+                  resizeMode="contain"
                 />
               </View>
             </View>
@@ -116,14 +124,21 @@ export default function StaffLogin() {
             <View style={styles.card}>
               <View style={styles.header}>
                 <Text style={styles.title}>Staff Portal</Text>
-                <Text style={styles.subtitle}>Sign in to your MedTrap Staff account</Text>
+                <Text style={styles.subtitle}>
+                  Sign in to your MedTrap Staff account
+                </Text>
               </View>
 
               <View style={styles.form}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Email Address</Text>
                   <View style={styles.inputWrapper}>
-                    <Feather name="mail" size={20} color="#94a3b8" style={styles.inputIcon} />
+                    <Feather
+                      name="mail"
+                      size={20}
+                      color="#94a3b8"
+                      style={styles.inputIcon}
+                    />
                     <TextInput
                       style={styles.input}
                       placeholder="Enter your email"
@@ -138,7 +153,12 @@ export default function StaffLogin() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Password</Text>
                   <View style={styles.inputWrapper}>
-                    <Feather name="lock" size={20} color="#94a3b8" style={styles.inputIcon} />
+                    <Feather
+                      name="lock"
+                      size={20}
+                      color="#94a3b8"
+                      style={styles.inputIcon}
+                    />
                     <TextInput
                       style={styles.input}
                       placeholder="Enter your password"
@@ -146,19 +166,32 @@ export default function StaffLogin() {
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
                     />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                      <Feather name={showPassword ? "eye" : "eye-off"} size={20} color="#94a3b8" />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      <Feather
+                        name={showPassword ? "eye" : "eye-off"}
+                        size={20}
+                        color="#94a3b8"
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 <View style={styles.optionsRow}>
-                  <TouchableOpacity 
-                    style={styles.rememberRow} 
+                  <TouchableOpacity
+                    style={styles.rememberRow}
                     onPress={() => setRememberMe(!rememberMe)}
                   >
-                    <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                      {rememberMe && <Feather name="check" size={12} color="#fff" />}
+                    <View
+                      style={[
+                        styles.checkbox,
+                        rememberMe && styles.checkboxActive,
+                      ]}
+                    >
+                      {rememberMe && (
+                        <Feather name="check" size={12} color="#fff" />
+                      )}
                     </View>
                     <Text style={styles.rememberText}>Remember me</Text>
                   </TouchableOpacity>
@@ -168,8 +201,8 @@ export default function StaffLogin() {
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity 
-                  style={styles.loginBtn} 
+                <TouchableOpacity
+                  style={styles.loginBtn}
                   onPress={handleLogin}
                   disabled={loading}
                 >
@@ -194,7 +227,7 @@ export default function StaffLogin() {
                 <View style={styles.line} />
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.createBtn}
                 onPress={() => router.push("/Staff/Createstaff")}
               >
@@ -205,7 +238,9 @@ export default function StaffLogin() {
             {/* Security Notice */}
             <View style={styles.securityRow}>
               <Feather name="shield" size={16} color="#f59e0b" />
-              <Text style={styles.securityText}>Protected by industry-standard security</Text>
+              <Text style={styles.securityText}>
+                Protected by industry-standard security
+              </Text>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -277,20 +312,44 @@ const styles = StyleSheet.create({
   },
   inputIcon: { marginRight: 12 },
   input: { flex: 1, height: 52, fontSize: 15, color: "#1e293b" },
-  optionsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
+  optionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
   rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: "#cbd5e1", justifyContent: "center", alignItems: "center" },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#cbd5e1",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   checkboxActive: { backgroundColor: "#c084fc", borderColor: "#c084fc" },
   rememberText: { fontSize: 14, color: "#64748b" },
   forgotText: { fontSize: 14, color: "#9333ea", fontWeight: "600" },
   loginBtn: { borderRadius: 16, overflow: "hidden", marginTop: 10 },
   loginGradient: { paddingVertical: 16, alignItems: "center" },
   loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  divider: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 32 },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginVertical: 32,
+  },
   line: { flex: 1, height: 1, backgroundColor: "#f1f5f9" },
   dividerText: { fontSize: 13, color: "#94a3b8" },
   createBtn: { alignItems: "center" },
   createBtnText: { fontSize: 15, color: "#9333ea", fontWeight: "700" },
-  securityRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 24 },
+  securityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 24,
+  },
   securityText: { fontSize: 12, color: "#94a3b8" },
 });

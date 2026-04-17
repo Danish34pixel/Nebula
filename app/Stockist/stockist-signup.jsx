@@ -79,7 +79,7 @@ export default function StockistSignup() {
     }
 
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: true,
       quality: 0.7,
     });
@@ -105,10 +105,13 @@ export default function StockistSignup() {
       if (!form.password || form.password.length < 6)
         newErrors.password = "Password min 6 chars";
     } else if (step === 2) {
-      if (!form.address.street.trim()) newErrors["address.street"] = "Street is required";
-      if (!form.address.pincode.trim()) newErrors["address.pincode"] = "Pincode is required";
-      if (!form.licenseNumber.trim()) newErrors.licenseNumber = "License number is required";
-      
+      if (!form.address.street.trim())
+        newErrors["address.street"] = "Street is required";
+      if (!form.address.pincode.trim())
+        newErrors["address.pincode"] = "Pincode is required";
+      if (!form.licenseNumber.trim())
+        newErrors.licenseNumber = "License number is required";
+
       if (form.licenseExpiry) {
         const expiryDate = new Date(form.licenseExpiry);
         const today = new Date();
@@ -164,19 +167,19 @@ export default function StockistSignup() {
           if (value && value.uri) {
             const fieldName =
               key === "profileImage" ? "profileImage" : "drugLicenseImage";
-              
+
             let name = value.name || `upload.jpg`;
-            
+
             if (Platform.OS === "web") {
               try {
                 const response = await fetch(value.uri);
                 const blob = await response.blob();
-                
+
                 if (!name.includes(".")) {
                   const mimeExt = (blob.type || "image/jpeg").split("/")[1];
-                  name = `upload.${mimeExt === 'jpeg' ? 'jpg' : mimeExt}`;
+                  name = `upload.${mimeExt === "jpeg" ? "jpg" : mimeExt}`;
                 }
-                
+
                 formData.append(fieldName, blob, name);
               } catch (e) {
                 console.error("Failed to convert image to blob on web:", e);
@@ -185,11 +188,14 @@ export default function StockistSignup() {
             } else {
               const match = /\.(\w+)$/.exec(name);
               const type = match ? `image/${match[1]}` : "image/jpeg";
-              
+
               formData.append(fieldName, {
-                 uri: Platform.OS === "android" ? value.uri : value.uri.replace("file://", ""),
-                 name: name.includes(".") ? name : `${name}.jpg`,
-                 type,
+                uri:
+                  Platform.OS === "android"
+                    ? value.uri
+                    : value.uri.replace("file://", ""),
+                name: name.includes(".") ? name : `${name}.jpg`,
+                type,
               });
             }
           }
@@ -210,8 +216,12 @@ export default function StockistSignup() {
 
       if (response.success) {
         // Find the newly created ID
-        const stockistId = response.data?._id || response.data?.id || (response.user?._id || response.user?.id);
-        
+        const stockistId =
+          response.data?._id ||
+          response.data?.id ||
+          response.user?._id ||
+          response.user?.id;
+
         if (stockistId) {
           // Clear any old pending IDs first to avoid cross-role confusion
           await AsyncStorage.removeItem("pendingUserId");
@@ -238,15 +248,29 @@ export default function StockistSignup() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={currentStep === 1 ? () => router.replace("/") : prevStep} style={styles.backBtn}>
+            <TouchableOpacity
+              onPress={() => {
+                if (currentStep === 1) {
+                  router.canGoBack() ? router.back() : router.replace("/");
+                } else {
+                  prevStep();
+                }
+              }}
+              style={styles.backBtn}
+            >
               <Feather name="arrow-left" size={24} color="#0d9488" />
             </TouchableOpacity>
             <View style={styles.titleBox}>
               <Text style={styles.title}>Registration</Text>
-              <Text style={styles.subtitle}>Step {currentStep} of {totalSteps}</Text>
+              <Text style={styles.subtitle}>
+                Step {currentStep} of {totalSteps}
+              </Text>
             </View>
           </View>
 
@@ -257,14 +281,19 @@ export default function StockistSignup() {
                 key={s}
                 style={[
                   styles.progressPill,
-                  s <= currentStep ? styles.progressPillActive : styles.progressPillInactive,
+                  s <= currentStep
+                    ? styles.progressPillActive
+                    : styles.progressPillInactive,
                 ]}
               />
             ))}
           </View>
 
           {/* Hero Card */}
-          <LinearGradient colors={["#22d3ee", "#0891b2"]} style={styles.heroCard}>
+          <LinearGradient
+            colors={["#22d3ee", "#0891b2"]}
+            style={styles.heroCard}
+          >
             <View style={styles.heroContent}>
               <View style={styles.heroIconBox}>
                 <Text style={styles.heroEmoji}>⚕️</Text>
@@ -285,50 +314,124 @@ export default function StockistSignup() {
             {currentStep === 1 && (
               <View>
                 <SectionHeader icon="home" title="Firm Information" />
-                <Input label="Firm/Shop Name" icon="briefcase" placeholder="Pharmacy Name" value={form.name} onChangeText={(v) => handleInputChange("name", v)} error={errors.name} />
-                <Input label="Contact Person" icon="user" placeholder="Name" value={form.contactPerson} onChangeText={(v) => handleInputChange("contactPerson", v)} />
+                <Input
+                  label="Firm/Shop Name"
+                  icon="briefcase"
+                  placeholder="Pharmacy Name"
+                  value={form.name}
+                  onChangeText={(v) => handleInputChange("name", v)}
+                  error={errors.name}
+                />
+                <Input
+                  label="Contact Person"
+                  icon="user"
+                  placeholder="Name"
+                  value={form.contactPerson}
+                  onChangeText={(v) => handleInputChange("contactPerson", v)}
+                />
                 <SectionHeader icon="mail" title="Contact Details" />
-                <Input label="Email" icon="mail" placeholder="Enter your mail" value={form.email} onChangeText={(v) => handleInputChange("email", v)} keyboardType="email-address" autoCapitalize="none" error={errors.email} />
-                <Input label="Phone" icon="phone" placeholder="Enter your phone number" value={form.phone} onChangeText={(v) => handleInputChange("phone", v)} keyboardType="phone-pad" />
-                <Input label="Password" icon="lock" placeholder="Enter your password" value={form.password} onChangeText={(v) => handleInputChange("password", v)} secureTextEntry error={errors.password} />
+                <Input
+                  label="Email"
+                  icon="mail"
+                  placeholder="Enter your mail"
+                  value={form.email}
+                  onChangeText={(v) => handleInputChange("email", v)}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  error={errors.email}
+                />
+                <Input
+                  label="Phone"
+                  icon="phone"
+                  placeholder="Enter your phone number"
+                  value={form.phone}
+                  onChangeText={(v) => handleInputChange("phone", v)}
+                  keyboardType="phone-pad"
+                />
+                <Input
+                  label="Password"
+                  icon="lock"
+                  placeholder="Enter your password"
+                  value={form.password}
+                  onChangeText={(v) => handleInputChange("password", v)}
+                  secureTextEntry
+                  error={errors.password}
+                />
               </View>
             )}
 
             {currentStep === 2 && (
               <View>
                 <SectionHeader icon="map-pin" title="Location" />
-                <Input label="Street Address" icon="map-pin" placeholder="Shop Address" value={form.address.street} onChangeText={(v) => handleInputChange("address.street", v)} error={errors["address.street"]} />
+                <Input
+                  label="Street Address"
+                  icon="map-pin"
+                  placeholder="Shop Address"
+                  value={form.address.street}
+                  onChangeText={(v) => handleInputChange("address.street", v)}
+                  error={errors["address.street"]}
+                />
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
-                    <Input label="City" placeholder="City" value={form.address.city} onChangeText={(v) => handleInputChange("address.city", v)} />
+                    <Input
+                      label="City"
+                      placeholder="City"
+                      value={form.address.city}
+                      onChangeText={(v) => handleInputChange("address.city", v)}
+                    />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Input label="State" placeholder="State" value={form.address.state} onChangeText={(v) => handleInputChange("address.state", v)} />
+                    <Input
+                      label="State"
+                      placeholder="State"
+                      value={form.address.state}
+                      onChangeText={(v) =>
+                        handleInputChange("address.state", v)
+                      }
+                    />
                   </View>
                 </View>
-                <Input label="Pincode" icon="hash" placeholder="XXXXXX" value={form.address.pincode} onChangeText={(v) => handleInputChange("address.pincode", v)} keyboardType="number-pad" error={errors["address.pincode"]} />
+                <Input
+                  label="Pincode"
+                  icon="hash"
+                  placeholder="XXXXXX"
+                  value={form.address.pincode}
+                  onChangeText={(v) => handleInputChange("address.pincode", v)}
+                  keyboardType="number-pad"
+                  error={errors["address.pincode"]}
+                />
                 <SectionHeader icon="file-text" title="Professional" />
-                <Input label="License Number" icon="shield" placeholder="License No" value={form.licenseNumber} onChangeText={(v) => handleInputChange("licenseNumber", v)} error={errors.licenseNumber} />
-                
+                <Input
+                  label="License Number"
+                  icon="shield"
+                  placeholder="License No"
+                  value={form.licenseNumber}
+                  onChangeText={(v) => handleInputChange("licenseNumber", v)}
+                  error={errors.licenseNumber}
+                />
+
                 {Platform.OS === "web" ? (
-                  <Input 
-                    label="License Expiry" 
-                    icon="calendar" 
-                    placeholder="YYYY-MM-DD" 
-                    value={form.licenseExpiry} 
+                  <Input
+                    label="License Expiry"
+                    icon="calendar"
+                    placeholder="YYYY-MM-DD"
+                    value={form.licenseExpiry}
                     onChangeText={(v) => handleInputChange("licenseExpiry", v)}
                     //@ts-ignore
                     type="date"
                     error={errors.licenseExpiry}
                   />
                 ) : (
-                  <TouchableOpacity onPress={() => openDatePicker("licenseExpiry")} activeOpacity={1}>
-                    <Input 
-                      label="License Expiry" 
-                      icon="calendar" 
-                      placeholder="Select expiry date" 
-                      value={form.licenseExpiry} 
-                      editable={false} 
+                  <TouchableOpacity
+                    onPress={() => openDatePicker("licenseExpiry")}
+                    activeOpacity={1}
+                  >
+                    <Input
+                      label="License Expiry"
+                      icon="calendar"
+                      placeholder="Select expiry date"
+                      value={form.licenseExpiry}
+                      editable={false}
                       pointerEvents="none"
                       error={errors.licenseExpiry}
                     />
@@ -341,36 +444,67 @@ export default function StockistSignup() {
               <View>
                 <SectionHeader icon="user" title="Personal Info" />
                 {Platform.OS === "web" ? (
-                  <Input 
-                    label="DOB" 
-                    icon="calendar" 
-                    placeholder="YYYY-MM-DD" 
-                    value={form.dob} 
+                  <Input
+                    label="DOB"
+                    icon="calendar"
+                    placeholder="YYYY-MM-DD"
+                    value={form.dob}
                     onChangeText={(v) => handleInputChange("dob", v)}
                     //@ts-ignore
                     type="date"
                     error={errors.dob}
                   />
                 ) : (
-                  <TouchableOpacity onPress={() => openDatePicker("dob")} activeOpacity={1}>
-                    <Input 
-                      label="DOB" 
-                      icon="calendar" 
-                      placeholder="Select date of birth" 
-                      value={form.dob} 
-                      editable={false} 
+                  <TouchableOpacity
+                    onPress={() => openDatePicker("dob")}
+                    activeOpacity={1}
+                  >
+                    <Input
+                      label="DOB"
+                      icon="calendar"
+                      placeholder="Select date of birth"
+                      value={form.dob}
+                      editable={false}
                       pointerEvents="none"
                       error={errors.dob}
                     />
                   </TouchableOpacity>
                 )}
-                <Input label="Blood Group" icon="heart" placeholder="O+" value={form.bloodGroup} onChangeText={(v) => handleInputChange("bloodGroup", v)} />
-                <Input label="Role Type" icon="award" placeholder="Proprietor/Pharmacist" value={form.roleType} onChangeText={(v) => handleInputChange("roleType", v)} />
-                <Input label="CNTX Number" icon="hash" placeholder="Identifier" value={form.cntxNumber} onChangeText={(v) => handleInputChange("cntxNumber", v)} />
+                <Input
+                  label="Blood Group"
+                  icon="heart"
+                  placeholder="O+"
+                  value={form.bloodGroup}
+                  onChangeText={(v) => handleInputChange("bloodGroup", v)}
+                />
+                <Input
+                  label="Role Type"
+                  icon="award"
+                  placeholder="Proprietor/Pharmacist"
+                  value={form.roleType}
+                  onChangeText={(v) => handleInputChange("roleType", v)}
+                />
+                <Input
+                  label="CNTX Number"
+                  icon="hash"
+                  placeholder="Identifier"
+                  value={form.cntxNumber}
+                  onChangeText={(v) => handleInputChange("cntxNumber", v)}
+                />
 
                 <SectionHeader icon="upload" title="Documents" />
-                <UploadCard label="Profile Photo" type="profile" preview={previews.profile} onPress={() => pickImage("profile")} />
-                <UploadCard label="License Document" type="license" preview={previews.license} onPress={() => pickImage("license")} />
+                <UploadCard
+                  label="Profile Photo"
+                  type="profile"
+                  preview={previews.profile}
+                  onPress={() => pickImage("profile")}
+                />
+                <UploadCard
+                  label="License Document"
+                  type="license"
+                  preview={previews.license}
+                  onPress={() => pickImage("license")}
+                />
               </View>
             )}
 
@@ -379,8 +513,17 @@ export default function StockistSignup() {
               style={[styles.actionBtn, loading && styles.btnDisabled]}
               disabled={loading}
             >
-              <LinearGradient colors={["#22d3ee", "#0891b2"]} style={styles.btnGradient}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{currentStep === totalSteps ? "Complete" : "Continue"}</Text>}
+              <LinearGradient
+                colors={["#22d3ee", "#0891b2"]}
+                style={styles.btnGradient}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.btnText}>
+                    {currentStep === totalSteps ? "Complete" : "Continue"}
+                  </Text>
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -419,7 +562,12 @@ const Input = ({ label, icon, error, secureTextEntry, ...props }) => {
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={styles.inputWrapper}>
         {icon && (
-          <Feather name={icon} size={20} color="#94a3b8" style={styles.inputIcon} />
+          <Feather
+            name={icon}
+            size={20}
+            color="#94a3b8"
+            style={styles.inputIcon}
+          />
         )}
         <TextInput
           style={[styles.input, error && styles.inputError]}
@@ -428,8 +576,15 @@ const Input = ({ label, icon, error, secureTextEntry, ...props }) => {
           {...props}
         />
         {isPassword && (
-          <TouchableOpacity onPress={() => setShow(!show)} style={styles.eyeIcon}>
-            <Feather name={show ? "eye" : "eye-off"} size={20} color="#94a3b8" />
+          <TouchableOpacity
+            onPress={() => setShow(!show)}
+            style={styles.eyeIcon}
+          >
+            <Feather
+              name={show ? "eye" : "eye-off"}
+              size={20}
+              color="#94a3b8"
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -462,26 +617,70 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 60 },
   header: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
-  backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", elevation: 2 },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 2,
+  },
   titleBox: { marginLeft: 16 },
   title: { fontSize: 24, fontWeight: "800", color: "#1e293b" },
   subtitle: { fontSize: 13, color: "#64748b" },
-  progressRow: { flexDirection: "row", gap: 8, marginBottom: 24, paddingHorizontal: 4 },
+  progressRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
   progressPill: { flex: 1, height: 6, borderRadius: 3 },
   progressPillActive: { backgroundColor: "#06b6d4" },
   progressPillInactive: { backgroundColor: "#e2e8f0" },
   heroCard: { borderRadius: 28, padding: 24, marginBottom: 24, elevation: 4 },
   heroContent: { flexDirection: "row", alignItems: "center", gap: 16 },
-  heroIconBox: { width: 56, height: 56, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
+  heroIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   heroEmoji: { fontSize: 28 },
   heroTitle: { color: "#fff", fontSize: 18, fontWeight: "bold" },
   heroSub: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
-  card: { backgroundColor: "#fff", borderRadius: 32, padding: 24, elevation: 2 },
-  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12, marginBottom: 20 },
-  sectionIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#06b6d4", justifyContent: "center", alignItems: "center" },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 32,
+    padding: 24,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#06b6d4",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: "#334155" },
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: "700", color: "#64748b", marginBottom: 8, marginLeft: 4 },
+  label: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748b",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
   input: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#1e293b" },
   inputWrapper: {
     flexDirection: "row",
@@ -498,11 +697,22 @@ const styles = StyleSheet.create({
   errorText: { color: "#ef4444", fontSize: 11, marginTop: 4, marginLeft: 4 },
   row: { flexDirection: "row", gap: 12 },
   uploadGroup: { marginBottom: 20 },
-  uploadBox: { height: 140, borderRadius: 24, justifyContent: "center", alignItems: "center", overflow: "hidden" },
+  uploadBox: {
+    height: 140,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
   uploadMainText: { color: "#fff", fontSize: 14, fontWeight: "bold" },
   uploadSubText: { color: "rgba(255,255,255,0.8)", fontSize: 11 },
   preview: { width: "100%", height: "100%" },
-  actionBtn: { marginTop: 12, borderRadius: 20, overflow: "hidden", elevation: 4 },
+  actionBtn: {
+    marginTop: 12,
+    borderRadius: 20,
+    overflow: "hidden",
+    elevation: 4,
+  },
   btnGradient: { paddingVertical: 18, alignItems: "center" },
   btnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   btnDisabled: { opacity: 0.7 },

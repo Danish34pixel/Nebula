@@ -46,6 +46,7 @@
     },
     "extra": {
       "router": {},
+      "apiUrl": "https://api.medi-trap.com",
       "eas": {
         "projectId": "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6"
       }

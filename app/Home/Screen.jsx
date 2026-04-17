@@ -56,6 +56,29 @@ const medicineDisplayName = (m) => {
   return "";
 };
 
+const getPhoneString = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" || typeof value === "number")
+    return String(value).trim();
+  if (typeof value === "object") {
+    const candidates = [
+      value.phone,
+      value.contactNo,
+      value.cntxNumber,
+      value.contactNumber,
+      value.number,
+      value.value,
+    ];
+    for (const candidate of candidates) {
+      if (candidate != null && candidate !== "") {
+        const normalized = getPhoneString(candidate);
+        if (normalized) return normalized;
+      }
+    }
+  }
+  return "";
+};
+
 const nameMatchesStockistItems = (name, s) => {
   if (!name || !s) return false;
   const n = String(name).toLowerCase().trim();
@@ -449,7 +472,14 @@ const Screen = ({ navigation: navProp }) => {
             return {
               _id: s._id,
               title: s.name,
-              phone: s.phone,
+              phone: getPhoneString(
+                s.phone ||
+                  s.contactNo ||
+                  s.cntxNumber ||
+                  s.cntxNo ||
+                  s.cntx ||
+                  "",
+              ),
               address: s.address
                 ? `${s.address.street || ""}${s.address.city ? ", " + s.address.city : ""}`
                 : "",
@@ -462,7 +492,11 @@ const Screen = ({ navigation: navProp }) => {
           setSectionData(mapped);
 
           if (__DEV__) {
-            console.log("[Screen] State updated with", mapped.length, "stockists");
+            console.log(
+              "[Screen] State updated with",
+              mapped.length,
+              "stockists",
+            );
           }
 
           if (stockists.length === 0 && page > 1) {
@@ -514,8 +548,9 @@ const Screen = ({ navigation: navProp }) => {
   };
 
   const makePhoneCall = (phoneNumber) => {
-    if (!phoneNumber) return;
-    Linking.openURL(`tel:${phoneNumber}`);
+    const safePhone = getPhoneString(phoneNumber);
+    if (!safePhone) return;
+    Linking.openURL(`tel:${safePhone}`);
   };
 
   const getHealthIcon = (item) => {
@@ -683,14 +718,22 @@ const Screen = ({ navigation: navProp }) => {
             <Text style={styles.cardRowText}>{section.address || "N/A"}</Text>
           </View>
           <View style={styles.servicesBox}>
-            <Text style={styles.servicesTitle}>Services</Text>
+            <Text style={styles.servicesTitle}>Company</Text>
             <View style={styles.servicesRow}>
-              {section.items.slice(0, 2).map((it, idx) => (
-                <View key={idx} style={styles.serviceTag}>
-                  <Text style={styles.serviceIcon}>{getHealthIcon(it)}</Text>
-                  <Text style={styles.serviceText}>{it}</Text>
-                </View>
-              ))}
+              {section.items.slice(0, 2).map((it, idx) => {
+                const itemName =
+                  typeof it === "string"
+                    ? it
+                    : String(it?.name || it?.title || it?.companyName || "");
+                return (
+                  <View key={idx} style={styles.serviceTag}>
+                    <Text style={styles.serviceIcon}>
+                      {getHealthIcon(itemName)}
+                    </Text>
+                    <Text style={styles.serviceText}>{itemName}</Text>
+                  </View>
+                );
+              })}
               {section.items.length > 2 && (
                 <View style={styles.serviceMoreTag}>
                   <Text style={styles.serviceMoreText}>
@@ -787,8 +830,10 @@ const Screen = ({ navigation: navProp }) => {
             {Array.isArray(currentSection.items) &&
             currentSection.items.length > 0 ? (
               currentSection.items.map((item, idxx) => {
-                const itemName = typeof item === "string" ? item : item?.name || "";
-                const itemMeds = typeof item === "string" ? [] : item?.Medicines || [];
+                const itemName =
+                  typeof item === "string" ? item : item?.name || "";
+                const itemMeds =
+                  typeof item === "string" ? [] : item?.Medicines || [];
                 return (
                   <View key={idxx} style={styles.partnerRow}>
                     <View style={styles.partnerIconBox}>

@@ -46,6 +46,29 @@ const medicineDisplayName = (m) => {
   return "";
 };
 
+const getPhoneString = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" || typeof value === "number")
+    return String(value).trim();
+  if (typeof value === "object") {
+    const candidates = [
+      value.phone,
+      value.contactNo,
+      value.cntxNumber,
+      value.contactNumber,
+      value.number,
+      value.value,
+    ];
+    for (const candidate of candidates) {
+      if (candidate != null && candidate !== "") {
+        const normalized = getPhoneString(candidate);
+        if (normalized) return normalized;
+      }
+    }
+  }
+  return "";
+};
+
 const nameMatchesStockistItems = (name, s) => {
   if (!name || !s) return false;
   const n = String(name).toLowerCase();
@@ -393,7 +416,6 @@ export default function Nav({ navigation: navProp }) {
               })
               .filter(Boolean);
 
-
             const items = Array.from(
               new Set([
                 ...(explicitItems || []),
@@ -437,7 +459,14 @@ export default function Nav({ navigation: navProp }) {
             return {
               _id: s._id,
               title: s.name,
-              phone: s.phone,
+              phone: getPhoneString(
+                s.phone ||
+                  s.contactNo ||
+                  s.cntxNumber ||
+                  s.cntxNo ||
+                  s.cntx ||
+                  "",
+              ),
               address: s.address
                 ? `${s.address.street || ""}${s.address.city ? ", " + s.address.city : ""}`
                 : "",
@@ -633,8 +662,6 @@ export default function Nav({ navigation: navProp }) {
           Medicines: companyMedicinesMap[itemName] || [],
         }));
 
-
-
         let meds = [];
         if (Array.isArray(s.medicines) && s.medicines.length > 0) {
           meds = s.medicines
@@ -665,7 +692,9 @@ export default function Nav({ navigation: navProp }) {
         return {
           _id: s._id,
           title: s.name,
-          phone: s.phone,
+          phone: getPhoneString(
+            s.phone || s.contactNo || s.cntxNumber || s.cntxNo || s.cntx || "",
+          ),
           address: s.address
             ? `${s.address.street || ""}${s.address.city ? ", " + s.address.city : ""}`
             : "",
@@ -966,8 +995,10 @@ export default function Nav({ navigation: navProp }) {
             <Text style={styles.tagSectionTitle}>PARTNER COMPANIES</Text>
             <View style={styles.tagRow}>
               {item.items.slice(0, 10).map((comp, i) => {
-                const compName = typeof comp === "string" ? comp : comp?.name || "";
-                const compMeds = typeof comp === "string" ? 0 : (comp?.Medicines || []).length;
+                const compName =
+                  typeof comp === "string" ? comp : comp?.name || "";
+                const compMeds =
+                  typeof comp === "string" ? 0 : (comp?.Medicines || []).length;
                 const isMatched =
                   searchQuery &&
                   compName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -1151,7 +1182,11 @@ export default function Nav({ navigation: navProp }) {
       </View>
 
       {/* Search Results Overlay View (Using a ScrollView absolute overlay) */}
-      {(selectedStockists.length > 0 || isLoading) && (
+      {(
+        selectedStockists.length > 0 ||
+        isLoading ||
+        (showAllResults && displayedStockists.length > 0)
+      ) && (
         <ScrollView
           style={styles.resultsOverlay}
           contentContainerStyle={styles.resultsOverlayContent}
@@ -1538,7 +1573,12 @@ const styles = StyleSheet.create({
   },
   tagMatched: { backgroundColor: "#f97316" },
   tagText: { color: "#334155", fontSize: 13, fontWeight: "600" },
-  tagMedCount: { color: "#94a3b8", fontSize: 11, fontWeight: "500", marginTop: 2 },
+  tagMedCount: {
+    color: "#94a3b8",
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 2,
+  },
   tagMedCountMatched: { color: "#10b981" },
   tagTextMatched: { color: "#fff" },
   cardFooter: {

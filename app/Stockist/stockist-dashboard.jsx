@@ -102,7 +102,11 @@ const CompanyCard = ({ company, productCount = 0 }) => {
           </LinearGradient>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.cardTitle} numberOfLines={1}>
-              {company.name}
+              {company.name ||
+                company.companyName ||
+                company.title ||
+                company.shortName ||
+                "Company"}
             </Text>
             <Text style={styles.cardSubtitle}>{productCount} products</Text>
           </View>
@@ -326,13 +330,107 @@ export default function StockistDashboard() {
 
   const filteredData = useMemo(
     () => ({
-      companies: filterByQuery(companiesList, ["name"]),
+      companies: filterByQuery(companiesList, [
+        "name",
+        "companyName",
+        "title",
+        "shortName",
+      ]),
       medicines: filterByQuery(medicinesList, ["name"]),
       staff: filterByQuery(staffs, ["fullName", "name"]),
       approvals: [],
     }),
     [companiesList, medicinesList, staffs, filterByQuery],
   );
+
+  const normalizeText = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .trim();
+
+  const collectStockistCompanyKeys = (stockist) => {
+    const items = [];
+    const keys = ["companies", "companyNames", "partnerCompanies", "items"];
+    keys.forEach((key) => {
+      const field = stockist?.[key];
+      if (Array.isArray(field)) items.push(...field);
+      else if (field != null) items.push(field);
+    });
+    if (stockist?.companyName) items.push(stockist.companyName);
+    if (stockist?.name) items.push(stockist.name);
+    if (stockist?.title) items.push(stockist.title);
+    if (stockist?.shortName) items.push(stockist.shortName);
+    return items;
+  };
+
+  const getStockistCompanyMatchSets = (stockist) => {
+    const rawAliases = collectStockistCompanyKeys(stockist);
+    const aliasNames = new Set();
+    const aliasIds = new Set();
+
+    rawAliases.forEach((alias) => {
+      if (alias == null) return;
+      if (Array.isArray(alias)) {
+        alias.forEach((item) => {
+          if (typeof item === "string") aliasNames.add(normalizeText(item));
+          else if (item != null) aliasIds.add(String(item));
+        });
+        return;
+      }
+      if (typeof alias === "string") {
+        aliasNames.add(normalizeText(alias));
+        return;
+      }
+      if (typeof alias === "number") {
+        aliasIds.add(String(alias));
+        return;
+      }
+      if (typeof alias === "object") {
+        if (alias._id) aliasIds.add(String(alias._id));
+        if (alias.id) aliasIds.add(String(alias.id));
+        const name =
+          alias.name || alias.companyName || alias.title || alias.shortName;
+        if (name) aliasNames.add(normalizeText(name));
+      }
+    });
+
+    return { aliasNames, aliasIds };
+  };
+
+  const buildCompanyStubsFromStockist = (stockist) => {
+    const rawAliases = collectStockistCompanyKeys(stockist);
+    const uniqueNames = new Set();
+    const stubs = [];
+
+    rawAliases.forEach((alias) => {
+      if (alias == null) return;
+      if (Array.isArray(alias)) {
+        alias.forEach((item) => {
+          if (typeof item === "string") uniqueNames.add(normalizeText(item));
+          else if (typeof item === "object") {
+            const name =
+              item.name || item.companyName || item.title || item.shortName;
+            if (name) uniqueNames.add(normalizeText(name));
+          }
+        });
+        return;
+      }
+      if (typeof alias === "string") {
+        uniqueNames.add(normalizeText(alias));
+        return;
+      }
+      if (typeof alias === "object") {
+        const name =
+          alias.name || alias.companyName || alias.title || alias.shortName;
+        if (name) uniqueNames.add(normalizeText(name));
+      }
+    });
+
+    uniqueNames.forEach((name) => {
+      if (name) stubs.push({ name });
+    });
+    return stubs;
+  };
 
   const extractReferenceIds = (value) => {
     if (value == null) return [];
@@ -516,9 +614,17 @@ export default function StockistDashboard() {
         sRes.json().catch(() => ({})),
       ]);
 
-      const allCompanies = Array.isArray(cJson) ? cJson : cJson?.data || [];
-      const allMeds = Array.isArray(mJson) ? mJson : mJson?.data || [];
-      const staffList = Array.isArray(sJson) ? sJson : sJson?.data || [];
+      const allCompanies = Array.isArray(cJson)
+        ? cJson
+        : cJson?.data || cJson?.companies || cJson?.items || [];
+      const allMeds = Array.isArray(mJson)
+        ? mJson
+        : mJson?.data || mJson?.medicines || mJson?.items || [];
+      const staffList = Array.isArray(sJson)
+        ? sJson
+        : sJson?.data || sJson?.staff || sJson?.items || [];
+
+      const { aliasNames, aliasIds } = getStockistCompanyMatchSets(target);
 
       const filteredCompanies = allCompanies.filter((company) => {
         try {
@@ -530,12 +636,16 @@ export default function StockistDashboard() {
           const keys = [
             company.stockist,
             company.stockistId,
+            company.stockistIds,
             company.seller,
             company.sellerId,
+            company.sellerIds,
             company.vendor,
             company.vendorId,
+            company.vendorIds,
             company.supplier,
             company.supplierId,
+            company.supplierIds,
           ];
           if (keys.some((key) => key && hasMatchingReference(key, targetIds)))
             return true;
@@ -545,19 +655,29 @@ export default function StockistDashboard() {
             company.stockistNames.length > 0
           ) {
             const nameSet = new Set(
-              company.stockistNames.map((n) =>
-                String(n || "")
-                  .toLowerCase()
-                  .trim(),
-              ),
+              company.stockistNames.map((n) => normalizeText(n)),
             );
-            const currentName = String(
+            const currentName = normalizeText(
               displayName || stockist?.name || stockist?.companyName || "",
-            )
-              .toLowerCase()
-              .trim();
+            );
             if (currentName && nameSet.has(currentName)) return true;
           }
+
+          const companyNameVariants = [
+            company.name,
+            company.companyName,
+            company.title,
+            company.shortName,
+          ]
+            .filter(Boolean)
+            .map(normalizeText);
+          if (companyNameVariants.some((name) => aliasNames.has(name)))
+            return true;
+          if (
+            (company._id && aliasIds.has(String(company._id))) ||
+            (company.id && aliasIds.has(String(company.id)))
+          )
+            return true;
 
           return false;
         } catch {
@@ -580,7 +700,10 @@ export default function StockistDashboard() {
         }
       });
 
-      setCompaniesList(filteredCompanies);
+      const stubCompanies = buildCompanyStubsFromStockist(target);
+      setCompaniesList(
+        filteredCompanies.length > 0 ? filteredCompanies : stubCompanies,
+      );
       setMedicinesList(filteredMeds);
       setStaffs(filteredStaffs);
     } catch (err) {

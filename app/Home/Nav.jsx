@@ -1182,11 +1182,9 @@ export default function Nav({ navigation: navProp }) {
       </View>
 
       {/* Search Results Overlay View (Using a ScrollView absolute overlay) */}
-      {(
-        selectedStockists.length > 0 ||
+      {(selectedStockists.length > 0 ||
         isLoading ||
-        (showAllResults && displayedStockists.length > 0)
-      ) && (
+        (showAllResults && displayedStockists.length > 0)) && (
         <ScrollView
           style={styles.resultsOverlay}
           contentContainerStyle={styles.resultsOverlayContent}

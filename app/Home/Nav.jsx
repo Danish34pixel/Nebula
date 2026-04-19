@@ -19,8 +19,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
 import { fetchJson } from "../../config/api";
 
-const medicineReferencesStockist = (med, stockistId) => {
-  if (!med) return false;
+const medicineReferencesStockist = (med, stockist) => {
+  if (!med || !stockist) return false;
   const candidates = [];
   try {
     if (Array.isArray(med.stockists)) candidates.push(...med.stockists);
@@ -33,9 +33,14 @@ const medicineReferencesStockist = (med, stockistId) => {
     if (med.supplier) candidates.push(med.supplier);
     if (med.supplierId) candidates.push(med.supplierId);
   } catch {}
+
+  const targetIds = new Set(extractIdCandidates(stockist));
+  if (targetIds.size === 0) return false;
+
   return candidates.some((c) => {
-    const id = c?._id || c?.id || c;
-    return String(id) === String(stockistId);
+    if (!c) return false;
+    const itemIds = extractIdCandidates(c);
+    return itemIds.some((id) => targetIds.has(id));
   });
 };
 
@@ -89,10 +94,23 @@ const extractIdCandidates = (value) => {
   if (Array.isArray(value)) return value.flatMap(extractIdCandidates);
   if (typeof value === "object") {
     const direct = [];
-    const keys = ["_id", "id", "stockist", "stockistId", "seller", "sellerId"];
+    const keys = [
+      "_id",
+      "id",
+      "stockist",
+      "stockistId",
+      "seller",
+      "sellerId",
+      "userId",
+      "uid",
+      "owner",
+      "ownerId",
+    ];
     for (const k of keys) {
       if (value[k] != null) direct.push(...extractIdCandidates(value[k]));
     }
+    if (value.toString && value.toString().length === 24)
+      direct.push(value.toString());
     return direct;
   }
   return [];
@@ -121,7 +139,9 @@ const normalizeString = (value) =>
 const companyLinksStockist = (company, stockist) => {
   if (!company || !stockist) return false;
 
-  const stockistId = stockist._id || stockist.id || stockist;
+  const targetIds = new Set(extractIdCandidates(stockist));
+  if (targetIds.size === 0) return false;
+
   const refs = [
     company.stockists,
     company.stockist,
@@ -138,13 +158,21 @@ const companyLinksStockist = (company, stockist) => {
     company.supplierIds,
   ];
 
-  if (refs.some((ref) => idEquals(ref, stockistId))) return true;
+  if (
+    refs.some((ref) => {
+      const ids = extractIdCandidates(ref);
+      return ids.some((id) => targetIds.has(id));
+    })
+  )
+    return true;
 
   const stockistName = normalizeString(
     stockist.name ||
       stockist.title ||
       stockist.companyName ||
-      stockist.contactPerson,
+      stockist.contactPerson ||
+      stockist.medicalName ||
+      stockist.ownerName,
   );
   const stockistNameArrays = [
     company.stockistNames,
@@ -155,27 +183,34 @@ const companyLinksStockist = (company, stockist) => {
   ];
 
   if (stockistName) {
-    return stockistNameArrays.some((names) =>
-      Array.isArray(names)
-        ? names
-            .map(normalizeString)
-            .some((name) => name && name === stockistName)
-        : false,
-    );
+    return stockistNameArrays.some((names) => {
+      if (!names) return false;
+      const arr = Array.isArray(names) ? names : [names];
+      return arr
+        .map(normalizeString)
+        .some(
+          (name) =>
+            name &&
+            (name === stockistName ||
+              name.includes(stockistName) ||
+              stockistName.includes(name)),
+        );
+    });
   }
 
   return false;
 };
 
-const deepScanCompanyReferences = (obj, sid) => {
-  if (!obj) return false;
-  const target = String(sid);
+const deepScanCompanyReferences = (obj, stockist) => {
+  if (!obj || !stockist) return false;
+  const targetIds = new Set(extractIdCandidates(stockist));
+  if (targetIds.size === 0) return false;
   const seen = new Set();
   const walk = (value) => {
     if (value == null) return false;
     if (seen.has(value)) return false;
     if (typeof value === "string" || typeof value === "number")
-      return String(value) === target;
+      return targetIds.has(String(value));
     if (Array.isArray(value)) {
       for (const item of value) if (walk(item)) return true;
       return false;
@@ -282,7 +317,7 @@ export default function Nav({ navigation: navProp }) {
         if (mounted && stockists.length > 0) {
           const mapped = stockists.map((s) => {
             let medsForStockist = medicines
-              .filter((m) => medicineReferencesStockist(m, s._id))
+              .filter((m) => medicineReferencesStockist(m, s))
               .map((m) => medicineDisplayName(m))
               .filter(Boolean);
 
@@ -316,7 +351,7 @@ export default function Nav({ navigation: navProp }) {
               medicines
                 .filter((m) =>
                   Array.isArray(m.stockists)
-                    ? m.stockists.some((st) => idEquals(st, s._id))
+                    ? m.stockists.some((st) => idEquals(st, s))
                     : false,
                 )
                 .map((m) =>
@@ -367,7 +402,7 @@ export default function Nav({ navigation: navProp }) {
               .filter(Boolean);
 
             const reverseCompanies = companies
-              .filter((c) => deepScanCompanyReferences(c, s._id))
+              .filter((c) => deepScanCompanyReferences(c, s))
               .map((c) => companyDisplayName(c))
               .filter(Boolean);
 
@@ -392,7 +427,7 @@ export default function Nav({ navigation: navProp }) {
                     return (
                       String(mCompId) === String(cId) &&
                       Array.isArray(m.stockists) &&
-                      m.stockists.some((st) => idEquals(st, s._id))
+                      m.stockists.some((st) => idEquals(st, s))
                     );
                   })
                   .map((m) => medicineDisplayName(m))
@@ -523,7 +558,7 @@ export default function Nav({ navigation: navProp }) {
 
       const mapped = data.map((s) => {
         let medsForStockist = medicines
-          .filter((m) => medicineReferencesStockist(m, s._id))
+          .filter((m) => medicineReferencesStockist(m, s))
           .map((m) => medicineDisplayName(m))
           .filter(Boolean);
 
@@ -557,7 +592,7 @@ export default function Nav({ navigation: navProp }) {
           medicines
             .filter((m) =>
               Array.isArray(m.stockists)
-                ? m.stockists.some((st) => idEquals(st, s._id))
+                ? m.stockists.some((st) => idEquals(st, s))
                 : false,
             )
             .map((m) =>
@@ -569,7 +604,7 @@ export default function Nav({ navigation: navProp }) {
         );
 
         const directCompanies = companies
-          .filter((c) => companyLinksStockist(c, s._id))
+          .filter((c) => companyLinksStockist(c, s))
           .map((c) => companyDisplayName(c))
           .filter(Boolean);
 
@@ -608,7 +643,7 @@ export default function Nav({ navigation: navProp }) {
         }
 
         const reverseCompanies = companies
-          .filter((c) => deepScanCompanyReferences(c, s._id))
+          .filter((c) => deepScanCompanyReferences(c, s))
           .map((c) => companyDisplayName(c))
           .filter(Boolean);
 
@@ -633,7 +668,7 @@ export default function Nav({ navigation: navProp }) {
                 return (
                   String(mCompId) === String(cId) &&
                   Array.isArray(m.stockists) &&
-                  m.stockists.some((st) => idEquals(st, s._id))
+                  m.stockists.some((st) => idEquals(st, s))
                 );
               })
               .map((m) => medicineDisplayName(m))

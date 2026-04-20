@@ -19,8 +19,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
 import { fetchJson } from "../../config/api";
 
-const medicineReferencesStockist = (med, stockistId) => {
-  if (!med || !stockistId) return false;
+const medicineReferencesStockist = (med, stockist) => {
+  if (!med || !stockist) return false;
   const candidates = [];
   try {
     if (Array.isArray(med.stockists)) candidates.push(...med.stockists);
@@ -34,18 +34,13 @@ const medicineReferencesStockist = (med, stockistId) => {
     if (med.supplierId) candidates.push(med.supplierId);
   } catch {}
 
+  const targetIds = new Set(extractIdCandidates(stockist));
+  if (targetIds.size === 0) return false;
+
   return candidates.some((c) => {
     if (!c) return false;
-    // Support nested objects like { stockist: ID } or { seller: ID }
-    const refId =
-      c.stockist ||
-      c.seller ||
-      c.stockistId ||
-      c.sellerId ||
-      c._id ||
-      c.id ||
-      (typeof c === "string" ? c : null);
-    return String(refId) === String(stockistId);
+    const itemIds = extractIdCandidates(c);
+    return itemIds.some(id => targetIds.has(id));
   });
 };
 
@@ -101,10 +96,13 @@ const extractIdCandidates = (value) => {
   if (Array.isArray(value)) return value.flatMap(extractIdCandidates);
   if (typeof value === "object") {
     const direct = [];
-    const keys = ["_id", "id", "stockist", "stockistId", "seller", "sellerId"];
+    // Check common ID keys
+    const keys = ["_id", "id", "stockist", "stockistId", "seller", "sellerId", "userId", "uid", "owner", "ownerId"];
     for (const k of keys) {
       if (value[k] != null) direct.push(...extractIdCandidates(value[k]));
     }
+    // If it's the object itself from a search result, it might be the ID if it's just a ref string but somehow type object
+    if (value.toString && value.toString().length === 24) direct.push(value.toString());
     return direct;
   }
   return [];
@@ -133,7 +131,9 @@ const normalizeString = (value) =>
 const companyLinksStockist = (company, stockist) => {
   if (!company || !stockist) return false;
 
-  const stockistId = stockist._id || stockist.id || stockist;
+  const targetIds = new Set(extractIdCandidates(stockist));
+  if (targetIds.size === 0) return false;
+
   const refs = [
     company.stockists,
     company.stockist,
@@ -150,13 +150,18 @@ const companyLinksStockist = (company, stockist) => {
     company.supplierIds,
   ];
 
-  if (refs.some((ref) => idEquals(ref, stockistId))) return true;
+  if (refs.some((ref) => {
+    const ids = extractIdCandidates(ref);
+    return ids.some(id => targetIds.has(id));
+  })) return true;
 
   const stockistName = normalizeString(
     stockist.name ||
       stockist.title ||
       stockist.companyName ||
-      stockist.contactPerson,
+      stockist.contactPerson ||
+      stockist.medicalName ||
+      stockist.ownerName
   );
   const stockistNameArrays = [
     company.stockistNames,
@@ -167,13 +172,14 @@ const companyLinksStockist = (company, stockist) => {
   ];
 
   if (stockistName) {
-    return stockistNameArrays.some((names) =>
-      Array.isArray(names)
-        ? names
-            .map(normalizeString)
-            .some((name) => name && name === stockistName)
-        : false,
-    );
+    return stockistNameArrays.some((names) => {
+      if (!names) return false;
+      const arr = Array.isArray(names) ? names : [names];
+      return arr.map(normalizeString).some(name => {
+        if (!name) return false;
+        return name === stockistName || name.includes(stockistName) || stockistName.includes(name);
+      });
+    });
   }
 
   return false;
@@ -252,6 +258,18 @@ const Screen = ({ navigation: navProp }) => {
             medicinesLength: medicines.length,
             companiesLength: companies.length,
           });
+          if (stockists.length > 0) {
+            console.log("[Screen] Sample Stockist ID candidates for the first one:", {
+              title: stockists[0].name,
+              ids: extractIdCandidates(stockists[0])
+            });
+          }
+          if (medicines.length > 0) {
+             console.log("[Screen] Sample Medicine entry:", JSON.stringify(medicines[0]).substring(0, 200));
+          }
+          if (companies.length > 0) {
+             console.log("[Screen] Sample Company entry:", JSON.stringify(companies[0]).substring(0, 200));
+          }
         }
 
         if (mounted && stockists.length > 0) {
@@ -266,7 +284,7 @@ const Screen = ({ navigation: navProp }) => {
 
           const mapped = stockists.map((s) => {
             let medsForStockist = medicines
-              .filter((m) => medicineReferencesStockist(m, s._id))
+              .filter((m) => medicineReferencesStockist(m, s))
               .map((m) => medicineDisplayName(m))
               .filter(Boolean);
 
@@ -300,7 +318,7 @@ const Screen = ({ navigation: navProp }) => {
               medicines
                 .filter((m) =>
                   Array.isArray(m.stockists)
-                    ? m.stockists.some((st) => idEquals(st, s._id))
+                    ? m.stockists.some((st) => idEquals(st, s))
                     : false,
                 )
                 .map((m) =>
@@ -321,15 +339,16 @@ const Screen = ({ navigation: navProp }) => {
               .map((c) => companyDisplayName(c))
               .filter(Boolean);
 
-            const deepScanCompanyReferences = (obj, sid) => {
-              if (!obj) return false;
-              const target = String(sid);
+            const deepScanCompanyReferences = (obj, stockist) => {
+              if (!obj || !stockist) return false;
+              const targetIds = new Set(extractIdCandidates(stockist));
+              if (targetIds.size === 0) return false;
               const seen = new Set();
               const walk = (value) => {
                 if (value == null) return false;
                 if (seen.has(value)) return false;
                 if (typeof value === "string" || typeof value === "number")
-                  return String(value) === target;
+                  return targetIds.has(String(value));
                 if (Array.isArray(value)) {
                   for (const item of value) if (walk(item)) return true;
                   return false;
@@ -347,7 +366,7 @@ const Screen = ({ navigation: navProp }) => {
             };
 
             const reverseCompanies = companies
-              .filter((c) => deepScanCompanyReferences(c, s._id))
+              .filter((c) => deepScanCompanyReferences(c, s))
               .map((c) => companyDisplayName(c))
               .filter(Boolean);
 
@@ -401,7 +420,7 @@ const Screen = ({ navigation: navProp }) => {
                     return (
                       String(mCompId) === String(cId) &&
                       Array.isArray(m.stockists) &&
-                      m.stockists.some((st) => idEquals(st, s._id))
+                      m.stockists.some((st) => idEquals(st, s))
                     );
                   })
                   .map((m) => medicineDisplayName(m))
@@ -467,6 +486,16 @@ const Screen = ({ navigation: navProp }) => {
                 .filter(Boolean);
             } else {
               meds = (medsForStockist || []).slice();
+            }
+
+            if (__DEV__ && s.name && s.name.toLowerCase().includes("amit")) {
+              console.log(`[Screen] DEBUG for ${s.name}:`, {
+                id: s._id,
+                mappedCompanies: items.length,
+                mappedMedicines: meds.length,
+                itemsSample: JSON.stringify(items).substring(0, 100),
+                medsSample: JSON.stringify(meds).substring(0, 100)
+              });
             }
 
             return {

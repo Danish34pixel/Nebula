@@ -440,19 +440,25 @@ export default function StockistDashboard() {
       return value.flatMap(extractReferenceIds).filter(Boolean);
     if (typeof value === "object") {
       const ids = [];
-      if (value._id) ids.push(String(value._id));
-      if (value.id) ids.push(String(value.id));
-      if (value.stockist) ids.push(...extractReferenceIds(value.stockist));
-      if (value.stockistId) ids.push(...extractReferenceIds(value.stockistId));
-      if (value.seller) ids.push(...extractReferenceIds(value.seller));
-      if (value.sellerId) ids.push(...extractReferenceIds(value.sellerId));
-      if (value.vendor) ids.push(...extractReferenceIds(value.vendor));
-      if (value.vendorId) ids.push(...extractReferenceIds(value.vendorId));
-      if (value.supplier) ids.push(...extractReferenceIds(value.supplier));
-      if (value.supplierId) ids.push(...extractReferenceIds(value.supplierId));
-      if (value.owner) ids.push(...extractReferenceIds(value.owner));
-      if (value.ownerId) ids.push(...extractReferenceIds(value.ownerId));
-      if (value.user) ids.push(...extractReferenceIds(value.user));
+      const keys = [
+        "_id",
+        "id",
+        "stockist",
+        "stockistId",
+        "seller",
+        "sellerId",
+        "userId",
+        "uid",
+        "owner",
+        "ownerId",
+        "medical",
+        "medicalStore",
+      ];
+      for (const k of keys) {
+        if (value[k] != null) ids.push(...extractReferenceIds(value[k]));
+      }
+      if (value.toString && value.toString().length === 24)
+        ids.push(value.toString());
       return ids.filter(Boolean);
     }
     return [];
@@ -462,8 +468,8 @@ export default function StockistDashboard() {
     return extractReferenceIds(value).some((id) => ids.has(id));
   };
 
-  const medicineReferencesStockist = (med, stockistId) => {
-    if (!med) return false;
+  const medicineReferencesStockist = (med, stockist) => {
+    if (!med || !stockist) return false;
     const candidates = [];
     try {
       if (Array.isArray(med.stockists)) candidates.push(...med.stockists);
@@ -475,11 +481,18 @@ export default function StockistDashboard() {
       if (med.vendorId) candidates.push(med.vendorId);
       if (med.supplier) candidates.push(med.supplier);
       if (med.supplierId) candidates.push(med.supplierId);
+      if (med.owner) candidates.push(med.owner);
+      if (med.ownerId) candidates.push(med.ownerId);
     } catch {}
-    const targetSet = new Set(extractReferenceIds(stockistId));
-    return candidates.some((c) =>
-      extractReferenceIds(c).some((id) => targetSet.has(id)),
-    );
+
+    const targetIds = new Set(extractReferenceIds(stockist));
+    if (targetIds.size === 0) return false;
+
+    return candidates.some((c) => {
+      if (!c) return false;
+      const itemIds = extractReferenceIds(c);
+      return itemIds.some((id) => targetIds.has(id));
+    });
   };
 
   const loadStockistData = useCallback(async () => {
@@ -686,8 +699,17 @@ export default function StockistDashboard() {
       });
 
       const filteredMeds = allMeds.filter((med) =>
-        medicineReferencesStockist(med, target._id || target.id || target),
+        medicineReferencesStockist(med, target),
       );
+
+      if (__DEV__) {
+        console.log(`[Dashboard] Filtering complete for ${target.name || target.medicalName}`);
+        console.log(`- Matched Companies: ${filteredCompanies.length} (from ${allCompanies.length} total)`);
+        console.log(`- Matched Medicines: ${filteredMeds.length} (from ${allMeds.length} total)`);
+        if (filteredCompanies.length === 0) {
+          console.warn("[Dashboard] No companies matched by ID. Check if linkages are ID-based or if stockist identifiers [", Array.from(targetIds).join(','), "] are correct.");
+        }
+      }
 
       const filteredStaffs = staffList.filter((s) => {
         try {

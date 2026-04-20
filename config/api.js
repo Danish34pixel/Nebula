@@ -1,8 +1,14 @@
 // Central API configuration helper for Meditrap (React Native / Expo)
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 import { secureStorage } from "../utils/secureStore";
 
-const PRODUCTION_API_FALLBACK = "https://api.medi-trap.com";
+// Public env vars are embedded into the frontend bundle by Expo.
+const ENV_API_DEFAULT =
+  process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "";
+const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || "";
+const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || "";
+const DEV_API_DEFAULT = "http://localhost:5000";
 
 // Normalize to remove trailing slash and whitespace
 const normalizeBase = (url) => String(url || "").trim().replace(/\/+$/, "");
@@ -13,8 +19,70 @@ const extraApiUrl =
   Constants.manifest?.extra?.apiUrl ||
   "";
 
-export const API_URL = normalizeBase(extraApiUrl) || PRODUCTION_API_FALLBACK;
-export const API_BASE = API_URL;
+const extractExpoHost = () => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.expoConfig?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest?.debuggerHost ||
+    "";
+
+  const host = String(hostUri).split(":")[0].trim();
+  return host || null;
+};
+
+const rewriteLocalhostForDevice = (url) => {
+  if (!url) return url;
+  if (Platform.OS === "web") return url;
+
+  try {
+    const parsed = new URL(url);
+    const isLocalHost =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "::1";
+
+    if (!isLocalHost) return url;
+
+    const expoHost = extractExpoHost();
+    if (!expoHost) return url;
+
+    parsed.hostname = expoHost;
+    return normalizeBase(parsed.toString());
+  } catch {
+    return url;
+  }
+};
+
+const isDev = __DEV__ || process.env.NODE_ENV === "development";
+
+const selectedBase =
+  Platform.OS === "web"
+    ? isDev
+      ? DEV_API_DEFAULT
+      : ENV_API_WEB || ENV_API_DEFAULT || extraApiUrl
+    : isDev
+      ? DEV_API_DEFAULT
+      : ENV_API_NATIVE || ENV_API_DEFAULT || extraApiUrl;
+
+const resolvedBase = rewriteLocalhostForDevice(normalizeBase(selectedBase));
+
+if (!resolvedBase) {
+  throw new Error(
+    "Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. https://api.medi-trap.com or http://localhost:3000 for local testing).",
+  );
+}
+
+export const API_BASE = resolvedBase;
+
+if (
+  process.env.NODE_ENV === "production" &&
+  API_BASE.startsWith("http://") &&
+  !API_BASE.includes("localhost") &&
+  !API_BASE.includes("127.0.0.1")
+) {
+  throw new Error("In production, EXPO_PUBLIC_API_BASE_URL must use HTTPS.");
+}
 
 const normalizeToken = (token) => {
   if (token == null) return null;

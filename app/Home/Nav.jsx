@@ -131,6 +131,41 @@ const companyDisplayName = (company) =>
       "",
   ).trim();
 
+const valueAsArray = (value) => (Array.isArray(value) ? value : []);
+
+const extractCollection = (payload, keys = []) => {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+
+  const roots = [payload, payload.data, payload.result, payload.results].filter(
+    Boolean,
+  );
+  for (const root of roots) {
+    if (Array.isArray(root)) return root;
+    if (!root || typeof root !== "object") continue;
+
+    for (const key of keys) {
+      if (Array.isArray(root[key])) return root[key];
+    }
+
+    const genericKeys = ["items", "docs", "rows", "list"];
+    for (const key of genericKeys) {
+      if (Array.isArray(root[key])) return root[key];
+    }
+  }
+
+  return [];
+};
+
+const companyItemName = (item) => {
+  if (!item) return "";
+  if (typeof item === "string") return item.trim();
+  if (typeof item === "object") {
+    return String(item.name || item.title || item.companyName || "").trim();
+  }
+  return "";
+};
+
 const normalizeString = (value) =>
   String(value || "")
     .toLowerCase()
@@ -283,24 +318,13 @@ export default function Nav({ navigation: navProp }) {
           });
         }
 
-        const medicines = Array.isArray(jsonMedicine)
-          ? jsonMedicine
-          : (jsonMedicine && jsonMedicine.data) ||
-            jsonMedicine?.medicines ||
-            jsonMedicine?.items ||
-            [];
-        const companies = Array.isArray(jsonCompany)
-          ? jsonCompany
-          : (jsonCompany && jsonCompany.data) ||
-            jsonCompany?.companies ||
-            jsonCompany?.items ||
-            [];
-        const stockists = Array.isArray(jsonStockist)
-          ? jsonStockist
-          : (jsonStockist && jsonStockist.data) ||
-            jsonStockist?.stockists ||
-            jsonStockist?.items ||
-            [];
+        const medicines = extractCollection(jsonMedicine, [
+          "medicines",
+          "medicine",
+          "data",
+        ]);
+        const companies = extractCollection(jsonCompany, ["companies", "company"]);
+        const stockists = extractCollection(jsonStockist, ["stockists", "stockist"]);
 
         if (__DEV__) {
           console.log("[Nav] Parsed data structure:", {
@@ -327,7 +351,11 @@ export default function Nav({ navigation: navProp }) {
             ) {
               const stockistNames = new Set(
                 (s.Medicines || s.medicines || s.items || []).map((x) =>
-                  String(x).toLowerCase(),
+                  String(
+                    typeof x === "object" && x
+                      ? x.name || x.title || x.medicineName || ""
+                      : x,
+                  ).toLowerCase(),
                 ),
               );
               const fallback = medicines
@@ -540,21 +568,13 @@ export default function Nav({ navigation: navProp }) {
         fetchJson("/company"),
       ]);
 
-      const medicines = Array.isArray(jsonMedicine)
-        ? jsonMedicine
-        : (jsonMedicine && jsonMedicine.data) ||
-          jsonMedicine?.medicines ||
-          jsonMedicine?.items ||
-          [];
-      const companies = Array.isArray(jsonCompany)
-        ? jsonCompany
-        : (jsonCompany && jsonCompany.data) ||
-          jsonCompany?.companies ||
-          jsonCompany?.items ||
-          [];
-      const data = Array.isArray(jsonStockist)
-        ? jsonStockist
-        : (jsonStockist && jsonStockist.data) || [];
+      const medicines = extractCollection(jsonMedicine, [
+        "medicines",
+        "medicine",
+        "data",
+      ]);
+      const companies = extractCollection(jsonCompany, ["companies", "company"]);
+      const data = extractCollection(jsonStockist, ["stockists", "stockist"]);
 
       const mapped = data.map((s) => {
         let medsForStockist = medicines
@@ -568,7 +588,11 @@ export default function Nav({ navigation: navProp }) {
         ) {
           const stockistNames = new Set(
             (s.Medicines || s.medicines || s.items || []).map((x) =>
-              String(x).toLowerCase(),
+              String(
+                typeof x === "object" && x
+                  ? x.name || x.title || x.medicineName || ""
+                  : x,
+              ).toLowerCase(),
             ),
           );
           const fallback = medicines
@@ -776,7 +800,10 @@ export default function Nav({ navigation: navProp }) {
           .toLowerCase()
           .trim();
       sectionData.forEach((section) =>
-        section.items?.forEach((item) => allCompanies.add(norm(item))),
+        valueAsArray(section.items).forEach((item) => {
+          const name = companyItemName(item);
+          if (name) allCompanies.add(norm(name));
+        }),
       );
       return Array.from(allCompanies);
     } else if (type === "stockist") {
@@ -784,7 +811,10 @@ export default function Nav({ navigation: navProp }) {
     } else if (type === "medicine") {
       const allMedicines = new Set();
       sectionData.forEach((section) =>
-        section.Medicines?.forEach((med) => allMedicines.add(med)),
+        valueAsArray(section.Medicines).forEach((med) => {
+          const medName = String(med || "").trim();
+          if (medName) allMedicines.add(medName);
+        }),
       );
       return Array.from(allMedicines);
     }
@@ -811,7 +841,9 @@ export default function Nav({ navigation: navProp }) {
           .trim();
       allItems.forEach((company) => {
         const stockists = sectionData.filter((section) =>
-          (section.items || []).some((it) => norm(it) === company),
+          valueAsArray(section.items).some(
+            (it) => norm(companyItemName(it)) === company,
+          ),
         );
         companyStockists.push(...stockists);
       });
@@ -844,14 +876,16 @@ export default function Nav({ navigation: navProp }) {
       });
     } else if (filterType === "medicine") {
       sectionData.forEach((section) =>
-        section.Medicines?.forEach((med) => {
-          if (med && med.toLowerCase().includes(q)) resultSet.add(med);
+        valueAsArray(section.Medicines).forEach((med) => {
+          const medName = String(med || "").trim();
+          if (medName && medName.toLowerCase().includes(q)) resultSet.add(medName);
         }),
       );
     } else if (filterType === "company") {
       sectionData.forEach((section) =>
-        section.items?.forEach((item) => {
-          if (item && item.toLowerCase().includes(q)) resultSet.add(item);
+        valueAsArray(section.items).forEach((item) => {
+          const name = companyItemName(item);
+          if (name && name.toLowerCase().includes(q)) resultSet.add(name);
         }),
       );
     }
@@ -868,11 +902,15 @@ export default function Nav({ navigation: navProp }) {
       let matches = [];
       if (filterType === "company") {
         matches = sectionData.filter((section) =>
-          (section.items || []).some((it) => norm(it).includes(q)),
+          valueAsArray(section.items).some((it) =>
+            norm(companyItemName(it)).includes(q),
+          ),
         );
       } else if (filterType === "medicine") {
         matches = sectionData.filter((section) =>
-          (section.Medicines || []).some((med) => norm(med).includes(q)),
+          valueAsArray(section.Medicines).some((med) =>
+            norm(String(med || "")).includes(q),
+          ),
         );
       } else if (filterType === "stockist") {
         matches = sectionData.filter((section) =>
@@ -900,9 +938,9 @@ export default function Nav({ navigation: navProp }) {
         );
       } else if (filterType === "company") {
         stockists = sectionData.filter((section) =>
-          (section.items || []).some(
+          valueAsArray(section.items).some(
             (it) =>
-              String(it || "")
+              companyItemName(it)
                 .toLowerCase()
                 .trim() === sugLower,
           ),
@@ -910,7 +948,12 @@ export default function Nav({ navigation: navProp }) {
       } else if (filterType === "medicine") {
         stockists = sectionData.filter(
           (section) =>
-            section.Medicines && section.Medicines.includes(suggestion),
+            valueAsArray(section.Medicines).some(
+              (med) =>
+                String(med || "")
+                  .toLowerCase()
+                  .trim() === sugLower,
+            ),
         );
       }
       setSelectedStockists(stockists);

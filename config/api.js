@@ -8,7 +8,7 @@ const ENV_API_DEFAULT =
   process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "";
 const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || "";
 const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || "";
-const DEV_API_DEFAULT = "http://localhost:5000";
+const DEV_API_DEFAULT = "https://api.medi-trap.com";
 
 // Normalize to remove trailing slash and whitespace
 const normalizeBase = (url) => String(url || "").trim().replace(/\/+$/, "");
@@ -69,7 +69,7 @@ const resolvedBase = rewriteLocalhostForDevice(normalizeBase(selectedBase));
 
 if (!resolvedBase) {
   throw new Error(
-    "Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. https://api.medi-trap.com or http://localhost:3000 for local testing).",
+    "Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. https://api.medi-trap.com).",
   );
 }
 

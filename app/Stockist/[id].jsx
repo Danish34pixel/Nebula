@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
-  Linking,
   Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -53,12 +52,6 @@ export default function StockistDetailScreen() {
       fetchStockistDetail();
     }
   }, [id]);
-
-  const handleCall = (phone) => {
-    if (phone) {
-      Linking.openURL(`tel:${phone}`);
-    }
-  };
 
   const handleBackPress = () => {
     router.back();
@@ -112,6 +105,45 @@ export default function StockistDetailScreen() {
   const medicines = stockist.medicines || stockist.Medicines || [];
   const companies = stockist.companies || stockist.items || [];
 
+  const handleCall = (phoneNum) => {
+    console.log(
+      "handleCall triggered with phone:",
+      phoneNum,
+      "stockist id:",
+      id,
+      "name:",
+      name,
+    );
+    if (phoneNum && id) {
+      try {
+        router.push({
+          pathname: "/purchasermiddle",
+          params: {
+            stockistId: id,
+            phone: phoneNum,
+            stockistName: name,
+            action: "call",
+          },
+        });
+      } catch (error) {
+        console.error("Error pushing route:", error);
+      }
+    } else {
+      console.log("Missing phoneNum or id");
+    }
+  };
+
+  const handleContactNow = () => {
+    router.push({
+      pathname: "/purchasermiddle",
+      params: {
+        stockistId: id,
+        stockistNumber: phone,
+        stockistName: name,
+      },
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -140,7 +172,7 @@ export default function StockistDetailScreen() {
         </View>
 
         {/* Contact Card */}
-        <View style={styles.card}>
+        <View style={styles.card} pointerEvents="auto">
           <Text style={styles.cardTitle}>Contact Information</Text>
           <View style={styles.divider} />
 
@@ -167,10 +199,37 @@ export default function StockistDetailScreen() {
 
           <View style={styles.contactRow}>
             <Feather name="map-pin" size={20} color="#06b6d4" />
-            <View style={styles.contactInfo}>
+            <View style={styles.contactInfo} pointerEvents="none">
               <Text style={styles.contactLabel}>Address</Text>
               <Text style={styles.contactValue}>{address || "N/A"}</Text>
             </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.callNowContainer}>
+            <TouchableOpacity
+              style={styles.contactNowBtn}
+              onPress={() => {
+                console.log(
+                  "Call Now button pressed, phone:",
+                  phone,
+                  "id:",
+                  id,
+                  "name:",
+                  name,
+                );
+                if (!phone) {
+                  alert("Phone number not available");
+                  return;
+                }
+                handleCall(phone);
+              }}
+              activeOpacity={0.7}
+            >
+              <Feather name="phone-call" size={20} color="#fff" />
+              <Text style={styles.contactNowBtnText}>Call Now</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -362,6 +421,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#06b6d4",
     justifyContent: "center",
     alignItems: "center",
+  },
+  callNowContainer: {
+    width: "100%",
+  },
+  contactNowBtn: {
+    backgroundColor: "#06b6d4",
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+  },
+  contactNowBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   tagsContainer: {
     flexDirection: "row",

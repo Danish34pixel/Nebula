@@ -4,22 +4,37 @@
     "slug": "Meditrap",
     "version": "1.0.0",
     "orientation": "portrait",
+<<<<<<< HEAD
     "icon": "/assets/images/final-logo.png",
+=======
+    "icon": "./assets/images/final-logo.png",
+>>>>>>> f1c2deb6032cdf34b7029cc80b1852cfa8097e7a
     "scheme": "meditrap",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
 
     "ios": {
+      "bundleIdentifier": "com.danish.meditrap",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "supportsTablet": true
     },
 
     "android": {
       "package": "com.danish.meditrap",
+<<<<<<< HEAD
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/final-logo.png",
         "backgroundImage": "./assets/images/final-logo.png",
         "monochromeImage": "./assets/images/final-logo.png"
+=======
+      "versionCode": 10,
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/final-logo.png"
+>>>>>>> f1c2deb6032cdf34b7029cc80b1852cfa8097e7a
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -50,9 +65,15 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+<<<<<<< HEAD
 
     "extra": {
       "router": {},
+=======
+    "extra": {
+      "router": {},
+      "apiUrl": "https://api.medi-trap.com",
+>>>>>>> f1c2deb6032cdf34b7029cc80b1852cfa8097e7a
       "eas": {
         "projectId": "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6"
       }

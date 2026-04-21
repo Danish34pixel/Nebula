@@ -8,19 +8,27 @@ const ENV_API_DEFAULT =
   process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "";
 const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || "";
 const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || "";
-const DEV_API_DEFAULT = "http://localhost:5000";
+const DEV_API_DEFAULT = "https://api.medi-trap.com";
 
-// Normalize to remove any trailing slashes
-const normalizeBase = (url) =>
-  url && url.endsWith("/") ? url.slice(0, -1) : url;
+// Normalize to remove trailing slash and whitespace
+const normalizeBase = (url) => String(url || "").trim().replace(/\/+$/, "");
+
+const extraApiUrl =
+  Constants.expoConfig?.extra?.apiUrl ||
+  Constants.manifest2?.extra?.apiUrl ||
+  Constants.manifest?.extra?.apiUrl ||
+  "";
 
 const extractExpoHost = () => {
   const hostUri =
     Constants.expoConfig?.hostUri ||
+    Constants.expoConfig?.extra?.expoGo?.debuggerHost ||
     Constants.manifest2?.extra?.expoGo?.debuggerHost ||
     Constants.manifest?.debuggerHost ||
     "";
-  return String(hostUri).split(":")[0] || "";
+
+  const host = String(hostUri).split(":")[0].trim();
+  return host || null;
 };
 
 const rewriteLocalhostForDevice = (url) => {
@@ -52,16 +60,16 @@ const selectedBase =
   Platform.OS === "web"
     ? isDev
       ? DEV_API_DEFAULT
-      : ENV_API_WEB || ENV_API_DEFAULT
+      : ENV_API_WEB || ENV_API_DEFAULT || extraApiUrl
     : isDev
       ? DEV_API_DEFAULT
-      : ENV_API_NATIVE || ENV_API_DEFAULT;
+      : ENV_API_NATIVE || ENV_API_DEFAULT || extraApiUrl;
 
 const resolvedBase = rewriteLocalhostForDevice(normalizeBase(selectedBase));
 
 if (!resolvedBase) {
   throw new Error(
-    "Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. https://api.medi-trap.com or http://localhost:3000 for local testing).",
+    "Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. https://api.medi-trap.com).",
   );
 }
 
@@ -99,60 +107,53 @@ export const apiUrl = (path = "") => {
 
 // JSON Fetch Helper
 export const fetchJson = async (path, options = {}) => {
-  const url = apiUrl(path);
-  const token = normalizeToken(await secureStorage.getItem("token"));
-  const headerToken = normalizeToken(options.token || token);
-  if (__DEV__) console.log(`[API] ${options.method || "GET"} -> ${url}`);
+  try {
+    const url = apiUrl(path);
+    const token = normalizeToken(await secureStorage.getItem("token"));
+    const headerToken = normalizeToken(options.token || token);
+    if (__DEV__) console.log(`[API] ${options.method || "GET"} -> ${url}`);
 
-  const opts = {
-    ...options,
-    method: options.method || "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-      ...(headerToken ? { Authorization: `Bearer ${headerToken}` } : {}),
-    },
-  };
+    const opts = {
+      ...options,
+      method: options.method || "GET",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+        ...(headerToken ? { Authorization: `Bearer ${headerToken}` } : {}),
+      },
+    };
 
-  if (__DEV__) {
-    console.log(
-      `[API] request -> ${opts.method} ${url}`,
-      opts.method === "POST" ? { body: options.body, path } : null,
-    );
-  }
+    const res = await fetch(url, opts);
+    const text = await res.text();
+    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const body = text && isJson ? JSON.parse(text) : text;
 
-  const res = await fetch(url, opts);
-  const text = await res.text();
-  const isJson = res.headers.get("content-type")?.includes("application/json");
-  let body = text && isJson ? JSON.parse(text) : text;
-
-  if (__DEV__) {
-    console.log(`[API] response status: ${res.status}`, {
-      url,
-      statusOk: res.ok,
-      contentType: res.headers.get("content-type"),
-      bodyPreview: typeof body === "string" ? body.substring(0, 100) : body,
-    });
-  }
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      await secureStorage.removeItem("token");
-      await secureStorage.removeItem("refreshToken");
-      await secureStorage.removeItem("user");
+    if (!res.ok) {
+      if (res.status === 401) {
+        await secureStorage.removeItem("token");
+        await secureStorage.removeItem("refreshToken");
+        await secureStorage.removeItem("user");
+      }
+      const err = new Error(body?.message || `Request failed ${res.status}`);
+      err.status = res.status;
+      err.body = body;
+      throw err;
     }
-    const err = new Error(body?.message || `Request failed ${res.status}`);
-    err.status = res.status;
-    err.body = body;
-    throw err;
-  }
 
-  if (Array.isArray(body)) {
-    return { data: body };
-  }
+    if (Array.isArray(body)) {
+      return { data: body };
+    }
 
-  return body;
+    return body;
+  } catch (error) {
+    console.error("[API] fetchJson failed", {
+      path,
+      method: options.method || "GET",
+      message: error?.message || String(error),
+    });
+    throw error;
+  }
 };
 
 // Central request helper (Alias for fetchJson)
@@ -162,7 +163,6 @@ export const requestJson = fetchJson;
 export const postForm = async (path, formData, options = {}) => {
   const url = apiUrl(path);
   const token = normalizeToken(await secureStorage.getItem("token"));
-
   const controller = new AbortController();
   const timeout = options.timeout || 120000;
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -178,7 +178,6 @@ export const postForm = async (path, formData, options = {}) => {
       signal: controller.signal,
     });
 
-    clearTimeout(timer);
     const text = await res.text();
     const isJson = res.headers
       .get("content-type")
@@ -193,9 +192,14 @@ export const postForm = async (path, formData, options = {}) => {
     }
 
     return body;
-  } catch (err) {
+  } catch (error) {
+    console.error("[API] postForm failed", {
+      path,
+      message: error?.message || String(error),
+    });
+    throw error;
+  } finally {
     clearTimeout(timer);
-    throw err;
   }
 };
 

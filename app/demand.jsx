@@ -49,7 +49,20 @@ export default function Demand() {
       try {
         const res = await fetch(apiUrl("/medicine?limit=500"));
         const data = await res.json().catch(() => ({}));
-        if (res.ok) setMedicines(Array.isArray(data) ? data : data?.data || []);
+        if (res.ok) {
+          const list = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.data)
+              ? data.data
+              : Array.isArray(data?.data?.medicines)
+                ? data.data.medicines
+                : Array.isArray(data?.medicines)
+                  ? data.medicines
+                  : Array.isArray(data?.items)
+                    ? data.items
+                    : [];
+          setMedicines(list);
+        }
       } catch (_) {}
     })();
   }, []);

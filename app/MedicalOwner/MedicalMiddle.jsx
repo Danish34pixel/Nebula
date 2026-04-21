@@ -1,21 +1,30 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl } from "../../config/api";
+import usePreventScreenCapture from "../../utils/usePreventScreenCapture";
 
 export default function MedicalMiddle() {
+  usePreventScreenCapture();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [message, setMessage] = useState(
-    "Thanks for registering. Your documents are under verification. We will notify you once your account is approved."
+    "Thanks for registering. Your documents are under verification. We will notify you once your account is approved.",
   );
-  
+
   const timerRef = useRef(null);
-  
+
   useEffect(() => {
     let cancelled = false;
 
@@ -27,7 +36,9 @@ export default function MedicalMiddle() {
         if (!stockistId && !userId) {
           if (!cancelled) {
             setChecking(false);
-            setMessage("No active registration session found. Please try logging in.");
+            setMessage(
+              "No active registration session found. Please try logging in.",
+            );
           }
           return;
         }
@@ -35,13 +46,17 @@ export default function MedicalMiddle() {
         if (stockistId) {
           const res = await fetch(apiUrl(`/api/auth/status/${stockistId}`));
           const json = await res.json().catch(() => ({}));
-          
+
           if (res.ok && json && json.data) {
-            if (json.data.approved || json.data.status === 'approved') {
+            if (json.data.approved || json.data.status === "approved") {
               await AsyncStorage.removeItem("pendingStockistId");
               if (!cancelled) router.replace("/Stockist/stockist-login");
               return;
-            } else if (json.data.declined || json.data.status === 'declined' || json.data.status === 'rejected') {
+            } else if (
+              json.data.declined ||
+              json.data.status === "declined" ||
+              json.data.status === "rejected"
+            ) {
               if (!cancelled) {
                 setMessage("Document verification failed");
                 setChecking(false);
@@ -52,17 +67,24 @@ export default function MedicalMiddle() {
         } else if (userId) {
           const res = await fetch(apiUrl(`/api/auth/status/${userId}`));
           const json = await res.json().catch(() => ({}));
-          
+
           if (res.ok && json && json.data) {
-            if (json.data.approved || json.data.status === 'approved') {
+            if (json.data.approved || json.data.status === "approved") {
               await AsyncStorage.removeItem("pendingUserId");
-              
-              await AsyncStorage.multiRemove(["pendingUserId", "pendingUserCreds"]);
-              
+
+              await AsyncStorage.multiRemove([
+                "pendingUserId",
+                "pendingUserCreds",
+              ]);
+
               // Navigate to normal medical owner login after approval
               if (!cancelled) router.replace("/login");
               return;
-            } else if (json.data.declined || json.data.status === 'declined' || json.data.status === 'rejected') {
+            } else if (
+              json.data.declined ||
+              json.data.status === "declined" ||
+              json.data.status === "rejected"
+            ) {
               if (!cancelled) {
                 setMessage("Document verification failed");
                 setChecking(false);
@@ -74,7 +96,7 @@ export default function MedicalMiddle() {
       } catch (e) {
         // ignore network errors and continue polling
       }
-      
+
       if (!cancelled) {
         timerRef.current = setTimeout(checkStatus, 3000);
       }
@@ -98,11 +120,15 @@ export default function MedicalMiddle() {
                 <ActivityIndicator size="large" color="#0891b2" />
               </View>
             ) : message.includes("failed") ? (
-              <View style={[styles.iconContainer, { backgroundColor: "#fef2f2" }]}>
+              <View
+                style={[styles.iconContainer, { backgroundColor: "#fef2f2" }]}
+              >
                 <Feather name="x-circle" size={48} color="#ef4444" />
               </View>
             ) : (
-              <View style={[styles.iconContainer, { backgroundColor: "#f0fdf4" }]}>
+              <View
+                style={[styles.iconContainer, { backgroundColor: "#f0fdf4" }]}
+              >
                 <Feather name="info" size={48} color="#10b981" />
               </View>
             )}
@@ -112,12 +138,13 @@ export default function MedicalMiddle() {
                 ? "Verification Failed"
                 : "Documents under verification"}
             </Text>
-            
+
             <Text style={styles.messageText}>{message}</Text>
-            
+
             {message !== "Document verification failed" && (
               <Text style={styles.subtext}>
-                You can safely close this screen. Check back later to see if you have been approved.
+                You can safely close this screen. Check back later to see if you
+                have been approved.
               </Text>
             )}
 

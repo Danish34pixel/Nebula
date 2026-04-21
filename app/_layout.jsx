@@ -2,8 +2,10 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "react-native-reanimated";
+import usePreventScreenCapture from "../utils/usePreventScreenCapture";
 
 export default function RootLayout() {
+  usePreventScreenCapture();
   return (
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false }}>
@@ -17,6 +19,7 @@ export default function RootLayout() {
         <Stack.Screen name="Stockist/stockist-signup" />
         <Stack.Screen name="Stockist/stockist-verification" />
         <Stack.Screen name="Stockist/stockist-dashboard" />
+        <Stack.Screen name="Stockist/[id]" />
         <Stack.Screen name="Admin/index" />
         <Stack.Screen name="Admin/users" />
         <Stack.Screen name="Admin/stockists" />

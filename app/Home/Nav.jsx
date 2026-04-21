@@ -323,8 +323,14 @@ export default function Nav({ navigation: navProp }) {
           "medicine",
           "data",
         ]);
-        const companies = extractCollection(jsonCompany, ["companies", "company"]);
-        const stockists = extractCollection(jsonStockist, ["stockists", "stockist"]);
+        const companies = extractCollection(jsonCompany, [
+          "companies",
+          "company",
+        ]);
+        const stockists = extractCollection(jsonStockist, [
+          "stockists",
+          "stockist",
+        ]);
 
         if (__DEV__) {
           console.log("[Nav] Parsed data structure:", {
@@ -573,7 +579,10 @@ export default function Nav({ navigation: navProp }) {
         "medicine",
         "data",
       ]);
-      const companies = extractCollection(jsonCompany, ["companies", "company"]);
+      const companies = extractCollection(jsonCompany, [
+        "companies",
+        "company",
+      ]);
       const data = extractCollection(jsonStockist, ["stockists", "stockist"]);
 
       const mapped = data.map((s) => {
@@ -878,7 +887,8 @@ export default function Nav({ navigation: navProp }) {
       sectionData.forEach((section) =>
         valueAsArray(section.Medicines).forEach((med) => {
           const medName = String(med || "").trim();
-          if (medName && medName.toLowerCase().includes(q)) resultSet.add(medName);
+          if (medName && medName.toLowerCase().includes(q))
+            resultSet.add(medName);
         }),
       );
     } else if (filterType === "company") {
@@ -939,21 +949,17 @@ export default function Nav({ navigation: navProp }) {
       } else if (filterType === "company") {
         stockists = sectionData.filter((section) =>
           valueAsArray(section.items).some(
-            (it) =>
-              companyItemName(it)
-                .toLowerCase()
-                .trim() === sugLower,
+            (it) => companyItemName(it).toLowerCase().trim() === sugLower,
           ),
         );
       } else if (filterType === "medicine") {
-        stockists = sectionData.filter(
-          (section) =>
-            valueAsArray(section.Medicines).some(
-              (med) =>
-                String(med || "")
-                  .toLowerCase()
-                  .trim() === sugLower,
-            ),
+        stockists = sectionData.filter((section) =>
+          valueAsArray(section.Medicines).some(
+            (med) =>
+              String(med || "")
+                .toLowerCase()
+                .trim() === sugLower,
+          ),
         );
       }
       setSelectedStockists(stockists);
@@ -1031,7 +1037,7 @@ export default function Nav({ navigation: navProp }) {
             <Text style={styles.cardSubtitle}>{item.address}</Text>
           </View>
           <TouchableOpacity
-            onPress={() => navigation.navigate(`/stockist/${item._id}`)}
+            onPress={() => navigation.navigate(`/Stockist/${item._id}`)}
             style={styles.cardArrow}
           >
             <Text style={styles.cardArrowText}>›</Text>

@@ -18,8 +18,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
 import { apiUrl, fetchJson } from "../../config/api";
+import usePreventScreenCapture from "../../utils/usePreventScreenCapture";
 
 export default function PurchaserDashboard() {
+  usePreventScreenCapture();
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [purchaser, setPurchaser] = useState(null);

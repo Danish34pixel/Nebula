@@ -24,6 +24,7 @@ import { secureStorage } from "../../utils/secureStore";
 import IdentityCard from "../../components/stockist/IdentityCard";
 import StockistApprovals from "../../components/stockist/StockistApprovals";
 import StaffModel from "../Staff/StaffModel";
+import usePreventScreenCapture from "../../utils/usePreventScreenCapture";
 
 const { width } = Dimensions.get("window");
 
@@ -253,6 +254,7 @@ const LoadingSkeleton = () => {
 };
 
 export default function StockistDashboard() {
+  usePreventScreenCapture();
   const router = useRouter();
   const params = useLocalSearchParams();
   const routeId = params.id || null;
@@ -703,11 +705,21 @@ export default function StockistDashboard() {
       );
 
       if (__DEV__) {
-        console.log(`[Dashboard] Filtering complete for ${target.name || target.medicalName}`);
-        console.log(`- Matched Companies: ${filteredCompanies.length} (from ${allCompanies.length} total)`);
-        console.log(`- Matched Medicines: ${filteredMeds.length} (from ${allMeds.length} total)`);
+        console.log(
+          `[Dashboard] Filtering complete for ${target.name || target.medicalName}`,
+        );
+        console.log(
+          `- Matched Companies: ${filteredCompanies.length} (from ${allCompanies.length} total)`,
+        );
+        console.log(
+          `- Matched Medicines: ${filteredMeds.length} (from ${allMeds.length} total)`,
+        );
         if (filteredCompanies.length === 0) {
-          console.warn("[Dashboard] No companies matched by ID. Check if linkages are ID-based or if stockist identifiers [", Array.from(targetIds).join(','), "] are correct.");
+          console.warn(
+            "[Dashboard] No companies matched by ID. Check if linkages are ID-based or if stockist identifiers [",
+            Array.from(targetIds).join(","),
+            "] are correct.",
+          );
         }
       }
 

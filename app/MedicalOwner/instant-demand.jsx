@@ -38,7 +38,9 @@ export default function InstantDemand() {
     setStatusMsg(null);
 
     try {
-      const url = apiUrl(`/api/stockist/by-medicine?name=${encodeURIComponent(query)}`);
+      const url = apiUrl(
+        `/api/stockist/by-medicine?name=${encodeURIComponent(query)}`,
+      );
       const res = await fetch(url);
       const json = await res.json();
 
@@ -49,12 +51,17 @@ export default function InstantDemand() {
       setHasSearched(true);
 
       if (list.length > 0) {
-        setStatusMsg(`✓ Found ${list.length} stockist${list.length > 1 ? "s" : ""} carrying "${query}"`);
+        setStatusMsg(
+          `✓ Found ${list.length} stockist${list.length > 1 ? "s" : ""} carrying "${query}"`,
+        );
       } else {
         setStatusMsg(null);
       }
     } catch (e) {
-      Alert.alert("Error", e.message || "Failed to search. Please check your connection.");
+      Alert.alert(
+        "Error",
+        e.message || "Failed to search. Please check your connection.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -71,10 +78,15 @@ export default function InstantDemand() {
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Intro Banner */}
-        <LinearGradient colors={["#0ea5e9", "#06b6d4"]} style={styles.introBanner}>
+        <LinearGradient
+          colors={["#0ea5e9", "#06b6d4"]}
+          style={styles.introBanner}
+        >
           <Feather name="zap" size={28} color="#fff" />
           <View style={{ flex: 1, marginLeft: 14 }}>
             <Text style={styles.introTitle}>Instant Lookup</Text>
@@ -88,7 +100,12 @@ export default function InstantDemand() {
         <View style={styles.card}>
           <Text style={styles.label}>MEDICINE NAME</Text>
           <View style={styles.inputRow}>
-            <Feather name="search" size={18} color="#94a3b8" style={{ marginRight: 10 }} />
+            <Feather
+              name="search"
+              size={18}
+              color="#94a3b8"
+              style={{ marginRight: 10 }}
+            />
             <TextInput
               style={styles.input}
               placeholder="e.g. Paracetamol, Nadomac..."
@@ -99,7 +116,14 @@ export default function InstantDemand() {
               onSubmitEditing={handleCreateDemand}
             />
             {medicineName.length > 0 && (
-              <TouchableOpacity onPress={() => { setMedicineName(""); setHasSearched(false); setMatchedStockists([]); setStatusMsg(null); }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setMedicineName("");
+                  setHasSearched(false);
+                  setMatchedStockists([]);
+                  setStatusMsg(null);
+                }}
+              >
                 <Feather name="x" size={18} color="#cbd5e1" />
               </TouchableOpacity>
             )}
@@ -111,12 +135,22 @@ export default function InstantDemand() {
             disabled={isLoading}
             activeOpacity={0.85}
           >
-            <LinearGradient colors={["#0ea5e9", "#06b6d4"]} style={styles.searchBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <LinearGradient
+              colors={["#0ea5e9", "#06b6d4"]}
+              style={styles.searchBtnGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
               {isLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Feather name="search" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <Feather
+                    name="search"
+                    size={18}
+                    color="#fff"
+                    style={{ marginRight: 8 }}
+                  />
                   <Text style={styles.searchBtnText}>Create Demand</Text>
                 </>
               )}
@@ -142,14 +176,26 @@ export default function InstantDemand() {
                 <View style={styles.emptyIcon}>
                   <Feather name="inbox" size={36} color="#cbd5e1" />
                 </View>
-                <Text style={styles.emptyTitle}>No stockist available for this medicine.</Text>
+                <Text style={styles.emptyTitle}>
+                  No stockist available for this medicine.
+                </Text>
                 <Text style={styles.emptyHint}>
-                  Ask your admin to add inventory details to registered stockists.
+                  Ask your admin to add inventory details to registered
+                  stockists.
                 </Text>
               </View>
             ) : (
               matchedStockists.map((s, idx) => (
-                <View key={s._id || idx} style={styles.stockistCard}>
+                <TouchableOpacity
+                  key={s._id || idx}
+                  style={styles.stockistCard}
+                  onPress={() => {
+                    if (s._id) {
+                      router.push(`/Stockist/${s._id}`);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.stockistAvatar}>
                     <Text style={styles.stockistAvatarText}>
                       {(s.name || "S").charAt(0).toUpperCase()}
@@ -165,11 +211,13 @@ export default function InstantDemand() {
                         {s.phone || s.contactNo || "No contact listed"}
                       </Text>
                     </View>
-                    {(s.address?.city || s.address?.state) ? (
+                    {s.address?.city || s.address?.state ? (
                       <View style={styles.locationRow}>
                         <Feather name="map-pin" size={12} color="#94a3b8" />
                         <Text style={styles.locationText}>
-                          {[s.address.city, s.address.state].filter(Boolean).join(", ")}
+                          {[s.address.city, s.address.state]
+                            .filter(Boolean)
+                            .join(", ")}
                         </Text>
                       </View>
                     ) : null}
@@ -177,12 +225,15 @@ export default function InstantDemand() {
                   {s.phone ? (
                     <TouchableOpacity
                       style={styles.callBtn}
-                      onPress={() => Linking.openURL(`tel:${s.phone}`)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        Linking.openURL(`tel:${s.phone}`);
+                      }}
                     >
                       <Feather name="phone-call" size={18} color="#0ea5e9" />
                     </TouchableOpacity>
                   ) : null}
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
@@ -206,9 +257,12 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f1f5f9",
   },
   backBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#f1f5f9",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: { fontSize: 17, fontWeight: "bold", color: "#0f172a" },
 
@@ -222,7 +276,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   introTitle: { fontSize: 15, fontWeight: "bold", color: "#fff" },
-  introSub: { fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2, lineHeight: 18 },
+  introSub: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 2,
+    lineHeight: 18,
+  },
 
   card: {
     backgroundColor: "#fff",
@@ -283,7 +342,12 @@ const styles = StyleSheet.create({
   successText: { color: "#15803d", fontSize: 14, fontWeight: "600" },
 
   resultsSection: { marginTop: 4 },
-  resultsTitle: { fontSize: 16, fontWeight: "bold", color: "#0f172a", marginBottom: 14 },
+  resultsTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#0f172a",
+    marginBottom: 14,
+  },
 
   emptyState: {
     alignItems: "center",
@@ -294,13 +358,27 @@ const styles = StyleSheet.create({
     borderColor: "#f1f5f9",
   },
   emptyIcon: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: "#f8fafc",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
   },
-  emptyTitle: { fontSize: 15, fontWeight: "700", color: "#64748b", textAlign: "center", marginBottom: 6 },
-  emptyHint: { fontSize: 13, color: "#94a3b8", textAlign: "center", lineHeight: 20 },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#64748b",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  emptyHint: {
+    fontSize: 13,
+    color: "#94a3b8",
+    textAlign: "center",
+    lineHeight: 20,
+  },
 
   stockistCard: {
     flexDirection: "row",
@@ -317,21 +395,37 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   stockistAvatar: {
-    width: 46, height: 46, borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     backgroundColor: "#e0f2fe",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 14,
   },
   stockistAvatarText: { fontSize: 18, fontWeight: "bold", color: "#0284c7" },
   stockistInfo: { flex: 1 },
-  stockistName: { fontSize: 15, fontWeight: "700", color: "#0f172a", marginBottom: 4 },
-  phoneRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
+  stockistName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 4,
+  },
+  phoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 2,
+  },
   phoneText: { fontSize: 13, color: "#475569", fontWeight: "500" },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   locationText: { fontSize: 12, color: "#94a3b8" },
   callBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#f0f9ff",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

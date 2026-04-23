@@ -10,7 +10,7 @@
     "newArchEnabled": true,
 
     "ios": {
-      "bundleIdentifier": "com.danish.meditrap",
+      "bundleIdentifier": "Meditrap",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -18,8 +18,8 @@
     },
 
     "android": {
-      "package": "com.danish.meditrap",
-      "versionCode": 10,
+      "package": "Meditrap",
+      "versionCode": 11,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/final-logo.png"

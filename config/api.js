@@ -4,13 +4,17 @@ import { Platform } from "react-native";
 import { secureStorage } from "../utils/secureStore";
 
 // Public env vars are embedded into the frontend bundle by Expo.
+// Default to the production API if no env var is provided.
 const ENV_API_DEFAULT =
-  process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "";
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  process.env.EXPO_PUBLIC_API_URL ||
+  "https://api.medi-trap.com";
 const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || "";
 const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || "";
-// During development, prefer a local API. Override with
-// EXPO_PUBLIC_API_BASE_URL or EXPO_PUBLIC_API_BASE_URL_NATIVE/WEB as needed.
-const DEV_API_DEFAULT = process.env.EXPO_DEV_API_URL || "http://localhost:";
+// During development, prefer the local Docker network service name `api`.
+// You can still override with EXPO_DEV_API_URL or the public env vars.
+const DEV_API_DEFAULT =
+  process.env.EXPO_DEV_API_URL || "https://api.medi-trap.com";
 
 // Normalize to remove trailing slash and whitespace
 const normalizeBase = (url) =>

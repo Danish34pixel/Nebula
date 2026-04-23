@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Platform,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -105,7 +106,7 @@ export default function StockistDetailScreen() {
   const medicines = stockist.medicines || stockist.Medicines || [];
   const companies = stockist.companies || stockist.items || [];
 
-  const handleCall = (phoneNum) => {
+  const handleCall = async (phoneNum) => {
     console.log(
       "handleCall triggered with phone:",
       phoneNum,
@@ -114,7 +115,26 @@ export default function StockistDetailScreen() {
       "name:",
       name,
     );
-    if (phoneNum && id) {
+
+    const safePhone = phoneNum
+      ? String(phoneNum)
+          .trim()
+          .replace(/[^+0-9]/g, "")
+      : "";
+    if (!safePhone) {
+      console.log("Missing or invalid phone number");
+      alert("Phone number not available");
+      return;
+    }
+
+    try {
+      if (Platform.OS === "web") {
+        window.location.href = `tel:${safePhone}`;
+      } else {
+        await Linking.openURL(`tel:${safePhone}`);
+      }
+    } catch (err) {
+      console.error("Failed to initiate call:", err);
       try {
         router.push({
           pathname: "/purchasermiddle",
@@ -126,10 +146,8 @@ export default function StockistDetailScreen() {
           },
         });
       } catch (error) {
-        console.error("Error pushing route:", error);
+        console.error("Error pushing route as fallback:", error);
       }
-    } else {
-      console.log("Missing phoneNum or id");
     }
   };
 

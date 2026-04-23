@@ -8,10 +8,15 @@ const ENV_API_DEFAULT =
   process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "";
 const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || "";
 const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || "";
-const DEV_API_DEFAULT = "https://api.medi-trap.com";
+// During development, prefer a local API. Override with
+// EXPO_PUBLIC_API_BASE_URL or EXPO_PUBLIC_API_BASE_URL_NATIVE/WEB as needed.
+const DEV_API_DEFAULT = process.env.EXPO_DEV_API_URL || "http://localhost:";
 
 // Normalize to remove trailing slash and whitespace
-const normalizeBase = (url) => String(url || "").trim().replace(/\/+$/, "");
+const normalizeBase = (url) =>
+  String(url || "")
+    .trim()
+    .replace(/\/+$/, "");
 
 const extraApiUrl =
   Constants.expoConfig?.extra?.apiUrl ||
@@ -126,7 +131,9 @@ export const fetchJson = async (path, options = {}) => {
 
     const res = await fetch(url, opts);
     const text = await res.text();
-    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const isJson = res.headers
+      .get("content-type")
+      ?.includes("application/json");
     const body = text && isJson ? JSON.parse(text) : text;
 
     if (!res.ok) {

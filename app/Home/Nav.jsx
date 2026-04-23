@@ -1031,7 +1031,7 @@ export default function Nav({ navigation: navProp }) {
             <Text style={styles.cardSubtitle}>{item.address}</Text>
           </View>
           <TouchableOpacity
-            onPress={() => navigation.navigate(`/stockist/${item._id}`)}
+            onPress={() => handleToggleCard(item._id)}
             style={styles.cardArrow}
           >
             <Text style={styles.cardArrowText}>›</Text>

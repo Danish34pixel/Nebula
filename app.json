@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.danish.meditrap",
-      "versionCode": 10,
+      "versionCode": 11,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/final-logo.png"

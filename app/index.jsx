@@ -7,9 +7,9 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
-  SafeAreaView,
   ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -60,7 +60,7 @@ export default function Page() {
   const roles = [
     {
       id: "Stockist",
-      name: "Stockist",
+      name: "Stockist (Wholeseller)",
       icon: ASSETS.stockist,
       gradient: ["#34d399", "#14b8a6"], // emerald-400 to teal-500
       description: "Manage inventory",
@@ -74,7 +74,7 @@ export default function Page() {
     },
     {
       id: "Medical Owner",
-      name: "Medical Owner",
+      name: "Medical (Retailer)",
       icon: ASSETS.medicalOwner,
       gradient: ["#fb923c", "#ef4444"], // orange-400 to red-500
       description: "Clinic management",

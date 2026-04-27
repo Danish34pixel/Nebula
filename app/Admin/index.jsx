@@ -1,11 +1,6 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,7 +15,10 @@ const AdminDashboard = () => {
         style={styles.container}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
             <Feather name="arrow-left" size={24} color="#1e293b" />
           </TouchableOpacity>
           <Text style={styles.title}>Admin Panel</Text>
@@ -28,58 +26,97 @@ const AdminDashboard = () => {
         </View>
 
         <View style={styles.menu}>
-          <TouchableOpacity 
-            style={styles.menuItem} 
+          <TouchableOpacity
+            style={styles.menuItem}
             onPress={() => router.push("/Admin/users")}
           >
-            <LinearGradient colors={["#3b82f6", "#2563eb"]} style={styles.iconBox}>
+            <LinearGradient
+              colors={["#3b82f6", "#2563eb"]}
+              style={styles.iconBox}
+            >
               <Feather name="users" size={32} color="#fff" />
             </LinearGradient>
             <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>User Management</Text>
-              <Text style={styles.menuSub}>Approve or decline purchaser registrations</Text>
+              <Text style={styles.menuTitle}>Purchaser Management</Text>
+              <Text style={styles.menuSub}>
+                Approve or decline purchaser registrations
+              </Text>
             </View>
             <Feather name="chevron-right" size={24} color="#94a3b8" />
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.menuItem} 
+          <TouchableOpacity
+            style={styles.menuItem}
             onPress={() => router.push("/Admin/stockists")}
           >
-            <LinearGradient colors={["#0d9488", "#0f766e"]} style={styles.iconBox}>
+            <LinearGradient
+              colors={["#0d9488", "#0f766e"]}
+              style={styles.iconBox}
+            >
               <Feather name="package" size={32} color="#fff" />
             </LinearGradient>
             <View style={styles.menuText}>
               <Text style={styles.menuTitle}>Stockist Management</Text>
-              <Text style={styles.menuSub}>Verify and approve supplier applications</Text>
+              <Text style={styles.menuSub}>
+                Verify and approve supplier applications
+              </Text>
             </View>
             <Feather name="chevron-right" size={24} color="#94a3b8" />
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.menuItem} 
+          <TouchableOpacity
+            style={styles.menuItem}
             onPress={() => router.push("/Admin/create-company")}
           >
-            <LinearGradient colors={["#fbbf24", "#d97706"]} style={styles.iconBox}>
+            <LinearGradient
+              colors={["#fbbf24", "#d97706"]}
+              style={styles.iconBox}
+            >
               <Feather name="plus-circle" size={32} color="#fff" />
             </LinearGradient>
             <View style={styles.menuText}>
               <Text style={styles.menuTitle}>Create Company</Text>
-              <Text style={styles.menuSub}>Register a new pharmaceutical company</Text>
+              <Text style={styles.menuSub}>
+                Register a new pharmaceutical company
+              </Text>
             </View>
             <Feather name="chevron-right" size={24} color="#94a3b8" />
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.menuItem} 
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/Admin/medical-management")}
+          >
+            <LinearGradient
+              colors={["#6366f1", "#4f46e5"]}
+              style={styles.iconBox}
+            >
+              <Feather name="activity" size={32} color="#fff" />
+            </LinearGradient>
+            <View style={styles.menuText}>
+              <Text style={styles.menuTitle}>Medical Management</Text>
+              <Text style={styles.menuSub}>
+                Approve or decline medical retailer registrations
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={24} color="#94a3b8" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
             onPress={() => router.push("/Admin/create-medicine")}
           >
-            <LinearGradient colors={["#f472b6", "#db2777"]} style={styles.iconBox}>
+            <LinearGradient
+              colors={["#f472b6", "#db2777"]}
+              style={styles.iconBox}
+            >
               <Feather name="tablet" size={32} color="#fff" />
             </LinearGradient>
             <View style={styles.menuText}>
               <Text style={styles.menuTitle}>Create Medicine</Text>
-              <Text style={styles.menuSub}>Add new medicine with assignments</Text>
+              <Text style={styles.menuSub}>
+                Add new medicine with assignments
+              </Text>
             </View>
             <Feather name="chevron-right" size={24} color="#94a3b8" />
           </TouchableOpacity>
@@ -138,14 +175,24 @@ const styles = StyleSheet.create({
     marginRight: 20,
   },
   menuText: { flex: 1 },
-  menuTitle: { fontSize: 18, fontWeight: "bold", color: "#1e293b", marginBottom: 4 },
+  menuTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
   menuSub: { fontSize: 13, color: "#64748b", lineHeight: 18 },
   footer: {
     marginTop: "auto",
     alignItems: "center",
     paddingBottom: 20,
   },
-  footerText: { fontSize: 12, color: "#94a3b8", fontWeight: "600", letterSpacing: 1 },
+  footerText: {
+    fontSize: 12,
+    color: "#94a3b8",
+    fontWeight: "600",
+    letterSpacing: 1,
+  },
 });
 
 export default AdminDashboard;

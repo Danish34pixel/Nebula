@@ -9,60 +9,43 @@ import {
   ActivityIndicator,
   Image,
   Alert,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 const UserAdmin = () => {
   const router = useRouter();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [approving, setApproving] = useState({});
-  const [declining, setDeclining] = useState({});
   const [devToken, setDevToken] = useState("");
   const [isDev, setIsDev] = useState(__DEV__);
-
-  const APPROVED_STORAGE_KEY = "admin_approved_users";
 
   // Fetch all users
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const token = await AsyncStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const token = await secureStorage.getItem("token");
+      const headers = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
       
-      const res = await fetch(apiUrl("/api/user"), { headers });
+      const res = await fetch(apiUrl("/api/purchaser"), { headers });
       const json = await res.json();
 
-      if (!res.ok)
-        throw new Error(json.message || `Failed to load users (${res.status})`);
-      
-      let fetched = json.data || [];
-
-      // Apply local overrides
-      try {
-        const raw = await AsyncStorage.getItem(APPROVED_STORAGE_KEY);
-        if (raw) {
-          const approvedIds = JSON.parse(raw);
-          if (Array.isArray(approvedIds) && approvedIds.length) {
-            fetched = fetched.map((user) =>
-              approvedIds.includes(user._id)
-                ? { ...user, approved: true, status: "approved" }
-                : user
-            );
-          }
-        }
-      } catch (e) {
-        console.warn("Failed to read approved IDs", e);
+      if (res.status === 403) {
+        throw new Error("Access denied. Open this screen with an admin account.");
       }
+      if (!res.ok)
+        throw new Error(json.message || `Failed to load purchasers (${res.status})`);
 
-      setUsers(fetched);
+      setUsers(json.data || []);
     } catch (e) {
       setError(e.message || String(e));
     } finally {
@@ -75,94 +58,15 @@ const UserAdmin = () => {
     
     // Load dev token if exists
     (async () => {
-      const savedToken = await AsyncStorage.getItem("token");
+      const savedToken = await secureStorage.getItem("token");
       if (savedToken) setDevToken(savedToken);
     })();
   }, []);
 
   const saveDevToken = async () => {
     if (!devToken) return Alert.alert("Error", "Enter a token to save");
-    await AsyncStorage.setItem("token", devToken);
+    await secureStorage.setItem("token", devToken);
     Alert.alert("Success", "Token saved for dev testing");
-  };
-
-  const approveUser = async (id) => {
-    setApproving((p) => ({ ...p, [id]: true }));
-    try {
-      const token = await AsyncStorage.getItem("token");
-      const headers = { 
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...(isDev && { "x-dev-admin": "1" })
-      };
-
-      const res = await fetch(apiUrl(`/api/user/${id}/approve`), {
-        method: "PATCH",
-        headers,
-      });
-      
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || `Approval failed (${res.status})`);
-
-      // Update local state
-      setUsers((s) =>
-        s.map((user) =>
-          user._id === id
-            ? { ...user, approved: true, status: "approved" }
-            : user
-        )
-      );
-
-      // Persist locally
-      try {
-        const raw = await AsyncStorage.getItem(APPROVED_STORAGE_KEY);
-        const arr = raw ? JSON.parse(raw) : [];
-        if (!arr.includes(id)) {
-          arr.push(id);
-          await AsyncStorage.setItem(APPROVED_STORAGE_KEY, JSON.stringify(arr));
-        }
-      } catch (e) {}
-
-    } catch (e) {
-      Alert.alert("Error", e.message || String(e));
-    } finally {
-      setApproving((p) => ({ ...p, [id]: false }));
-    }
-  };
-
-  const declineUser = async (id) => {
-    setDeclining((p) => ({ ...p, [id]: true }));
-    try {
-      const token = await AsyncStorage.getItem("token");
-      const headers = { 
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...(isDev && { "x-dev-admin": "1" })
-      };
-
-      const res = await fetch(apiUrl(`/api/user/${id}/decline`), {
-        method: "PATCH",
-        headers,
-      });
-      
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || `Decline failed (${res.status})`);
-
-      setUsers((s) => s.filter((user) => user._id !== id));
-
-      // Cleanup local persistence
-      try {
-        const raw = await AsyncStorage.getItem(APPROVED_STORAGE_KEY);
-        const arr = raw ? JSON.parse(raw) : [];
-        const newArr = arr.filter((x) => x !== id);
-        await AsyncStorage.setItem(APPROVED_STORAGE_KEY, JSON.stringify(newArr));
-      } catch (e) {}
-
-    } catch (e) {
-      Alert.alert("Error", e.message || String(e));
-    } finally {
-      setDeclining((p) => ({ ...p, [id]: false }));
-    }
   };
 
   return (
@@ -172,7 +76,7 @@ const UserAdmin = () => {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={24} color="#1f2937" />
           </TouchableOpacity>
-          <Text style={styles.title}>Users (Admin)</Text>
+          <Text style={styles.title}>Purchasers (Admin)</Text>
           <TouchableOpacity onPress={fetchUsers} style={styles.refreshBtn}>
              <Feather name="refresh-cw" size={20} color="#3b82f6" />
           </TouchableOpacity>
@@ -238,36 +142,14 @@ const UserAdmin = () => {
                 </View>
 
                 <View style={styles.actions}>
-                  {!isApproved && (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.actionBtn, styles.approveBtn]}
-                        onPress={() => approveUser(user._id)}
-                        disabled={approving[user._id]}
-                      >
-                        {approving[user._id] ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <Text style={styles.actionBtnText}>Approve</Text>
-                        )}
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity
-                        style={[styles.actionBtn, styles.declineBtn]}
-                        onPress={() => declineUser(user._id)}
-                        disabled={declining[user._id]}
-                      >
-                        {declining[user._id] ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <Text style={styles.actionBtnText}>Decline</Text>
-                        )}
-                      </TouchableOpacity>
-                    </>
-                  )}
                   {isApproved && (
                     <View style={styles.statusLabel}>
                        <Text style={styles.statusLabelText}>APPROVED</Text>
+                    </View>
+                  )}
+                  {!isApproved && (
+                    <View style={styles.statusLabel}>
+                      <Text style={styles.statusLabelText}>PENDING</Text>
                     </View>
                   )}
                 </View>

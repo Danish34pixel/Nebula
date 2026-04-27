@@ -15,11 +15,12 @@ import {
   Platform,
   Animated,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 import IdentityCard from "../../components/stockist/IdentityCard";
 import StockistApprovals from "../../components/stockist/StockistApprovals";
 import StaffModel from "../Staff/StaffModel";
@@ -101,7 +102,11 @@ const CompanyCard = ({ company, productCount = 0 }) => {
           </LinearGradient>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.cardTitle} numberOfLines={1}>
-              {company.name}
+              {company.name ||
+                company.companyName ||
+                company.title ||
+                company.shortName ||
+                "Company"}
             </Text>
             <Text style={styles.cardSubtitle}>{productCount} products</Text>
           </View>
@@ -126,10 +131,7 @@ const MedicineCard = ({ medicine }) => (
       style={[styles.cardContainer, { borderColor: "#dbeafe" }]}
     >
       <View style={styles.cardHeader}>
-        <LinearGradient
-          colors={["#3b82f6", "#06b6d4"]}
-          style={styles.iconBox}
-        >
+        <LinearGradient colors={["#3b82f6", "#06b6d4"]} style={styles.iconBox}>
           <Feather name="package" size={24} color="#fff" />
         </LinearGradient>
         <View style={{ flex: 1, marginLeft: 12 }}>
@@ -149,11 +151,11 @@ const MedicineCard = ({ medicine }) => (
     </LinearGradient>
   </View>
 );
-const StaffCard = ({ staff, onPreview }) => {
+const StaffCard = ({ staff, onPreview, onApprove }) => {
   const qrUrl = useMemo(() => {
     const profileUrl = `https://meditrap.com/Staff/${staff._id}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-      profileUrl
+      profileUrl,
     )}`;
   }, [staff._id]);
 
@@ -167,8 +169,12 @@ const StaffCard = ({ staff, onPreview }) => {
         colors={["#ffffff", "#f8fafc"]}
         style={styles.staffCardContainer}
       >
-        <Avatar name={staff.fullName || staff.name || "S"} size={60} style={styles.staffAvatar} />
-        
+        <Avatar
+          name={staff.fullName || staff.name || "S"}
+          size={60}
+          style={styles.staffAvatar}
+        />
+
         <View style={styles.staffInfo}>
           <Text style={styles.cardTitle} numberOfLines={1}>
             {staff.fullName || staff.name}
@@ -180,11 +186,32 @@ const StaffCard = ({ staff, onPreview }) => {
             </Text>
           </View>
           <Text style={styles.roleTag}>{staff.role || "Staff Member"}</Text>
+          {staff.workForName ? (
+            <Text style={styles.cardSubtitle} numberOfLines={1}>
+              Works at: {staff.workForName}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.qrSectionSmall}>
-          <Image source={{ uri: qrUrl }} style={styles.qrImageSmall} />
-          <Feather name="maximize-2" size={10} color="#cbd5e1" style={styles.zoomIcon} />
+          {staff.approved === false ? (
+            <TouchableOpacity
+              onPress={() => onApprove(staff._id)}
+              style={styles.approveBtnSmall}
+            >
+              <Text style={styles.approveBtnSmallText}>Approve</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <Image source={{ uri: qrUrl }} style={styles.qrImageSmall} />
+              <Feather
+                name="maximize-2"
+                size={10}
+                color="#cbd5e1"
+                style={styles.zoomIcon}
+              />
+            </>
+          )}
         </View>
       </LinearGradient>
     </TouchableOpacity>
@@ -207,7 +234,7 @@ const LoadingSkeleton = () => {
           duration: 800,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [opacity]);
 
@@ -240,6 +267,7 @@ export default function StockistDashboard() {
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [authError, setAuthError] = useState(false);
 
   const stats = useMemo(
     () => ({
@@ -247,7 +275,7 @@ export default function StockistDashboard() {
       medicines: medicinesList.length,
       staff: staffs.length,
     }),
-    [companiesList.length, medicinesList.length, staffs.length]
+    [companiesList.length, medicinesList.length, staffs.length],
   );
 
   const displayName = useMemo(() => {
@@ -274,33 +302,174 @@ export default function StockistDashboard() {
           keys.some((key) =>
             String(item?.[key] || "")
               .toLowerCase()
-              .includes(q)
+              .includes(q),
           )
-        ) return true;
-        
-        const extraKeys = ["title", "shortName", "fullName", "brandName", "medicineName", "companyName", "email", "role", "contactPerson"];
+        )
+          return true;
+
+        const extraKeys = [
+          "title",
+          "shortName",
+          "fullName",
+          "brandName",
+          "medicineName",
+          "companyName",
+          "email",
+          "role",
+          "contactPerson",
+        ];
         return extraKeys.some((key) =>
           String(item?.[key] || "")
             .toLowerCase()
-            .includes(q)
+            .includes(q),
         );
       });
     },
-    [query]
+    [query],
   );
 
   const filteredData = useMemo(
     () => ({
-      companies: filterByQuery(companiesList, ["name"]),
+      companies: filterByQuery(companiesList, [
+        "name",
+        "companyName",
+        "title",
+        "shortName",
+      ]),
       medicines: filterByQuery(medicinesList, ["name"]),
       staff: filterByQuery(staffs, ["fullName", "name"]),
       approvals: [],
     }),
-    [companiesList, medicinesList, staffs, filterByQuery]
+    [companiesList, medicinesList, staffs, filterByQuery],
   );
 
-  const medicineReferencesStockist = (med, stockistId) => {
-    if (!med) return false;
+  const normalizeText = (value) =>
+    String(value || "")
+      .toLowerCase()
+      .trim();
+
+  const collectStockistCompanyKeys = (stockist) => {
+    const items = [];
+    const keys = ["companies", "companyNames", "partnerCompanies", "items"];
+    keys.forEach((key) => {
+      const field = stockist?.[key];
+      if (Array.isArray(field)) items.push(...field);
+      else if (field != null) items.push(field);
+    });
+    if (stockist?.companyName) items.push(stockist.companyName);
+    if (stockist?.name) items.push(stockist.name);
+    if (stockist?.title) items.push(stockist.title);
+    if (stockist?.shortName) items.push(stockist.shortName);
+    return items;
+  };
+
+  const getStockistCompanyMatchSets = (stockist) => {
+    const rawAliases = collectStockistCompanyKeys(stockist);
+    const aliasNames = new Set();
+    const aliasIds = new Set();
+
+    rawAliases.forEach((alias) => {
+      if (alias == null) return;
+      if (Array.isArray(alias)) {
+        alias.forEach((item) => {
+          if (typeof item === "string") aliasNames.add(normalizeText(item));
+          else if (item != null) aliasIds.add(String(item));
+        });
+        return;
+      }
+      if (typeof alias === "string") {
+        aliasNames.add(normalizeText(alias));
+        return;
+      }
+      if (typeof alias === "number") {
+        aliasIds.add(String(alias));
+        return;
+      }
+      if (typeof alias === "object") {
+        if (alias._id) aliasIds.add(String(alias._id));
+        if (alias.id) aliasIds.add(String(alias.id));
+        const name =
+          alias.name || alias.companyName || alias.title || alias.shortName;
+        if (name) aliasNames.add(normalizeText(name));
+      }
+    });
+
+    return { aliasNames, aliasIds };
+  };
+
+  const buildCompanyStubsFromStockist = (stockist) => {
+    const rawAliases = collectStockistCompanyKeys(stockist);
+    const uniqueNames = new Set();
+    const stubs = [];
+
+    rawAliases.forEach((alias) => {
+      if (alias == null) return;
+      if (Array.isArray(alias)) {
+        alias.forEach((item) => {
+          if (typeof item === "string") uniqueNames.add(normalizeText(item));
+          else if (typeof item === "object") {
+            const name =
+              item.name || item.companyName || item.title || item.shortName;
+            if (name) uniqueNames.add(normalizeText(name));
+          }
+        });
+        return;
+      }
+      if (typeof alias === "string") {
+        uniqueNames.add(normalizeText(alias));
+        return;
+      }
+      if (typeof alias === "object") {
+        const name =
+          alias.name || alias.companyName || alias.title || alias.shortName;
+        if (name) uniqueNames.add(normalizeText(name));
+      }
+    });
+
+    uniqueNames.forEach((name) => {
+      if (name) stubs.push({ name });
+    });
+    return stubs;
+  };
+
+  const extractReferenceIds = (value) => {
+    if (value == null) return [];
+    if (typeof value === "string" || typeof value === "number")
+      return [String(value)];
+    if (Array.isArray(value))
+      return value.flatMap(extractReferenceIds).filter(Boolean);
+    if (typeof value === "object") {
+      const ids = [];
+      const keys = [
+        "_id",
+        "id",
+        "stockist",
+        "stockistId",
+        "seller",
+        "sellerId",
+        "userId",
+        "uid",
+        "owner",
+        "ownerId",
+        "medical",
+        "medicalStore",
+      ];
+      for (const k of keys) {
+        if (value[k] != null) ids.push(...extractReferenceIds(value[k]));
+      }
+      if (value.toString && value.toString().length === 24)
+        ids.push(value.toString());
+      return ids.filter(Boolean);
+    }
+    return [];
+  };
+
+  const hasMatchingReference = (value, ids) => {
+    return extractReferenceIds(value).some((id) => ids.has(id));
+  };
+
+  const medicineReferencesStockist = (med, stockist) => {
+    if (!med || !stockist) return false;
     const candidates = [];
     try {
       if (Array.isArray(med.stockists)) candidates.push(...med.stockists);
@@ -312,19 +481,31 @@ export default function StockistDashboard() {
       if (med.vendorId) candidates.push(med.vendorId);
       if (med.supplier) candidates.push(med.supplier);
       if (med.supplierId) candidates.push(med.supplierId);
+      if (med.owner) candidates.push(med.owner);
+      if (med.ownerId) candidates.push(med.ownerId);
     } catch {}
+
+    const targetIds = new Set(extractReferenceIds(stockist));
+    if (targetIds.size === 0) return false;
+
     return candidates.some((c) => {
-      const id = c?._id || c?.id || c;
-      return String(id) === String(stockistId);
+      if (!c) return false;
+      const itemIds = extractReferenceIds(c);
+      return itemIds.some((id) => targetIds.has(id));
     });
   };
 
   const loadStockistData = useCallback(async () => {
     setLoading(true);
     setError("");
+    setAuthError(false);
 
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
+      if (!token) {
+        setAuthError(true);
+        throw new Error("Session expired. Please login again.");
+      }
       const userStr = await AsyncStorage.getItem("user");
       let storedUser = userStr ? JSON.parse(userStr) : null;
       if (storedUser && storedUser.user) storedUser = storedUser.user;
@@ -343,20 +524,33 @@ export default function StockistDashboard() {
       if (candidateIds.length > 0) {
         for (const idToFetch of candidateIds) {
           try {
-            const singleRes = await fetch(apiUrl(`/api/stockist/${idToFetch}`), {
-              headers,
-            });
+            const singleRes = await fetch(
+              apiUrl(`/api/stockist/${idToFetch}`),
+              {
+                headers,
+              },
+            );
+            if (singleRes.status === 401) {
+              setAuthError(true);
+              throw new Error("Unauthorized");
+            }
             const singleJson = await singleRes.json().catch(() => ({}));
             if (singleJson && singleJson.data) {
               list = [singleJson.data];
               break;
             }
-          } catch (e) {}
+          } catch (e) {
+            if (e?.message === "Unauthorized") throw e;
+          }
         }
       }
 
       if (list.length === 0) {
         const res = await fetch(apiUrl("/api/stockist"), { headers });
+        if (res.status === 401) {
+          setAuthError(true);
+          throw new Error("Unauthorized");
+        }
         const json = await res.json().catch(() => ({}));
         list = json?.data || [];
       }
@@ -368,7 +562,8 @@ export default function StockistDashboard() {
         [storedUser._id, storedUser.id, storedUser?.userId]
           .filter(Boolean)
           .forEach((v) => userIds.add(String(v)));
-        if (storedUser.email) userEmails.add(String(storedUser.email).toLowerCase());
+        if (storedUser.email)
+          userEmails.add(String(storedUser.email).toLowerCase());
       }
 
       const matchStockistWithUser = (s) => {
@@ -383,23 +578,48 @@ export default function StockistDashboard() {
 
       if (routeId && routeId !== "me") {
         target = list.find(
-          (s) => String(s._id) === String(routeId) || String(s.id) === String(routeId)
+          (s) =>
+            String(s._id) === String(routeId) ||
+            String(s.id) === String(routeId),
         );
       } else {
-        if (storedUser) target = list.find((s) => matchStockistWithUser(s));
+        // Find by ID match first, then by email
+        if (storedUser) {
+          target = list.find((s) => matchStockistWithUser(s));
+        }
         if (!target && list.length > 0) target = list[0];
+      }
+
+      // Final attempt: if we still don't have a robust profile but have a storedUser,
+      // see if any item in the list matches the storedUser's email even if IDs didn't match.
+      if (storedUser && (!target || !target.dob)) {
+        const emailMatch = list.find(
+          (s) =>
+            (s.email &&
+              s.email.toLowerCase() === storedUser.email?.toLowerCase()) ||
+            (s.ownerEmail &&
+              s.ownerEmail.toLowerCase() === storedUser.email?.toLowerCase()),
+        );
+        if (emailMatch) target = emailMatch;
       }
 
       if (!target && storedUser) target = storedUser;
       if (!target) throw new Error("Stockist not found");
 
+      const targetIds = new Set(extractReferenceIds(target).map(String));
+
       setStockist(target);
 
       const [cRes, mRes, sRes] = await Promise.all([
-        fetch(apiUrl("/api/company"), { headers }),
-        fetch(apiUrl("/api/medicine"), { headers }),
-        fetch(apiUrl(`/api/staff?stockist=${target._id}`), { headers }),
+        fetch(apiUrl("/company"), { headers }),
+        fetch(apiUrl("/medicine"), { headers }),
+        fetch(apiUrl(`/staff?stockist=${target._id}`), { headers }),
       ]);
+
+      if ([cRes.status, mRes.status, sRes.status].includes(401)) {
+        setAuthError(true);
+        throw new Error("Unauthorized");
+      }
 
       const [cJson, mJson, sJson] = await Promise.all([
         cRes.json().catch(() => ({})),
@@ -407,44 +627,114 @@ export default function StockistDashboard() {
         sRes.json().catch(() => ({})),
       ]);
 
-      const allCompanies = cJson?.data || [];
-      const allMeds = mJson?.data || [];
-      const staffList = sJson?.data || [];
+      const allCompanies = Array.isArray(cJson)
+        ? cJson
+        : cJson?.data || cJson?.companies || cJson?.items || [];
+      const allMeds = Array.isArray(mJson)
+        ? mJson
+        : mJson?.data || mJson?.medicines || mJson?.items || [];
+      const staffList = Array.isArray(sJson)
+        ? sJson
+        : sJson?.data || sJson?.staff || sJson?.items || [];
+
+      const { aliasNames, aliasIds } = getStockistCompanyMatchSets(target);
 
       const filteredCompanies = allCompanies.filter((company) => {
         try {
-          if (Array.isArray(company.stockists))
-            return company.stockists.some(
-              (s) => String(s?._id || s) === String(target._id)
+          if (Array.isArray(company.stockists) && company.stockists.length > 0)
+            return company.stockists.some((s) =>
+              hasMatchingReference(s, targetIds),
             );
+
           const keys = [
             company.stockist,
             company.stockistId,
+            company.stockistIds,
             company.seller,
             company.sellerId,
+            company.sellerIds,
             company.vendor,
             company.vendorId,
+            company.vendorIds,
             company.supplier,
             company.supplierId,
+            company.supplierIds,
           ];
-          return keys.some(
-            (key) => key && String(key._id || key.id || key) === String(target._id)
-          );
+          if (keys.some((key) => key && hasMatchingReference(key, targetIds)))
+            return true;
+
+          if (
+            Array.isArray(company.stockistNames) &&
+            company.stockistNames.length > 0
+          ) {
+            const nameSet = new Set(
+              company.stockistNames.map((n) => normalizeText(n)),
+            );
+            const currentName = normalizeText(
+              displayName || stockist?.name || stockist?.companyName || "",
+            );
+            if (currentName && nameSet.has(currentName)) return true;
+          }
+
+          const companyNameVariants = [
+            company.name,
+            company.companyName,
+            company.title,
+            company.shortName,
+          ]
+            .filter(Boolean)
+            .map(normalizeText);
+          if (companyNameVariants.some((name) => aliasNames.has(name)))
+            return true;
+          if (
+            (company._id && aliasIds.has(String(company._id))) ||
+            (company.id && aliasIds.has(String(company.id)))
+          )
+            return true;
+
+          return false;
         } catch {
           return false;
         }
       });
 
       const filteredMeds = allMeds.filter((med) =>
-        medicineReferencesStockist(med, target._id)
+        medicineReferencesStockist(med, target),
       );
 
-      setCompaniesList(filteredCompanies);
+      if (__DEV__) {
+        console.log(`[Dashboard] Filtering complete for ${target.name || target.medicalName}`);
+        console.log(`- Matched Companies: ${filteredCompanies.length} (from ${allCompanies.length} total)`);
+        console.log(`- Matched Medicines: ${filteredMeds.length} (from ${allMeds.length} total)`);
+        if (filteredCompanies.length === 0) {
+          console.warn("[Dashboard] No companies matched by ID. Check if linkages are ID-based or if stockist identifiers [", Array.from(targetIds).join(','), "] are correct.");
+        }
+      }
+
+      const filteredStaffs = staffList.filter((s) => {
+        try {
+          return hasMatchingReference(
+            s.stockist || s.stockistId || s.owner || s.ownerId || s.medical,
+            targetIds,
+          );
+        } catch {
+          return false;
+        }
+      });
+
+      const stubCompanies = buildCompanyStubsFromStockist(target);
+      setCompaniesList(
+        filteredCompanies.length > 0 ? filteredCompanies : stubCompanies,
+      );
       setMedicinesList(filteredMeds);
-      setStaffs(staffList);
+      setStaffs(filteredStaffs);
     } catch (err) {
       console.error("Dashboard error:", err);
-      setError(err.message || "Failed to load data");
+      if (err?.message === "Unauthorized" || err?.message?.includes("login")) {
+        setError("Session expired. Please login again.");
+      } else {
+        setError(err.message || "Failed to load data");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -455,30 +745,107 @@ export default function StockistDashboard() {
     loadStockistData();
   }, [loadStockistData]);
 
+  // Refresh data whenever the screen comes back into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadStockistData();
+    }, [loadStockistData]),
+  );
+
+  useEffect(() => {
+    if (!authError) return;
+    secureStorage.multiRemove(["token", "refreshToken", "user"]).finally(() => {
+      router.replace("/Stockist/stockist-login");
+    });
+  }, [authError, router]);
+
   const handleLogout = async () => {
-    await AsyncStorage.clear();
-    router.replace("/Stockist/stockist-login");
+    await secureStorage.multiRemove([
+      "token",
+      "refreshToken",
+      "user",
+      "pendingStockistId",
+      "pendingUserId",
+    ]);
+    router.replace("/");
   };
 
   const qrDataUrl = useMemo(() => {
     if (!stockist?._id) return null;
     const shareUrl = `https://meditrap.com/stockist/${stockist._id}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-      shareUrl
+      shareUrl,
     )}`;
   }, [stockist]);
 
+  const handleApproveStaff = async (staffId) => {
+    try {
+      const token = await secureStorage.getItem("token");
+      const res = await fetch(apiUrl(`/api/staff/${staffId}/approve`), {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        Alert.alert("Success", "Staff approved successfully");
+        loadStockistData();
+      } else {
+        Alert.alert("Error", data.message || "Failed to approve staff");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Action failed");
+    }
+  };
+
   const TAB_CONFIG = [
-    { key: "medicines", label: "Medicines", icon: "package", color: "#3b82f6", bg: "#eff6ff" },
-    { key: "companies", label: "Companies", icon: "briefcase", color: "#f97316", bg: "#fff7ed" },
-    { key: "staff", label: "Staff", icon: "users", color: "#8b5cf6", bg: "#faf5ff" },
-    { key: "approvals", label: "Approvals", icon: "check-circle", color: "#10b981", bg: "#f0fdf4" },
+    {
+      key: "medicines",
+      label: "Medicines",
+      icon: "package",
+      color: "#3b82f6",
+      bg: "#eff6ff",
+    },
+    {
+      key: "companies",
+      label: "Companies",
+      icon: "briefcase",
+      color: "#f97316",
+      bg: "#fff7ed",
+    },
+    {
+      key: "staff",
+      label: "Staff",
+      icon: "users",
+      color: "#8b5cf6",
+      bg: "#faf5ff",
+    },
+    {
+      key: "approvals",
+      label: "Approvals",
+      icon: "check-circle",
+      color: "#10b981",
+      bg: "#f0fdf4",
+    },
   ];
 
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <LoadingSkeleton />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && !stockist) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.emptyTitle}>Unable to load dashboard</Text>
+          <Text style={styles.emptyText}>{error}</Text>
+          <TouchableOpacity onPress={loadStockistData} style={styles.retryBtn}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -493,10 +860,15 @@ export default function StockistDashboard() {
               {displayName}
             </Text>
             <Text style={styles.headerSubtitle}>
-              {stockist?.email || stockist?.contactPerson || "Authorized Stockist"}
+              {stockist?.email ||
+                stockist?.contactPerson ||
+                "Authorized Stockist"}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => router.push("/profile")} style={styles.profileBtn}>
+          <TouchableOpacity
+            onPress={() => router.push("/profile")}
+            style={styles.profileBtn}
+          >
             <Feather name="user" size={20} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
@@ -507,22 +879,46 @@ export default function StockistDashboard() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={loadStockistData} tintColor="#8b5cf6" />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={loadStockistData}
+              tintColor="#8b5cf6"
+            />
           }
           contentContainerStyle={styles.scrollContent}
         >
           {/* Identity Card */}
           <IdentityCard
-            stockist={{ ...stockist, contactPerson: stockist.contactPerson || displayName }}
+            stockist={{
+              ...(stockist || {}),
+              contactPerson: stockist?.contactPerson || displayName,
+            }}
             qrDataUrl={qrDataUrl}
-            onPrint={() => Alert.alert("Print", "Connect to a printer to print this ID.")}
+            onPrint={() =>
+              Alert.alert("Print", "Connect to a printer to print this ID.")
+            }
           />
 
           {/* Stats */}
           <View style={styles.statsRow}>
-            <StatCard icon="briefcase" count={stats.companies} label="Companies" colors={["#fb923c", "#f59e0b"]} />
-            <StatCard icon="package" count={stats.medicines} label="Medicines" colors={["#3b82f6", "#06b6d4"]} />
-            <StatCard icon="users" count={stats.staff} label="Staff Members" colors={["#8b5cf6", "#d946ef"]} />
+            <StatCard
+              icon="briefcase"
+              count={stats.companies}
+              label="Companies"
+              colors={["#fb923c", "#f59e0b"]}
+            />
+            <StatCard
+              icon="package"
+              count={stats.medicines}
+              label="Medicines"
+              colors={["#3b82f6", "#06b6d4"]}
+            />
+            <StatCard
+              icon="users"
+              count={stats.staff}
+              label="Staff Members"
+              colors={["#8b5cf6", "#d946ef"]}
+            />
           </View>
 
           {/* Main Content */}
@@ -537,14 +933,14 @@ export default function StockistDashboard() {
                   onChangeText={setQuery}
                 />
               </View>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 onPress={() => router.push("/Staff/Createstaff")}
                 style={styles.addStaffBtn}
               >
                 <LinearGradient colors={["#8b5cf6", "#d946ef"]} style={styles.addStaffGradient}>
                   <Feather name="user-plus" size={20} color="#fff" />
                 </LinearGradient>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
 
             <View style={styles.tabsContainer}>
@@ -557,8 +953,17 @@ export default function StockistDashboard() {
                     { backgroundColor: activeTab === t.key ? t.color : t.bg },
                   ]}
                 >
-                  <Feather name={t.icon} size={16} color={activeTab === t.key ? "#fff" : t.color} />
-                  <Text style={[styles.tabText, { color: activeTab === t.key ? "#fff" : t.color }]}>
+                  <Feather
+                    name={t.icon}
+                    size={16}
+                    color={activeTab === t.key ? "#fff" : t.color}
+                  />
+                  <Text
+                    style={[
+                      styles.tabText,
+                      { color: activeTab === t.key ? "#fff" : t.color },
+                    ]}
+                  >
                     {t.label}
                   </Text>
                 </TouchableOpacity>
@@ -570,25 +975,40 @@ export default function StockistDashboard() {
                 <StockistApprovals />
               ) : filteredData[activeTab].length > 0 ? (
                 filteredData[activeTab].map((item, i) => {
-                  if (activeTab === "companies") return <CompanyCard key={i} company={item} />;
-                  if (activeTab === "medicines") return <MedicineCard key={i} medicine={item} />;
-                  if (activeTab === "staff") return <StaffCard key={i} staff={item} onPreview={setSelectedStaff} />;
+                  if (activeTab === "companies")
+                    return <CompanyCard key={i} company={item} />;
+                  if (activeTab === "medicines")
+                    return <MedicineCard key={i} medicine={item} />;
+                  if (activeTab === "staff")
+                    return (
+                      <StaffCard
+                        key={i}
+                        staff={item}
+                        onPreview={setSelectedStaff}
+                        onApprove={handleApproveStaff}
+                      />
+                    );
                   return null;
                 })
               ) : (
                 <View style={styles.emptyContainer}>
                   <Feather name="inbox" size={48} color="#cbd5e1" />
                   <Text style={styles.emptyTitle}>No {activeTab} found</Text>
-                  <Text style={styles.emptyText}>Try searching for something else</Text>
+                  <Text style={styles.emptyText}>
+                    Try searching for something else
+                  </Text>
                 </View>
               )}
             </View>
           </View>
         </ScrollView>
       </LinearGradient>
-      
+
       {/* Staff Quick View Modal */}
-      <StaffModel staff={selectedStaff} onClose={() => setSelectedStaff(null)} />
+      <StaffModel
+        staff={selectedStaff}
+        onClose={() => setSelectedStaff(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -608,7 +1028,12 @@ const StatCard = ({ icon, count, label, colors }) => (
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -619,7 +1044,12 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f1f5f9",
   },
   headerTitle: { fontSize: 20, fontWeight: "900", color: "#1e293b" },
-  headerSubtitle: { fontSize: 13, color: "#64748b", fontWeight: "600", marginTop: 2 },
+  headerSubtitle: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+    marginTop: 2,
+  },
   profileBtn: {
     width: 40,
     height: 40,
@@ -664,7 +1094,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statCount: { fontSize: 22, fontWeight: "900", color: "#1e293b" },
-  statLabel: { fontSize: 9, fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", textAlign: "center" },
+  statLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
   contentSection: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
@@ -672,7 +1108,23 @@ const styles = StyleSheet.create({
     padding: 20,
     ...shadowStyles,
   },
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 20 },
+  approveBtnSmall: {
+    backgroundColor: "#10b981",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  approveBtnSmallText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
   searchContainer: {
     flex: 1,
     flexDirection: "row",
@@ -684,10 +1136,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
-  searchInput: { flex: 1, marginLeft: 12, fontSize: 14, color: "#1e293b", fontWeight: "600" },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 14,
+    color: "#1e293b",
+    fontWeight: "600",
+  },
   addStaffBtn: { width: 52, height: 52, borderRadius: 16, overflow: "hidden" },
   addStaffGradient: { flex: 1, justifyContent: "center", alignItems: "center" },
-  tabsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
+  tabsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+  },
   tabBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -730,7 +1193,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   priceText: { color: "#fff", fontWeight: "900", fontSize: 14 },
-  
+
   // Refined Staff Card Styles
   staffCardContainer: {
     flexDirection: "row",
@@ -767,14 +1230,42 @@ const styles = StyleSheet.create({
   zoomIcon: { position: "absolute", bottom: 2, right: 2 },
 
   emptyContainer: { alignItems: "center", paddingVertical: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: "900", color: "#1e293b", marginTop: 12 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#1e293b",
+    marginTop: 12,
+  },
   emptyText: { fontSize: 14, color: "#94a3b8", marginTop: 4 },
+  retryBtn: {
+    marginTop: 16,
+    backgroundColor: "#8b5cf6",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryBtnText: { color: "#fff", fontWeight: "700" },
 
   // Skeleton Styles
   skeletonContainer: { padding: 20, flex: 1, backgroundColor: "#fff" },
-  skeletonHeader: { height: 60, borderRadius: 16, backgroundColor: "#f1f5f9", marginBottom: 20 },
-  skeletonIdentity: { height: 200, borderRadius: 24, backgroundColor: "#f1f5f9", marginBottom: 20 },
+  skeletonHeader: {
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: "#f1f5f9",
+    marginBottom: 20,
+  },
+  skeletonIdentity: {
+    height: 200,
+    borderRadius: 24,
+    backgroundColor: "#f1f5f9",
+    marginBottom: 20,
+  },
   skeletonStatsRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
-  skeletonStat: { flex: 1, height: 100, borderRadius: 20, backgroundColor: "#f1f5f9" },
+  skeletonStat: {
+    flex: 1,
+    height: 100,
+    borderRadius: 20,
+    backgroundColor: "#f1f5f9",
+  },
   skeletonContent: { flex: 1, borderRadius: 32, backgroundColor: "#f1f5f9" },
 });

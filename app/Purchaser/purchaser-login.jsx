@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { postJson } from '../../config/api';
+import { secureStorage } from "../../utils/secureStore";
 
 const PurchaserLogin = () => {
   const [email, setEmail] = useState('');
@@ -26,6 +27,24 @@ const PurchaserLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
+
+  useEffect(() => {
+    const loadRememberedEmail = async () => {
+      try {
+        const savedEmail =
+          (await AsyncStorage.getItem('rememberedPurchaserEmail')) ||
+          (await AsyncStorage.getItem('rememberedEmail'));
+        if (savedEmail) {
+          setEmail(savedEmail);
+          setRememberMe(true);
+        }
+      } catch (e) {
+        console.warn('Failed to load remembered purchaser email', e);
+      }
+    };
+
+    loadRememberedEmail();
+  }, []);
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -39,14 +58,26 @@ const PurchaserLogin = () => {
       // Purchasers have a dedicated login endpoint separate from medical-owner login
       const res = await postJson("/purchaser/login", { email, password });
 
-      if (res && res.data && res.data.token) {
-        await AsyncStorage.setItem("token", res.data.token);
+      if (res && res.data && res.data.accessToken) {
+        await secureStorage.setItem("token", res.data.accessToken);
+        if (res.data.refreshToken) {
+          await secureStorage.setItem("refreshToken", res.data.refreshToken);
+        }
+        await AsyncStorage.setItem("token", res.data.accessToken);
         await AsyncStorage.setItem("user", JSON.stringify(res.data.purchaser));
         await AsyncStorage.setItem("role", "purchaser");
-        await AsyncStorage.setItem("purchaserId", res.data.purchaser?.id || res.data.purchaser?._id || "");
+        const pId = res.data.purchaser?.id || res.data.purchaser?._id || "";
+        await AsyncStorage.setItem("purchaserId", pId);
+        if (rememberMe) {
+          await AsyncStorage.setItem('rememberedPurchaserEmail', email);
+          await AsyncStorage.removeItem('rememberedEmail');
+        } else {
+          await AsyncStorage.removeItem('rememberedPurchaserEmail');
+          await AsyncStorage.removeItem('rememberedEmail');
+        }
 
-        // Redirect to the main home dashboard (same as medical owner / stockist home)
-        router.replace("/Home");
+        // Redirect to the purchaser's dashboard directly
+        router.replace(`/Purchaser/${pId}`);
       } else {
         setError("Invalid response from server. Please try again.");
       }

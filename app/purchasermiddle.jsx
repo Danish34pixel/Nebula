@@ -12,6 +12,8 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../config/api";
+import { secureStorage } from "../utils/secureStore";
+import { fetchJson } from "../config/api";
 
 const PurchaserVerification = () => {
   const router = useRouter();
@@ -31,58 +33,56 @@ const PurchaserVerification = () => {
 
     const checkStatus = async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
+        const token = await secureStorage.getItem("token");
         const purchaserId = await AsyncStorage.getItem("pendingPurchaserId");
         const purchasingRequestId = await AsyncStorage.getItem("pendingPurchasingRequestId");
         const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
         // ── 1. Check the Purchaser document for approved flag ──────────────
         if (purchaserId && looksLikeObjectId(purchaserId)) {
-          const res = await fetch(apiUrl(`/api/purchaser/${purchaserId}`), {
-            headers: authHeader,
-          });
-          if (res.ok) {
-            const json = await res.json();
+          console.log(`[StatusCheck] Checking Purchaser: ${purchaserId}`);
+          try {
+            const json = await fetchJson(`/purchaser/${purchaserId}`);
+            console.log(`[StatusCheck] Data:`, JSON.stringify(json.data));
             if (json && json.data) {
               if (json.data.approved || json.data.verified) {
+                console.log("[StatusCheck] APPROVED! Redirecting to Login...");
                 await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
                 router.replace("/Purchaser/purchaser-login");
                 return;
               }
             }
+          } catch (e) {
+            console.warn("[StatusCheck] Purchaser check failed:", e.message);
           }
         }
 
         // ── 2. Check the PurchaseCardRequest for approval count ───────────
         if (purchasingRequestId && looksLikeObjectId(purchasingRequestId)) {
-          const res2 = await fetch(apiUrl(`/api/purchasing-card/status/${purchasingRequestId}`));
-          if (res2.ok) {
-            const json2 = await res2.json();
+          try {
+            const json2 = await fetchJson(`/purchasing-card/status/${purchasingRequestId}`);
             if (json2 && json2.data) {
               const count = json2.data.approvals || 0;
               setApprovalCount(count);
-              if (json2.data.status === "approved") {
+              if (json2.data.status === "approved" || count >= 3) {
                 await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
                 router.replace("/Purchaser/purchaser-login");
                 return;
               }
             }
-          } else if (res2.status === 404) {
-            // Request may have been cleaned up after full approval — re-check Purchaser doc
-            if (purchaserId && looksLikeObjectId(purchaserId)) {
-              const pres = await fetch(apiUrl(`/api/purchaser/${purchaserId}`), {
-                headers: authHeader,
-              });
-              if (pres.ok) {
-                const pJson = await pres.json();
-                if (pJson && pJson.data && (pJson.data.approved || pJson.data.verified)) {
+          } catch (e2) {
+            if (e2.status === 404) {
+              // Re-check purchaser document as it might have transitioned
+              if (purchaserId) {
+                const j3 = await fetchJson(`/purchaser/${purchaserId}`);
+                if (j3?.data && (j3.data.approved || j3.data.verified)) {
                   await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
                   router.replace("/Purchaser/purchaser-login");
                   return;
                 }
               }
+              await AsyncStorage.removeItem("pendingPurchasingRequestId");
             }
-            await AsyncStorage.removeItem("pendingPurchasingRequestId");
           }
         }
 

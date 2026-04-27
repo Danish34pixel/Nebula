@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl } from "../config/api";
+import { secureStorage } from "../utils/secureStore";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -21,7 +22,7 @@ const Profile = () => {
         const storedUser = storedUserStr ? JSON.parse(storedUserStr) : null;
         if (storedUser && mounted) setUser(storedUser);
 
-        const tokenAtRequest = await AsyncStorage.getItem("token");
+        const tokenAtRequest = await secureStorage.getItem("token");
 
         if (!tokenAtRequest) {
           if (!storedUser && mounted) {
@@ -36,17 +37,17 @@ const Profile = () => {
           headers: { Authorization: `Bearer ${tokenAtRequest}` },
         });
         const json = await res.json().catch(() => ({}));
-        
+
         if (!mounted) return;
-        
+
         if (res.ok && json && json.success && json.user) {
           setUser(json.user);
           try {
-            const currentToken = await AsyncStorage.getItem("token");
+            const currentToken = await secureStorage.getItem("token");
             if (currentToken && tokenAtRequest === currentToken) {
               await AsyncStorage.setItem("user", JSON.stringify(json.user));
             }
-          } catch (e) {}
+          } catch (e) { }
         } else {
           if (json && json.message) setError(json.message);
         }
@@ -63,10 +64,11 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("token");
+      await secureStorage.removeItem("token");
+      await secureStorage.removeItem("refreshToken");
       await AsyncStorage.removeItem("user");
-    } catch (e) {}
-    router.replace("/Stockist/stockist-login");
+    } catch (e) { }
+    router.replace("/");
   };
 
   const normalizeImageUrl = (url) => {
@@ -113,7 +115,7 @@ const Profile = () => {
         {/* Header Section */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Feather name="arrow-left" size={24} color="#0f172a" />
+            <Feather name="arrow-left" size={24} color="#0f172a" />
           </TouchableOpacity>
           <View style={styles.avatarContainer}>
             {profileImg ? (
@@ -151,7 +153,7 @@ const Profile = () => {
           </View>
         ) : (
           <View style={styles.contentGrid}>
-            
+
             {/* Store Information Card */}
             <View style={styles.card}>
               <View style={styles.cardHeader}>
@@ -251,7 +253,7 @@ const Profile = () => {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            
+
           </View>
         )}
       </ScrollView>

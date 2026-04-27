@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Image,
   ActivityIndicator,
   Modal,
@@ -12,82 +11,61 @@ import {
   Dimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiUrl, fetchJson, postJson } from "../../config/api";
+import { fetchJson } from "../../config/api";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
-// ✅ Memoized Modal Component for Native
 const RequestModal = memo(({ request, onClose, onApprove, processing }) => {
   if (!request) return null;
 
   return (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={!!request}
-      onRequestClose={onClose}
-    >
-      <TouchableOpacity 
-        style={styles.modalOverlay} 
-        activeOpacity={1} 
-        onPress={onClose}
-      >
+    <Modal animationType="fade" transparent visible={!!request} onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
         <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
           <View style={styles.modalHeader}>
-            {request.requesterDisplay?.photo ? (
-              <Image
-                source={{ uri: request.requesterDisplay.photo }}
-                style={styles.largeAvatar}
-              />
+            {request.photo ? (
+              <Image source={{ uri: request.photo }} style={styles.largeAvatar} />
             ) : (
               <View style={styles.largeAvatarPlaceholder}>
-                <Text style={styles.largeAvatarText}>
-                  {(request.requesterDisplay?.name || request.requester?.medicalName || "?").slice(0, 2).toUpperCase()}
-                </Text>
+                <Text style={styles.largeAvatarText}>{(request.name || "?").slice(0, 2).toUpperCase()}</Text>
               </View>
             )}
             <View style={styles.headerInfo}>
-              <Text style={styles.modalName}>
-                {request.requesterDisplay?.name || request.requester?.medicalName}
-              </Text>
+              <Text style={styles.modalName}>{request.name || "Unknown"}</Text>
               <Text style={styles.modalId}>ID: {request._id}</Text>
             </View>
           </View>
 
           <View style={styles.modalBody}>
             <View style={styles.detailRow}>
-              <Feather name="calendar" size={16} color="#64748b" />
-              <Text style={styles.detailText}>
-                Requested: {new Date(request.createdAt).toLocaleString()}
-              </Text>
+              <Feather name="tag" size={16} color="#64748b" />
+              <Text style={styles.detailText}>Type: {request.kind === "staff" ? "Staff Approval" : "Purchase Card"}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Feather name="check-circle" size={16} color="#64748b" />
-              <Text style={styles.detailText}>
-                Approvals: {(request.approvals || []).length}
-              </Text>
+              <Feather name="calendar" size={16} color="#64748b" />
+              <Text style={styles.detailText}>Requested: {new Date(request.createdAt).toLocaleString()}</Text>
             </View>
+            {request.workForName ? (
+              <View style={styles.detailRow}>
+                <Feather name="briefcase" size={16} color="#64748b" />
+                <Text style={styles.detailText}>
+                  Works at: {request.workForType === "medical" ? "Medical" : "Stockist"} - {request.workForName}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.modalFooter}>
-            <TouchableOpacity 
-              style={styles.cancelBtn} 
-              onPress={onClose}
-            >
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelBtnText}>Dismiss</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.approveBtn, processing && styles.btnDisabled]} 
-              onPress={() => onApprove(request._id)}
+            <TouchableOpacity
+              style={[styles.approveBtn, processing && styles.btnDisabled]}
+              onPress={() => onApprove(request)}
               disabled={processing}
             >
-              {processing ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.approveBtnText}>Approve Request</Text>
-              )}
+              {processing ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.approveBtnText}>Approve</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -107,27 +85,48 @@ export default function StockistApprovals() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchJson("/api/purchasing-card/requests");
-      
-      // Get current stockist ID
+      const [purchasingRes, staffRes] = await Promise.all([
+        fetchJson("/api/purchasing-card/requests").catch(() => ({ data: [] })),
+        fetchJson("/api/staff/approvals/pending").catch(() => ({ data: [] })),
+      ]);
+
       let currentStockistId = null;
       const stored = await AsyncStorage.getItem("user");
       if (stored) {
         const user = JSON.parse(stored);
-        currentStockistId = user._id || user.id;
+        currentStockistId = user?._id || user?.id;
       }
 
-      // Filter requests this stockist has already approved
-      let incoming = res.data || [];
+      let purchaseRequests = purchasingRes?.data || [];
       if (currentStockistId) {
-        incoming = incoming.filter((req) => {
+        purchaseRequests = purchaseRequests.filter((req) => {
           if (!Array.isArray(req.approvals) || req.approvals.length === 0) return true;
-          return !req.approvals.some(
-            (a) => String(a.stockist) === String(currentStockistId)
-          );
+          return !req.approvals.some((a) => String(a.stockist) === String(currentStockistId));
         });
       }
-      setRequests(incoming);
+
+      const normalizedPurchasing = purchaseRequests.map((r) => ({
+        _id: r._id,
+        createdAt: r.createdAt,
+        name: r.requesterDisplay?.name || r.requester?.medicalName || "Unknown",
+        photo: r.requesterDisplay?.photo || null,
+        kind: "purchasing",
+      }));
+
+      const normalizedStaff = (staffRes?.data || []).map((s) => ({
+        _id: s._id,
+        createdAt: s.createdAt,
+        name: s.fullName || "Unknown Staff",
+        photo: s.image || null,
+        kind: "staff",
+        workForName: s.workForName,
+        workForType: s.workForType,
+      }));
+
+      const merged = [...normalizedStaff, ...normalizedPurchasing].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setRequests(merged);
     } catch (err) {
       setError(err.message || "Failed to load requests");
     } finally {
@@ -139,16 +138,22 @@ export default function StockistApprovals() {
     fetchRequests();
   }, [fetchRequests]);
 
-  const approve = async (id) => {
+  const approve = async (request) => {
+    const id = request?._id;
+    if (!id) return;
+
     try {
       setProcessing((p) => ({ ...p, [id]: true }));
-      const res = await postJson(`/api/purchasing-card/approve/${id}`, {});
 
-      if (res.success) {
-        setRequests((rs) => rs.filter((r) => String(r._id) !== String(id)));
-        setSelectedRequest(null);
-        Alert.alert("Approved", "Purchasing card request approved successfully.");
+      if (request.kind === "staff") {
+        await fetchJson(`/api/staff/${id}/approve`, { method: "PATCH" });
+      } else {
+        await fetchJson(`/api/purchasing-card/approve/${id}`, { method: "POST", body: JSON.stringify({}) });
       }
+
+      setRequests((rs) => rs.filter((r) => String(r._id) !== String(id)));
+      setSelectedRequest(null);
+      Alert.alert("Approved", request.kind === "staff" ? "Staff request approved." : "Purchasing card request approved.");
     } catch (err) {
       Alert.alert("Error", err.message || "Approval failed");
     } finally {
@@ -170,39 +175,28 @@ export default function StockistApprovals() {
   return (
     <View style={styles.container}>
       {requests.map((r) => (
-        <TouchableOpacity
-          key={r._id}
-          onPress={() => setSelectedRequest(r)}
-          style={styles.requestCard}
-        >
+        <TouchableOpacity key={`${r.kind}-${r._id}`} onPress={() => setSelectedRequest(r)} style={styles.requestCard}>
           <View style={styles.cardMain}>
-            {r.requesterDisplay?.photo ? (
-              <Image source={{ uri: r.requesterDisplay.photo }} style={styles.avatar} />
+            {r.photo ? (
+              <Image source={{ uri: r.photo }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {(r.requesterDisplay?.name || r.requester?.medicalName || "?").slice(0, 1).toUpperCase()}
-                </Text>
+                <Text style={styles.avatarText}>{(r.name || "?").slice(0, 1).toUpperCase()}</Text>
               </View>
             )}
             <View style={styles.cardInfo}>
-              <Text style={styles.requesterName}>
-                {r.requesterDisplay?.name || r.requester?.medicalName || "Unknown"}
-              </Text>
+              <Text style={styles.requesterName}>{r.name}</Text>
               <Text style={styles.dateText}>{new Date(r.createdAt).toLocaleDateString()}</Text>
+              <Text style={styles.kindText}>{r.kind === "staff" ? "Staff Approval" : "Purchase Card Approval"}</Text>
             </View>
           </View>
-          
+
           <TouchableOpacity
             style={[styles.smallApproveBtn, processing[r._id] && styles.btnDisabled]}
-            onPress={() => approve(r._id)}
+            onPress={() => approve(r)}
             disabled={processing[r._id]}
           >
-            {processing[r._id] ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Feather name="check" size={18} color="#fff" />
-            )}
+            {processing[r._id] ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="check" size={18} color="#fff" />}
           </TouchableOpacity>
         </TouchableOpacity>
       ))}
@@ -245,10 +239,9 @@ const styles = StyleSheet.create({
   cardInfo: { marginLeft: 12, flex: 1 },
   requesterName: { fontSize: 16, fontWeight: "700", color: "#1e293b" },
   dateText: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
+  kindText: { fontSize: 11, color: "#0f766e", marginTop: 3, fontWeight: "700" },
   smallApproveBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#10b981", justifyContent: "center", alignItems: "center" },
   btnDisabled: { opacity: 0.7 },
-  
-  // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
   modalContainer: { width: width * 0.85, backgroundColor: "#fff", borderRadius: 28, padding: 24, elevation: 20 },
   modalHeader: { flexDirection: "row", alignItems: "center", marginBottom: 24 },

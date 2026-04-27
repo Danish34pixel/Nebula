@@ -9,10 +9,10 @@ import {
   ActivityIndicator,
   Image,
   Alert,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,7 +20,17 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl, postForm } from "../../config/api";
 
-const InputField = ({ icon, label, value, onChangeText, placeholder, secureTextEntry, keyboardType }) => (
+const InputField = ({
+  icon,
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  secureTextEntry,
+  keyboardType,
+  showEye,
+  onToggleEye,
+}) => (
   <View style={styles.inputGroup}>
     <View style={styles.labelRow}>
       <Feather name={icon} size={16} color="#0891b2" style={styles.labelIcon} />
@@ -28,7 +38,7 @@ const InputField = ({ icon, label, value, onChangeText, placeholder, secureTextE
     </View>
     <View style={styles.inputWrapper}>
       <TextInput
-        style={styles.input}
+        style={[styles.input, showEye !== undefined && { paddingRight: 50 }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -37,6 +47,15 @@ const InputField = ({ icon, label, value, onChangeText, placeholder, secureTextE
         keyboardType={keyboardType}
         autoCapitalize="none"
       />
+      {showEye !== undefined && (
+        <TouchableOpacity style={styles.eyeBtn} onPress={onToggleEye}>
+          <Feather
+            name={secureTextEntry ? "eye" : "eye-off"}
+            size={20}
+            color="#64748b"
+          />
+        </TouchableOpacity>
+      )}
     </View>
   </View>
 );
@@ -53,12 +72,16 @@ export default function MedicalSignup() {
     password: "",
   });
   const [licenseImage, setLicenseImage] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission Required", "We need camera roll access to upload your license.");
+      Alert.alert(
+        "Permission Required",
+        "We need camera roll access to upload your license.",
+      );
       return;
     }
 
@@ -74,15 +97,27 @@ export default function MedicalSignup() {
   };
 
   const handleSubmit = async () => {
-    if (!form.medicalName || !form.ownerName || !form.address || !form.email || !form.contactNo || !form.drugLicenseNo || !form.password || !licenseImage) {
-      Alert.alert("Error", "Please fill in all required fields and upload your license image.");
+    if (
+      !form.medicalName ||
+      !form.ownerName ||
+      !form.address ||
+      !form.email ||
+      !form.contactNo ||
+      !form.drugLicenseNo ||
+      !form.password ||
+      !licenseImage
+    ) {
+      Alert.alert(
+        "Error",
+        "Please fill in all required fields and upload your license image.",
+      );
       return;
     }
 
     setIsLoading(true);
     try {
       const formData = new FormData();
-      
+
       // Append text fields
       Object.entries(form).forEach(([key, value]) => {
         formData.append(key, value);
@@ -92,42 +127,48 @@ export default function MedicalSignup() {
       if (licenseImage) {
         const uri = licenseImage.uri;
         let name = uri.split("/").pop();
-        
-        if (Platform.OS === 'web') {
-           const response = await fetch(uri);
-           const blob = await response.blob();
-           
-           // Expo ImagePicker blob URIs on web lack extensions. Backend multer requires it.
-           if (!name.includes(".")) {
-             const mimeExt = (blob.type || "image/jpeg").split("/")[1];
-             name = `upload.${mimeExt === 'jpeg' ? 'jpg' : mimeExt}`;
-           }
-           
-           formData.append('drugLicenseImage', blob, name);
+
+        if (Platform.OS === "web") {
+          const response = await fetch(uri);
+          const blob = await response.blob();
+
+          // Expo ImagePicker blob URIs on web lack extensions. Backend multer requires it.
+          if (!name.includes(".")) {
+            const mimeExt = (blob.type || "image/jpeg").split("/")[1];
+            name = `upload.${mimeExt === "jpeg" ? "jpg" : mimeExt}`;
+          }
+
+          formData.append("drugLicenseImage", blob, name);
         } else {
-           const match = /\.(\w+)$/.exec(name);
-           const type = match ? `image/${match[1]}` : "image/jpeg";
-           
-           formData.append('drugLicenseImage', {
-             uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
-             name: name.includes(".") ? name : `${name}.jpg`,
-             type,
-           });
+          const match = /\.(\w+)$/.exec(name);
+          const type = match ? `image/${match[1]}` : "image/jpeg";
+
+          formData.append("drugLicenseImage", {
+            uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
+            name: name.includes(".") ? name : `${name}.jpg`,
+            type,
+          });
         }
       }
 
       const res = await postForm("/api/auth/signup", formData);
 
       if (res.success) {
-        Alert.alert("Success", "Registration successful! Your account is under review.");
-        
+        Alert.alert(
+          "Success",
+          "Registration successful! Your account is under review.",
+        );
+
         // Store pending ID and credentials for auto-login if available
         const id = res.user?._id || res.user?.id;
         if (id) {
           await AsyncStorage.setItem("pendingUserId", String(id));
-          await AsyncStorage.setItem("pendingUserCreds", JSON.stringify({ email: form.email, password: form.password }));
+          await AsyncStorage.setItem(
+            "pendingUserCreds",
+            JSON.stringify({ email: form.email, password: form.password }),
+          );
         }
-        
+
         // Redirect
         setTimeout(() => router.replace("/MedicalOwner/MedicalMiddle"), 2000);
       } else {
@@ -151,10 +192,18 @@ export default function MedicalSignup() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             {/* Header */}
             <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <TouchableOpacity
+                onPress={() =>
+                  router.canGoBack() ? router.back() : router.replace("/")
+                }
+                style={styles.backBtn}
+              >
                 <Feather name="arrow-left" size={24} color="#0e7490" />
               </TouchableOpacity>
               <Text style={styles.title}>Create Account</Text>
@@ -204,26 +253,40 @@ export default function MedicalSignup() {
                 icon="shield"
                 label="Drug License Number"
                 value={form.drugLicenseNo}
-                onChangeText={(text) => setForm({ ...form, drugLicenseNo: text })}
+                onChangeText={(text) =>
+                  setForm({ ...form, drugLicenseNo: text })
+                }
                 placeholder="License number"
               />
 
               {/* Image Picker */}
               <View style={styles.imagePickerGroup}>
                 <Text style={styles.label}>Drug License Image</Text>
-                <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+                <TouchableOpacity
+                  style={styles.imagePicker}
+                  onPress={pickImage}
+                >
                   {licenseImage ? (
                     <View style={styles.previewContainer}>
-                      <Image source={{ uri: licenseImage.uri }} style={styles.preview} />
+                      <Image
+                        source={{ uri: licenseImage.uri }}
+                        style={styles.preview}
+                      />
                       <View style={styles.previewOverlay}>
-                        <Feather name="check-circle" size={24} color="#10b981" />
+                        <Feather
+                          name="check-circle"
+                          size={24}
+                          color="#10b981"
+                        />
                         <Text style={styles.previewText}>License Selected</Text>
                       </View>
                     </View>
                   ) : (
                     <View style={styles.pickerPlaceholder}>
                       <Feather name="upload-cloud" size={32} color="#94a3b8" />
-                      <Text style={styles.pickerText}>Tap to upload license image</Text>
+                      <Text style={styles.pickerText}>
+                        Tap to upload license image
+                      </Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -235,7 +298,9 @@ export default function MedicalSignup() {
                 value={form.password}
                 onChangeText={(text) => setForm({ ...form, password: text })}
                 placeholder="Create password"
-                secureTextEntry
+                secureTextEntry={!showPassword}
+                showEye={showPassword}
+                onToggleEye={() => setShowPassword(!showPassword)}
               />
 
               {/* Submit Button */}
@@ -258,9 +323,13 @@ export default function MedicalSignup() {
                 </LinearGradient>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => router.push("/login")} style={styles.loginLink}>
+              <TouchableOpacity
+                onPress={() => router.push("/login")}
+                style={styles.loginLink}
+              >
                 <Text style={styles.loginLinkText}>
-                  Already have an account? <Text style={styles.loginLinkBold}>Sign in</Text>
+                  Already have an account?{" "}
+                  <Text style={styles.loginLinkBold}>Sign in</Text>
                 </Text>
               </TouchableOpacity>
             </View>
@@ -316,6 +385,15 @@ const styles = {
     fontSize: 15,
     color: "#1e293b",
   },
+  eyeBtn: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 50,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   imagePickerGroup: { marginBottom: 20 },
   imagePicker: {
     marginTop: 8,
@@ -346,9 +424,18 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
   },
-  previewText: { marginTop: 8, fontSize: 14, fontWeight: "bold", color: "#10b981" },
+  previewText: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#10b981",
+  },
   submitBtn: { marginTop: 10, borderRadius: 16, overflow: "hidden" },
-  submitGradient: { height: 56, justifyContent: "center", alignItems: "center" },
+  submitGradient: {
+    height: 56,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   loginLink: { marginTop: 24, alignItems: "center" },
   loginLinkText: { fontSize: 14, color: "#64748b" },

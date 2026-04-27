@@ -17,8 +17,8 @@ import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 export default function CreateStaff() {
   const router = useRouter();
@@ -29,7 +29,8 @@ export default function CreateStaff() {
     email: "",
     address: "",
     password: "",
-    currentWorkingPlace: "",
+    workForType: "stockist",
+    workForName: "",
   });
 
   const [user, setUser] = useState(null);
@@ -37,13 +38,12 @@ export default function CreateStaff() {
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
   const [aadhar, setAadhar] = useState(null);
-  const [isFresher, setIsFresher] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const loadData = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
-
+      const token = await secureStorage.getItem("token");
       if (!token) {
         setProfileLoading(false);
         return;
@@ -90,8 +90,19 @@ export default function CreateStaff() {
 
   const submit = async () => {
     setErrorMsg("");
+    const isStaffManager = user && (user.role === "stockist" || user.role === "admin");
+    const effectiveWorkForType = user?.role === "stockist" ? "stockist" : form.workForType;
+    const effectiveWorkForName =
+      user?.role === "stockist"
+        ? (user?.name || user?.contactPerson || form.workForName || "")
+        : form.workForName;
+
     if (!form.fullName || !form.contact || !form.email) {
       setErrorMsg("Name, Email, and Contact are required.");
+      return;
+    }
+    if (!effectiveWorkForType || !effectiveWorkForName) {
+      setErrorMsg("Please select where you work and enter the stockist/medical name.");
       return;
     }
     if (!image || !aadhar) {
@@ -102,22 +113,18 @@ export default function CreateStaff() {
       setErrorMsg("Password is required to create a staff member.");
       return;
     }
-    if (!isFresher && !form.currentWorkingPlace) {
-      setErrorMsg("Please enter your current working place or select 'Fresher'.");
-      return;
-    }
-
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
       const fd = new FormData();
       fd.append("fullName", form.fullName);
       fd.append("contact", form.contact);
       fd.append("email", form.email);
       fd.append("address", form.address);
-      fd.append("isFresher", isFresher);
-      if (!isFresher) fd.append("currentWorkingPlace", form.currentWorkingPlace);
-      
+      fd.append("workForType", effectiveWorkForType);
+      fd.append("workForName", effectiveWorkForName);
+      if (user?.role === "stockist" && user?._id) fd.append("workForId", String(user._id));
+
       if (form.password) fd.append("password", form.password);
 
       const createFormDataImage = async (asset, fieldName) => {
@@ -130,8 +137,8 @@ export default function CreateStaff() {
           return new File([blob], name, { type: blob.type || "image/jpeg" });
         } else {
           const name = uri.split("/").pop();
-           const match = /\.(\w+)$/.exec(name);
-           const type = match ? `image/${match[1]}` : `image`;
+          const match = /\.(\w+)$/.exec(name);
+          const type = match ? `image/${match[1]}` : `image`;
           return { uri, name, type };
         }
       };
@@ -139,8 +146,8 @@ export default function CreateStaff() {
       fd.append("image", await createFormDataImage(image, "image"));
       fd.append("aadharCard", await createFormDataImage(aadhar, "aadharCard"));
 
-      const endpoint = user ? "/api/staff" : "/api/auth/staff-signup";
-      const headers = user ? { Authorization: `Bearer ${token}` } : {};
+      const endpoint = isStaffManager ? "/api/staff" : "/api/auth/staff-signup";
+      const headers = isStaffManager ? { Authorization: `Bearer ${token}` } : {};
 
       const res = await fetch(apiUrl(endpoint), {
         method: "POST",
@@ -184,38 +191,45 @@ export default function CreateStaff() {
             <LinearGradient colors={["#c084fc", "#9333ea"]} style={styles.iconBox}>
               <Feather name="user-plus" size={32} color="#fff" />
             </LinearGradient>
-            <Text style={styles.title}>{isPublicSignup ? "Staff Registration" : "Create Staff Member"}</Text>
+            <Text style={styles.title}>Staff Registration</Text>
             <Text style={styles.subtitle}>
-              {isPublicSignup ? "Enroll as a staff member for your stockist." : "Add a new team member."}
+              {isPublicSignup ? "Enroll as a staff member for your organization." : "Add a new team member."}
             </Text>
           </View>
 
           <View style={styles.formCard}>
-            <View style={styles.fresherToggleContainer}>
-              <Text style={styles.fresherToggleLabel}>Are you a Fresher?</Text>
-              <TouchableOpacity
-                style={[styles.toggleBtn, isFresher && styles.toggleBtnActive]}
-                onPress={() => {
-                  setIsFresher(!isFresher);
-                  if (!isFresher) {
-                    // if switching TO fresher
-                    setForm(f => ({ ...f, currentWorkingPlace: "" }));
-                  }
-                }}
-              >
-                <View style={[styles.toggleIndicator, isFresher && styles.toggleIndicatorActive]} />
-              </TouchableOpacity>
-            </View>
+            {user?.role !== "stockist" ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Work For Type</Text>
+                <View style={styles.workTypeRow}>
+                  <TouchableOpacity
+                    style={[styles.typeChip, form.workForType === "stockist" && styles.typeChipActive]}
+                    onPress={() => setForm((f) => ({ ...f, workForType: "stockist" }))}
+                  >
+                    <Text style={[styles.typeChipText, form.workForType === "stockist" && styles.typeChipTextActive]}>
+                      Wholesaler
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.typeChip, form.workForType === "medical" && styles.typeChipActive]}
+                    onPress={() => setForm((f) => ({ ...f, workForType: "medical" }))}
+                  >
+                    <Text style={[styles.typeChipText, form.workForType === "medical" && styles.typeChipTextActive]}>
+                      Retailer
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
 
-            {!isFresher && (
-              <InputField
-                label="Current Working Place"
-                placeholder="e.g., Apollo Hospital, Medtek Pharma"
-                value={form.currentWorkingPlace}
-                onChangeText={(t) => setForm((f) => ({ ...f, currentWorkingPlace: t }))}
-                icon="briefcase"
-              />
-            )}
+            <InputField
+              label={user?.role === "stockist" ? "Wholesaler Name" : "Wholesaler / Retailer Name"}
+              placeholder={user?.role === "stockist" ? "Auto-detected from your account" : "Enter wholesaler or retailer name"}
+              value={user?.role === "stockist" ? (user?.name || user?.contactPerson || form.workForName) : form.workForName}
+              onChangeText={(t) => setForm((f) => ({ ...f, workForName: t }))}
+              icon="home"
+              editable={user?.role !== "stockist"}
+            />
 
             <InputField
               label="Full Name"
@@ -243,7 +257,7 @@ export default function CreateStaff() {
               keyboardType="email-address"
               autoCapitalize="none"
             />
-            
+
             <InputField
               label="Password"
               placeholder="Enter password"
@@ -251,6 +265,9 @@ export default function CreateStaff() {
               onChangeText={(t) => setForm((f) => ({ ...f, password: t }))}
               icon="lock"
               secureTextEntry
+              showPasswordToggle
+              showPassword={showPassword}
+              setShowPassword={setShowPassword}
             />
 
             <InputField
@@ -293,12 +310,30 @@ export default function CreateStaff() {
   );
 }
 
-const InputField = ({ label, icon, ...props }) => (
+const InputField = ({
+  label,
+  icon,
+  showPasswordToggle,
+  showPassword,
+  setShowPassword,
+  secureTextEntry,
+  ...props
+}) => (
   <View style={styles.inputGroup}>
     <Text style={styles.label}>{label}</Text>
     <View style={styles.inputContainer}>
       <Feather name={icon} size={20} color="#94a3b8" style={{ marginRight: 12 }} />
-      <TextInput style={styles.input} placeholderTextColor="#94a3b8" {...props} />
+      <TextInput
+        style={styles.input}
+        placeholderTextColor="#94a3b8"
+        secureTextEntry={secureTextEntry && !showPassword}
+        {...props}
+      />
+      {showPasswordToggle ? (
+        <TouchableOpacity onPress={() => setShowPassword && setShowPassword(!showPassword)} style={styles.eyeButton}>
+          <Feather name={showPassword ? "eye" : "eye-off"} size={20} color="#94a3b8" />
+        </TouchableOpacity>
+      ) : null}
     </View>
   </View>
 );
@@ -333,6 +368,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: "700", color: "#475569", marginBottom: 8, marginLeft: 4 },
   inputContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#f8fafc", borderRadius: 16, borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 16, minHeight: 56 },
   input: { flex: 1, fontSize: 15, color: "#1e293b", fontWeight: "600" },
+  eyeButton: { marginLeft: 8, padding: 4 },
   selectBtnWrapper: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#f8fafc", borderRadius: 16, borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 16, minHeight: 56 },
   selectText: { fontSize: 15, fontWeight: "600", color: "#1e293b" },
   uploadRow: { flexDirection: "row", gap: 16, marginBottom: 24 },
@@ -344,10 +380,18 @@ const styles = StyleSheet.create({
   submitText: { color: "#fff", fontSize: 17, fontWeight: "800" },
   errorBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#fef2f2", padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: "#fecaca" },
   errorText: { color: "#b91c1c", fontSize: 14, fontWeight: "600", marginLeft: 12, flex: 1 },
-  fresherToggleContainer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20, backgroundColor: "#f8fafc", padding: 16, borderRadius: 16, borderWidth: 1, borderColor: "#e2e8f0" },
-  fresherToggleLabel: { fontSize: 15, fontWeight: "700", color: "#475569" },
-  toggleBtn: { width: 52, height: 32, borderRadius: 16, backgroundColor: "#cbd5e1", padding: 4, justifyContent: "center" },
-  toggleBtnActive: { backgroundColor: "#14b8a6" },
-  toggleIndicator: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  toggleIndicatorActive: { transform: [{ translateX: 20 }] },
+  workTypeRow: { flexDirection: "row", gap: 10 },
+  typeChip: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+  },
+  typeChipActive: { backgroundColor: "#ede9fe", borderColor: "#8b5cf6" },
+  typeChipText: { color: "#475569", fontWeight: "700", fontSize: 13 },
+  typeChipTextActive: { color: "#6d28d9" },
 });

@@ -4,19 +4,33 @@
     "slug": "Meditrap",
     "version": "24.0.0",
     "orientation": "portrait",
+<<<<<<< HEAD
     "icon": "./assets/images/logo.png",
+=======
+    "icon": "./assets/images/final-logo.png",
+>>>>>>> cea5d529f57eedde9dc088335d8deaecbb3fdd5b
     "scheme": "meditrap",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
+      "bundleIdentifier": "com.danish.meditrap",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "supportsTablet": true
     },
     "android": {
+      "package": "com.danish.meditrap",
+      "versionCode": 11,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
+<<<<<<< HEAD
         "foregroundImage": "./assets/images/logo.png",
         "backgroundImage": "./assets/images/logo.png",
         "monochromeImage": "./assets/images/logo.png"
+=======
+        "foregroundImage": "./assets/images/final-logo.png"
+>>>>>>> cea5d529f57eedde9dc088335d8deaecbb3fdd5b
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -24,14 +38,22 @@
     },
     "web": {
       "output": "static",
+<<<<<<< HEAD
       "favicon": "./assets/images/logo.png"
+=======
+      "favicon": "./assets/images/final-logo.png"
+>>>>>>> cea5d529f57eedde9dc088335d8deaecbb3fdd5b
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
+<<<<<<< HEAD
           "image": "./assets/images/logo.png",
+=======
+          "image": "./assets/images/final-logo.png",
+>>>>>>> cea5d529f57eedde9dc088335d8deaecbb3fdd5b
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -39,14 +61,23 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
+<<<<<<< HEAD
       "reactCompiler": false
     },
     "extra": {
       "router": {},
+=======
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "apiUrl": "https://api.medi-trap.com",
+>>>>>>> cea5d529f57eedde9dc088335d8deaecbb3fdd5b
       "eas": {
         "projectId": "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6"
       }

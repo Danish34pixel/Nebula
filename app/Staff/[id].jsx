@@ -17,6 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 const { width } = Dimensions.get("window");
 
@@ -40,7 +41,7 @@ export default function StaffDetails() {
 
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem("token");
+      const token = await secureStorage.getItem("token");
       const userStr = await AsyncStorage.getItem("user");
       if (userStr) setUser(JSON.parse(userStr));
 
@@ -79,7 +80,7 @@ export default function StaffDetails() {
 
         // If s is a string ID
         if (s && typeof s === "string") {
-          const token = await AsyncStorage.getItem("token");
+          const token = await secureStorage.getItem("token");
           const res = await fetch(apiUrl(`/api/stockist/${s}`), {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
@@ -110,7 +111,7 @@ export default function StaffDetails() {
         style: "destructive",
         onPress: async () => {
           try {
-            const token = await AsyncStorage.getItem("token");
+            const token = await secureStorage.getItem("token");
             const res = await fetch(apiUrl(`/api/staff/${id}`), {
               method: "DELETE",
               headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -206,6 +207,16 @@ export default function StaffDetails() {
 
               <View style={styles.detailsTable}>
                 <DetailRow label="Staff ID" value={staff.staffId || staff.id || "N/A"} />
+                <DetailRow
+                  label="Approval"
+                  value={(staff.approvalStatus || (staff.approved ? "approved" : "pending")).toUpperCase()}
+                />
+                <DetailRow
+                  label="Works For"
+                  value={
+                    `${staff.workForType === "medical" ? "Medical" : "Stockist"} - ${staff.workForName || "N/A"}`
+                  }
+                />
                 <DetailRow
                   label="Joining Date"
                   value={

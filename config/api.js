@@ -1,33 +1,94 @@
-// ✅ Central API configuration helper for Meditrap (React Native / Expo)
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+// Central API configuration helper for Meditrap (React Native / Expo)
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+import { secureStorage } from "../utils/secureStore";
 
-// -------------------------
-// 🔧 Base URLs
-// -------------------------
+// Public env vars are embedded into the frontend bundle by Expo.
+const ENV_API_DEFAULT =
+  process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "";
+const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || "";
+const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || "";
+const DEV_API_DEFAULT = "https://api.medi-trap.com";
 
-// Remote backend used in production
-const REMOTE_API = "https://medi-trap-backend-2.onrender.com";
+// Normalize to remove trailing slash and whitespace
+const normalizeBase = (url) => String(url || "").trim().replace(/\/+$/, "");
 
-// Local/dev fallback (used only in development)
-// Use your machine's physical IP address here for physical mobile devices
-export const DEV_IP = Platform.OS === 'web' ? "localhost" : "10.207.78.112"; 
-const DEV_FALLBACK = `http://${DEV_IP}:5000`;
+const extraApiUrl =
+  Constants.expoConfig?.extra?.apiUrl ||
+  Constants.manifest2?.extra?.apiUrl ||
+  Constants.manifest?.extra?.apiUrl ||
+  "";
 
-// In React Native, we typically determine IS_DEV based on __DEV__ global
-const IS_DEV = __DEV__;
+const extractExpoHost = () => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    Constants.expoConfig?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest2?.extra?.expoGo?.debuggerHost ||
+    Constants.manifest?.debuggerHost ||
+    "";
 
-// Normalize to remove any trailing slashes
-const normalizeBase = (url) =>
-  url && url.endsWith("/") ? url.slice(0, -1) : url;
+  const host = String(hostUri).split(":")[0].trim();
+  return host || null;
+};
 
-// -------------------------
-// 🌐 Final API Base selection
-// -------------------------
+const rewriteLocalhostForDevice = (url) => {
+  if (!url) return url;
+  if (Platform.OS === "web") return url;
 
-// In React Native, we ALWAYS need an absolute URL. 
-// Relative paths ('') do not work because there's no browser host.
-export const API_BASE = normalizeBase(IS_DEV ? DEV_FALLBACK : REMOTE_API);
+  try {
+    const parsed = new URL(url);
+    const isLocalHost =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "::1";
+
+    if (!isLocalHost) return url;
+
+    const expoHost = extractExpoHost();
+    if (!expoHost) return url;
+
+    parsed.hostname = expoHost;
+    return normalizeBase(parsed.toString());
+  } catch {
+    return url;
+  }
+};
+
+const isDev = __DEV__ || process.env.NODE_ENV === "development";
+
+const selectedBase =
+  Platform.OS === "web"
+    ? isDev
+      ? DEV_API_DEFAULT
+      : ENV_API_WEB || ENV_API_DEFAULT || extraApiUrl
+    : isDev
+      ? DEV_API_DEFAULT
+      : ENV_API_NATIVE || ENV_API_DEFAULT || extraApiUrl;
+
+const resolvedBase = rewriteLocalhostForDevice(normalizeBase(selectedBase));
+
+if (!resolvedBase) {
+  throw new Error(
+    "Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. https://api.medi-trap.com).",
+  );
+}
+
+export const API_BASE = resolvedBase;
+
+if (
+  process.env.NODE_ENV === "production" &&
+  API_BASE.startsWith("http://") &&
+  !API_BASE.includes("localhost") &&
+  !API_BASE.includes("127.0.0.1")
+) {
+  throw new Error("In production, EXPO_PUBLIC_API_BASE_URL must use HTTPS.");
+}
+
+const normalizeToken = (token) => {
+  if (token == null) return null;
+  const normalized = String(token).trim();
+  return normalized.replace(/^Bearer\s+/i, "").trim() || null;
+};
 
 /**
  * Helper to safely build complete URLs.
@@ -35,63 +96,73 @@ export const API_BASE = normalizeBase(IS_DEV ? DEV_FALLBACK : REMOTE_API);
  */
 export const apiUrl = (path = "") => {
   if (!path) return `${API_BASE}/api`;
-  
+
   // If path already starts with /api, don't duplicate it
   if (path.startsWith("/api")) return `${API_BASE}${path}`;
   if (path.startsWith("api")) return `${API_BASE}/${path}`;
-  
+
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${API_BASE}/api${p}`;
 };
 
-// -------------------------
-// ⚙ JSON Fetch Helper
-// -------------------------
+// JSON Fetch Helper
 export const fetchJson = async (path, options = {}) => {
-  const url = apiUrl(path);
-  const token = await AsyncStorage.getItem("token");
+  try {
+    const url = apiUrl(path);
+    const token = normalizeToken(await secureStorage.getItem("token"));
+    const headerToken = normalizeToken(options.token || token);
+    if (__DEV__) console.log(`[API] ${options.method || "GET"} -> ${url}`);
 
-  const opts = {
-    method: options.method || 'GET',
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...options,
-  };
+    const opts = {
+      ...options,
+      method: options.method || "GET",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+        ...(headerToken ? { Authorization: `Bearer ${headerToken}` } : {}),
+      },
+    };
 
-  const res = await fetch(url, opts);
-  const text = await res.text();
-  const isJson = res.headers.get("content-type")?.includes("application/json");
-  const body = text && isJson ? JSON.parse(text) : text;
+    const res = await fetch(url, opts);
+    const text = await res.text();
+    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const body = text && isJson ? JSON.parse(text) : text;
 
-  if (!res.ok) {
-    if (res.status === 401) {
-      await AsyncStorage.removeItem("token");
-      await AsyncStorage.removeItem("user");
+    if (!res.ok) {
+      if (res.status === 401) {
+        await secureStorage.removeItem("token");
+        await secureStorage.removeItem("refreshToken");
+        await secureStorage.removeItem("user");
+      }
+      const err = new Error(body?.message || `Request failed ${res.status}`);
+      err.status = res.status;
+      err.body = body;
+      throw err;
     }
-    const err = new Error(body?.message || `Request failed ${res.status}`);
-    err.status = res.status;
-    err.body = body;
-    throw err;
-  }
 
-  return body;
+    if (Array.isArray(body)) {
+      return { data: body };
+    }
+
+    return body;
+  } catch (error) {
+    console.error("[API] fetchJson failed", {
+      path,
+      method: options.method || "GET",
+      message: error?.message || String(error),
+    });
+    throw error;
+  }
 };
 
-// -------------------------
-// 🔁 Central request helper (Alias for fetchJson)
-// -------------------------
+// Central request helper (Alias for fetchJson)
 export const requestJson = fetchJson;
 
-// -------------------------
-// 📤 POST FormData Helper (Image Uploads)
-// -------------------------
+// POST FormData Helper (Image Uploads)
 export const postForm = async (path, formData, options = {}) => {
   const url = apiUrl(path);
-  const token = await AsyncStorage.getItem("token");
-  
+  const token = normalizeToken(await secureStorage.getItem("token"));
   const controller = new AbortController();
   const timeout = options.timeout || 120000;
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -107,9 +178,10 @@ export const postForm = async (path, formData, options = {}) => {
       signal: controller.signal,
     });
 
-    clearTimeout(timer);
     const text = await res.text();
-    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const isJson = res.headers
+      .get("content-type")
+      ?.includes("application/json");
     const body = text && isJson ? JSON.parse(text) : text;
 
     if (!res.ok) {
@@ -120,16 +192,22 @@ export const postForm = async (path, formData, options = {}) => {
     }
 
     return body;
-  } catch (err) {
+  } catch (error) {
+    console.error("[API] postForm failed", {
+      path,
+      message: error?.message || String(error),
+    });
+    throw error;
+  } finally {
     clearTimeout(timer);
-    throw err;
   }
 };
 
-// -------------------------
-// 💾 POST JSON Helper
-// -------------------------
+// POST JSON Helper
 export const postJson = async (path, data, options = {}) => {
+  if (__DEV__) {
+    console.log("[API] postJson payload", path, data);
+  }
   return fetchJson(path, {
     ...options,
     method: "POST",

@@ -1,10 +1,6 @@
 {
   "cli": {
-<<<<<<< HEAD
     "version": ">= 18.8.1",
-=======
-    "version": ">= 18.7.0",
->>>>>>> cea5d529f57eedde9dc088335d8deaecbb3fdd5b
     "appVersionSource": "remote"
   },
   "build": {

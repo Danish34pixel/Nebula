@@ -16,7 +16,7 @@ module.exports = {
   expo: {
     name: "Meditrap",
     slug: "Meditrap",
-    version: "26.0.0",
+    version: "30.0.0",
     orientation: "portrait",
     icon: "./assets/images/app-icon.png",
     scheme: "meditrap",

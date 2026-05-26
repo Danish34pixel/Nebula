@@ -10,6 +10,7 @@ import {
   Platform,
   TextInput,
   Modal,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -34,6 +35,17 @@ export default function PurchaserDashboard() {
   const [medLoading, setMedLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const handleCall = async (phone) => {
+    const cleaned = String(phone || "").trim();
+    if (!cleaned) return;
+
+    const url = `tel:${cleaned}`;
+    const canOpen = await Linking.canOpenURL(url).catch(() => false);
+    if (canOpen) {
+      await Linking.openURL(url);
+    }
+  };
 
   useEffect(() => {
     const fetchPurchaser = async () => {
@@ -124,6 +136,82 @@ export default function PurchaserDashboard() {
     return apiUrl(path.startsWith("/") ? path : `/${path}`);
   };
 
+  function checkMedicineStockistMatch(med, sid) {
+    if (!med || !sid) return false;
+
+    // 1. Check Direct ID Links (Medicine -> Stockist)
+    const medRefs =
+      med.stockists ||
+      med.stockist ||
+      med.stockistId ||
+      med.seller ||
+      med.sellerId ||
+      [];
+    const candidates = Array.isArray(medRefs) ? medRefs : [medRefs];
+    if (
+      candidates.some((c) => {
+        if (!c) return false;
+        // Handle nested objects like { stockist: ID } or { seller: ID }
+        const refId =
+          c.stockist ||
+          c.seller ||
+          c.stockistId ||
+          c.sellerId ||
+          c._id ||
+          c.id ||
+          (typeof c === "string" ? c : null);
+        return String(refId) === String(sid);
+      })
+    )
+      return true;
+
+    // 2. Check Reverse ID Links (Stockist -> Medicine)
+    const stockist = stockists.find(
+      (s) => String(s._id || s.id) === String(sid),
+    );
+    if (stockist) {
+      const stockistMeds =
+        stockist.medicines || stockist.Medicines || stockist.items || [];
+      if (
+        stockistMeds.some((m) => {
+          if (!m) return false;
+          const mId =
+            m.medicine || m._id || m.id || (typeof m === "string" ? m : null);
+          return String(mId) === String(med._id || med.id);
+        })
+      )
+        return true;
+
+      // 3. Name-based Matching fallback (Name + Generic Name)
+      const medName = String(med.name || "")
+        .toLowerCase()
+        .trim();
+      const genericName = String(med.genericName || "")
+        .toLowerCase()
+        .trim();
+
+      const matchByName = stockistMeds.some((sm) => {
+        const smName = String(
+          typeof sm === "string" ? sm : sm.name || sm.brandName || "",
+        )
+          .toLowerCase()
+          .trim();
+        if (!smName) return false;
+
+        const matchesPrimary =
+          smName.includes(medName) || medName.includes(smName);
+        const matchesGeneric =
+          genericName &&
+          (smName.includes(genericName) || genericName.includes(smName));
+
+        return matchesPrimary || matchesGeneric;
+      });
+      if (matchByName) return true;
+    }
+
+    return false;
+  };
+
   const medicinesList = Array.isArray(medicines) ? medicines : [];
   const filteredMedicines = medicinesList.filter((m) => {
     // 1. Filter by Selected Stockist
@@ -202,82 +290,6 @@ export default function PurchaserDashboard() {
     // Check if it's a 24-character hex ID (MongoDB ObjectId)
     const isId = /^[0-9a-fA-F]{24}$/.test(raw.trim());
     return isId ? "Authorized Pharmacy" : raw;
-  };
-
-  const checkMedicineStockistMatch = (med, sid) => {
-    if (!med || !sid) return false;
-
-    // 1. Check Direct ID Links (Medicine -> Stockist)
-    const medRefs =
-      med.stockists ||
-      med.stockist ||
-      med.stockistId ||
-      med.seller ||
-      med.sellerId ||
-      [];
-    const candidates = Array.isArray(medRefs) ? medRefs : [medRefs];
-    if (
-      candidates.some((c) => {
-        if (!c) return false;
-        // Handle nested objects like { stockist: ID } or { seller: ID }
-        const refId =
-          c.stockist ||
-          c.seller ||
-          c.stockistId ||
-          c.sellerId ||
-          c._id ||
-          c.id ||
-          (typeof c === "string" ? c : null);
-        return String(refId) === String(sid);
-      })
-    )
-      return true;
-
-    // 2. Check Reverse ID Links (Stockist -> Medicine)
-    const stockist = stockists.find(
-      (s) => String(s._id || s.id) === String(sid),
-    );
-    if (stockist) {
-      const stockistMeds =
-        stockist.medicines || stockist.Medicines || stockist.items || [];
-      if (
-        stockistMeds.some((m) => {
-          if (!m) return false;
-          const mId =
-            m.medicine || m._id || m.id || (typeof m === "string" ? m : null);
-          return String(mId) === String(med._id || med.id);
-        })
-      )
-        return true;
-
-      // 3. Name-based Matching fallback (Name + Generic Name)
-      const medName = String(med.name || "")
-        .toLowerCase()
-        .trim();
-      const genericName = String(med.genericName || "")
-        .toLowerCase()
-        .trim();
-
-      const matchByName = stockistMeds.some((sm) => {
-        const smName = String(
-          typeof sm === "string" ? sm : sm.name || sm.brandName || "",
-        )
-          .toLowerCase()
-          .trim();
-        if (!smName) return false;
-
-        const matchesPrimary =
-          smName.includes(medName) || medName.includes(smName);
-        const matchesGeneric =
-          genericName &&
-          (smName.includes(genericName) || genericName.includes(smName));
-
-        return matchesPrimary || matchesGeneric;
-      });
-      if (matchByName) return true;
-    }
-
-    return false;
   };
 
   const getAvailableStockists = (med) => {
@@ -829,9 +841,7 @@ export default function PurchaserDashboard() {
                     </View>
                     <TouchableOpacity
                       style={styles.contactBtn}
-                      onPress={() =>
-                        s.phone && Linking.openURL(`tel:${s.phone}`)
-                      }
+                      onPress={() => handleCall(s.phone)}
                     >
                       <Feather name="phone" size={16} color="#059669" />
                     </TouchableOpacity>

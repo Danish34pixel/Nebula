@@ -7,6 +7,10 @@ import { LinearGradient } from "expo-linear-gradient";
 
 const AdminDashboard = () => {
   const router = useRouter();
+  const safeBack = () => {
+    if (router.canGoBack()) return router.back();
+    return router.replace("/");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -16,7 +20,7 @@ const AdminDashboard = () => {
       >
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={safeBack}
             style={styles.backBtn}
           >
             <Feather name="arrow-left" size={24} color="#1e293b" />

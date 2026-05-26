@@ -201,13 +201,14 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     width: "100%",
     alignItems: "center",
   },
   cardFrame: {
-    width: 320,
-    height: 480,
+    width: Math.min(360, width - 32),
+    minHeight: 560,
     borderRadius: 32,
     backgroundColor: "#fff",
     ...Platform.select({
@@ -227,8 +228,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    height: 160,
-    padding: 24,
+    minHeight: 160,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 18,
     position: "relative",
     overflow: "hidden",
   },
@@ -310,6 +313,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
     paddingTop: 15,
+    paddingBottom: 20,
   },
   nameText: {
     fontSize: 22,
@@ -347,11 +351,12 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    paddingTop: 10,
+    paddingTop: 14,
   },
   qrGlassBox: {
     alignItems: "center",
     gap: 8,
+    paddingBottom: 4,
   },
   qrInner: {
     backgroundColor: "#fff",
@@ -364,12 +369,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  qrImage: { width: 70, height: 70 },
+  qrImage: { width: 78, height: 78 },
   scanHint: { fontSize: 9, fontWeight: "900", color: "#64748b" },
   securitySeal: {
     alignItems: "center",
     gap: 4,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sealText: { fontSize: 9, fontWeight: "900", color: "#f59e0b", letterSpacing: 1 },
 });

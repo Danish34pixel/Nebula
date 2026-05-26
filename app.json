@@ -7,7 +7,6 @@
     "icon": "./assets/images/final-logo.png",
     "scheme": "meditrap",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "ios": {
       "bundleIdentifier": "com.danish.meditrap",
       "infoPlist": {
@@ -51,7 +50,7 @@
     },
     "extra": {
       "router": {},
-      "apiUrl": "https://api.medi-trap.com",
+      "apiUrl": "https://medi-trap.com/",
       "eas": {
         "projectId": "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6"
       }

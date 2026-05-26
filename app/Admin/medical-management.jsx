@@ -34,6 +34,10 @@ const MedicalManagement = () => {
   ];
 
   const actionEndpoints = (id, action) => [
+    `/api/user/${id}/${action}`,
+    `/api/user/${id}?action=${action}`,
+    `/api/user/${action}/${id}`,
+    `/api/user?${action}=${id}`,
     `/api/auth/medical-owner/${id}/${action}`,
     `/api/auth/medicalOwner/${id}/${action}`,
     `/api/auth/${id}/${action}`,

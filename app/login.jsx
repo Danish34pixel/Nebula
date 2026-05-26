@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from "react";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../config/api";
 import { secureStorage } from "../utils/secureStore";
 
@@ -91,6 +91,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
+      console.log("DEBUG: login URL ->", apiUrl(`/api/auth/login`));
       const response = await fetch(apiUrl(`/api/auth/login`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -276,6 +276,7 @@ export default function Nav({ navigation: navProp }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [filterType, setFilterType] = useState("company");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedStockists, setSelectedStockists] = useState([]);
@@ -340,10 +341,12 @@ export default function Nav({ navigation: navProp }) {
 
         if (mounted && stockists.length > 0) {
           const mapped = stockists.map((s) => {
-            let medsForStockist = medicines
+            const directMedicines = medicines
               .filter((m) => medicineReferencesStockist(m, s))
               .map((m) => medicineDisplayName(m))
               .filter(Boolean);
+
+            let medsForStockist = directMedicines.slice();
 
             if (
               (!medsForStockist || medsForStockist.length === 0) &&
@@ -535,6 +538,7 @@ export default function Nav({ navigation: navProp }) {
                 : "",
               items,
               Medicines: meds,
+              directMedicines,
             };
           });
           setSectionData(mapped);
@@ -577,10 +581,12 @@ export default function Nav({ navigation: navProp }) {
       const data = extractCollection(jsonStockist, ["stockists", "stockist"]);
 
       const mapped = data.map((s) => {
-        let medsForStockist = medicines
+        const directMedicines = medicines
           .filter((m) => medicineReferencesStockist(m, s))
           .map((m) => medicineDisplayName(m))
           .filter(Boolean);
+
+        let medsForStockist = directMedicines.slice();
 
         if (
           (!medsForStockist || medsForStockist.length === 0) &&
@@ -759,6 +765,7 @@ export default function Nav({ navigation: navProp }) {
             : "",
           items,
           Medicines: meds,
+          directMedicines,
         };
       });
 
@@ -868,19 +875,21 @@ export default function Nav({ navigation: navProp }) {
     if (!q) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setSelectedStockists([]);
+      setShowAllResults(true);
       return;
     } else if (filterType === "stockist") {
       sectionData.forEach((section) => {
         if (section.title && section.title.toLowerCase().includes(q))
           resultSet.add(section.title);
       });
-    } else if (filterType === "medicine") {
-      sectionData.forEach((section) =>
-        valueAsArray(section.Medicines).forEach((med) => {
-          const medName = String(med || "").trim();
-          if (medName && medName.toLowerCase().includes(q)) resultSet.add(medName);
-        }),
-      );
+      } else if (filterType === "medicine") {
+        sectionData.forEach((section) =>
+          valueAsArray(section.directMedicines || section.Medicines).forEach((med) => {
+            const medName = String(med || "").trim();
+            if (medName && medName.toLowerCase().includes(q)) resultSet.add(medName);
+          }),
+        );
     } else if (filterType === "company") {
       sectionData.forEach((section) =>
         valueAsArray(section.items).forEach((item) => {
@@ -908,7 +917,7 @@ export default function Nav({ navigation: navProp }) {
         );
       } else if (filterType === "medicine") {
         matches = sectionData.filter((section) =>
-          valueAsArray(section.Medicines).some((med) =>
+          valueAsArray(section.directMedicines || section.Medicines).some((med) =>
             norm(String(med || "")).includes(q),
           ),
         );
@@ -1174,7 +1183,11 @@ export default function Nav({ navigation: navProp }) {
       {/* Top Bar */}
       <View style={styles.topBar}>
         <View style={styles.logoRow}>
-          <Text style={styles.logoText}>M</Text>
+          <Image
+            source={require("../../assets/images/final-logo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
         <TouchableOpacity
           style={styles.menuBtn}
@@ -1202,7 +1215,13 @@ export default function Nav({ navigation: navProp }) {
                     setSelectedStockists(sectionData);
                 }
               }}
-              onFocus={() => searchQuery.length > 0 && setShowSuggestions(true)}
+              onFocus={() => {
+                setIsSearchFocused(true);
+                if (searchQuery.trim().length > 0) {
+                  setShowSuggestions(true);
+                }
+              }}
+              onBlur={() => setIsSearchFocused(false)}
               placeholder={`Search for ${filterType}...`}
               placeholderTextColor="#6b7280"
               autoCapitalize="none"
@@ -1227,7 +1246,7 @@ export default function Nav({ navigation: navProp }) {
           </TouchableOpacity>
         </View>
 
-        {showSuggestions && suggestions.length > 0 && (
+        {isSearchFocused && showSuggestions && suggestions.length > 0 && (
           <View style={styles.suggestionsContainer}>
             <Text style={styles.suggestionsTitle}>
               Click suggestion to see detailed results
@@ -1442,12 +1461,15 @@ const styles = StyleSheet.create({
   logoRow: {
     width: 48,
     height: 48,
-    backgroundColor: "#7c3aed",
+    backgroundColor: "#fff",
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#ede9fe",
   },
-  logoText: { color: "#fff", fontWeight: "bold", fontSize: 24 },
+  logoImage: { width: 34, height: 34 },
   menuBtn: {
     width: 48,
     height: 48,

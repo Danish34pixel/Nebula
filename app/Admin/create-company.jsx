@@ -36,6 +36,11 @@ export default function AdminCreateCompany() {
   const [stockistsList, setStockistsList] = useState([]);
   const [stockistsLoading, setStockistsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [devToken, setDevToken] = useState("");
+  const safeBack = () => {
+    if (router.canGoBack()) return router.back();
+    return router.replace("/Admin/index");
+  };
 
   const getStockistId = (stockist) => {
     if (!stockist) return null;
@@ -93,6 +98,23 @@ export default function AdminCreateCompany() {
     }, [fetchStockists]),
   );
 
+  useEffect(() => {
+    (async () => {
+      const token = await secureStorage.getItem("token");
+      if (token) setDevToken(token);
+    })();
+  }, []);
+
+  const saveDevToken = async () => {
+    const nextToken = devToken.trim();
+    if (!nextToken) {
+      Alert.alert("Error", "Enter a token to save");
+      return;
+    }
+    await secureStorage.setItem("token", nextToken);
+    Alert.alert("Success", "Token saved for company creation");
+  };
+
   const toggleStockist = (id) => {
     const stockistId = getStockistId(id);
     if (!stockistId) return;
@@ -132,13 +154,17 @@ export default function AdminCreateCompany() {
       return;
     }
 
-    const token = await secureStorage.getItem("token");
+    const token = devToken.trim() || (await secureStorage.getItem("token"));
     if (!token) {
       Alert.alert(
         "Unauthorized",
-        "Admin token missing. Please sign in or paste a valid token before creating a company.",
+        "Admin token missing. Paste a valid admin token and save it first.",
       );
       return;
+    }
+
+    if (devToken.trim()) {
+      await secureStorage.setItem("token", devToken.trim());
     }
 
     const payload = {
@@ -156,20 +182,25 @@ export default function AdminCreateCompany() {
         },
       });
 
-      Alert.alert("Success", "Company created successfully", [
-        { text: "OK", onPress: () => router.back() },
+      setForm({ name: "", stockists: [] });
+      Alert.alert("Success", "Company created successfully!", [
+        { text: "OK" },
       ]);
     } catch (err) {
       console.warn("[CreateCompany] create error", err);
-      if (err.status === 401) {
+      const message = String(err?.message || "");
+      if (err.status === 401 || message.toLowerCase().includes("token expired")) {
+        await secureStorage.multiRemove(["token", "refreshToken", "user"]);
         Alert.alert(
-          "Unauthorized",
-          "Invalid or expired admin token. Please sign in again or use a valid token.",
+          "Session Expired",
+          "Your admin session expired. Please sign in again.",
+          [{ text: "OK", onPress: () => router.replace("/login") }],
         );
       } else {
-        const message =
-          err.body?.message || err.message || "Failed to create company";
-        Alert.alert("Error", message);
+        Alert.alert(
+          "Error",
+          err.body?.message || err.message || "Failed to create company",
+        );
       }
     } finally {
       setLoading(false);
@@ -256,13 +287,30 @@ export default function AdminCreateCompany() {
 
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={safeBack}
             style={styles.backBtn}
           >
             <Feather name="chevron-left" size={28} color="#1e293b" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Establish Company</Text>
           <View style={{ width: 42 }} />
+        </View>
+
+        <View style={styles.devSection}>
+          <Text style={styles.devLabel}>Dev Admin Token</Text>
+          <View style={styles.devInputRow}>
+            <TextInput
+              style={styles.devInput}
+              value={devToken}
+              onChangeText={setDevToken}
+              placeholder="Paste admin token here"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity style={styles.saveBtn} onPress={saveDevToken}>
+              <Text style={styles.saveBtnText}>Save</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView
@@ -468,6 +516,40 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   scrollContent: { padding: 16, paddingBottom: 60 },
+  devSection: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: "#eff6ff",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+    padding: 14,
+  },
+  devLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#2563eb",
+    marginBottom: 10,
+  },
+  devInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  devInput: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 13,
+    color: "#0f172a",
+  },
+  saveBtn: {
+    backgroundColor: "#2563eb",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  saveBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   welcomeCard: {
     borderRadius: 32,
     padding: 24,

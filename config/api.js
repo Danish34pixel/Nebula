@@ -12,19 +12,22 @@ const getExpoExtra = () =>
 const getEnvValue = (key, fallback = "") =>
   process.env[key] || getExpoExtra()[key] || fallback;
 
-const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:5000" : "";
-const ENV_API_DEFAULT =
-  getEnvValue("EXPO_PUBLIC_API_BASE_URL") ||
-  getEnvValue("EXPO_PUBLIC_API_URL") ||
-  DEV_DEFAULT_API_BASE_URL;
-const ENV_API_WEB =
-  getEnvValue("EXPO_PUBLIC_API_BASE_URL_WEB") || DEV_DEFAULT_API_BASE_URL;
-const ENV_API_NATIVE =
-  getEnvValue("EXPO_PUBLIC_API_BASE_URL_NATIVE") || DEV_DEFAULT_API_BASE_URL;
+const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:80" : "";
+const PROD_DEFAULT_API_BASE_URL = "https://medi-trap.com";
 
 // Normalize to remove any trailing slashes
 const normalizeBase = (url) =>
   url && url.endsWith("/") ? url.slice(0, -1) : url;
+
+const isWebLocalhost = () => {
+  if (Platform.OS !== "web") return false;
+  try {
+    const host = globalThis?.window?.location?.hostname || "";
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return false;
+  }
+};
 
 const extractExpoHost = () => {
   const hostUri =
@@ -58,34 +61,70 @@ const rewriteLocalhostForDevice = (url) => {
   }
 };
 
-const selectedBase =
-  Platform.OS === "web"
-    ? ENV_API_WEB || ENV_API_DEFAULT
-    : ENV_API_NATIVE || ENV_API_DEFAULT;
+const getResolvedBase = () => {
+  const envDefault =
+    getEnvValue("EXPO_PUBLIC_API_BASE_URL") ||
+    getEnvValue("EXPO_PUBLIC_API_URL") ||
+    DEV_DEFAULT_API_BASE_URL;
 
-const resolvedBase = rewriteLocalhostForDevice(normalizeBase(selectedBase));
+  const envWeb = getEnvValue("EXPO_PUBLIC_API_BASE_URL_WEB");
+  const envNative = getEnvValue("EXPO_PUBLIC_API_BASE_URL_NATIVE");
+
+  const selectedBase =
+    Platform.OS === "web" ? envWeb || envDefault : envNative || envDefault;
+
+  // When Expo Web is running on localhost, prefer a local API even if the
+  // bundled env still points at production. This avoids stale web bundles
+  // continuing to hit the remote origin during development.
+  if (isWebLocalhost()) {
+    try {
+      const parsed = new URL(normalizeBase(selectedBase));
+      if (
+        parsed.hostname === "medi-trap.com" ||
+        parsed.hostname === "www.medi-trap.com"
+      ) {
+        return normalizeBase("http://localhost:80");
+      }
+    } catch {
+      return normalizeBase("http://localhost:80");
+    }
+  }
+
+  return rewriteLocalhostForDevice(normalizeBase(selectedBase));
+};
+
+const resolvedBase = getResolvedBase();
+const safeResolvedBase =
+  resolvedBase ||
+  (Platform.OS === "web"
+    ? DEV_DEFAULT_API_BASE_URL || PROD_DEFAULT_API_BASE_URL
+    : PROD_DEFAULT_API_BASE_URL);
 
 if (!resolvedBase) {
-  throw new Error(
-    "Missing API base URL. Set EXPO_PUBLIC_API_BASE_URL in your production environment or local .env file.",
+  console.warn(
+    "API base URL was not resolved from env; falling back to a safe default.",
   );
 }
 
-export const API_BASE = resolvedBase;
+export const API_BASE = safeResolvedBase;
+
+// Export helper to inspect resolved base at runtime
+export const getRuntimeApiBase = getResolvedBase;
 
 /**
  * Helper to safely build complete URLs.
  * Automatically ensures the '/api' prefix unless already present.
  */
 export const apiUrl = (path = "") => {
-  if (!path) return `${API_BASE}/api`;
+  const base = getResolvedBase() || safeResolvedBase;
+  if (!path) return `${base}/api`;
 
   // If path already starts with /api, don't duplicate it
-  if (path.startsWith("/api")) return `${API_BASE}${path}`;
-  if (path.startsWith("api")) return `${API_BASE}/${path}`;
+  if (path.startsWith("/api")) return `${base}${path}`;
+  if (path.startsWith("api")) return `${base}/${path}`;
 
   const p = path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE}/api${p}`;
+  return `${base}/api${p}`;
 };
 
 // JSON Fetch Helper
@@ -94,13 +133,13 @@ export const fetchJson = async (path, options = {}) => {
   const token = await AsyncStorage.getItem("token");
 
   const opts = {
+    ...options,
     method: options.method || "GET",
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    ...options,
   };
 
   const res = await fetch(url, opts);

@@ -293,9 +293,6 @@ export default function Demand() {
             <Text style={styles.summaryText}>
               Medical Owner: {sessionDemand.medicalOwner.name}
             </Text>
-            <Text style={styles.summaryText}>
-              Requested Medicines: {sessionDemand.requestedMedicines.length}
-            </Text>
 
             {sessionDemand.medicineStockists.map((entry, idx) => (
               <View
@@ -312,7 +309,6 @@ export default function Demand() {
                       style={styles.stockistRow}
                     >
                       <Text style={styles.stockistName}>{stockist.name}</Text>
-                      <Text style={styles.stockistPhone}>{stockist.phone}</Text>
                     </View>
                   ))
                 )}

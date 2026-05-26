@@ -1,34 +1,38 @@
 // Central API configuration helper for Meditrap (React Native / Expo)
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
-import { secureStorage } from "../utils/secureStore";
 
-// Public env vars are embedded into the frontend bundle by Expo.
+const getExpoExtra = () =>
+  Constants.expoConfig?.extra ||
+  Constants.manifest2?.extra ||
+  Constants.manifest?.extra ||
+  {};
+
+const getEnvValue = (key, fallback = "") =>
+  process.env[key] || getExpoExtra()[key] || fallback;
+
+const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:5000" : "";
 const ENV_API_DEFAULT =
-  process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "";
-const ENV_API_WEB = process.env.EXPO_PUBLIC_API_BASE_URL_WEB || "";
-const ENV_API_NATIVE = process.env.EXPO_PUBLIC_API_BASE_URL_NATIVE || "";
-const DEV_API_DEFAULT = "https://api.medi-trap.com";
+  getEnvValue("EXPO_PUBLIC_API_BASE_URL") ||
+  getEnvValue("EXPO_PUBLIC_API_URL") ||
+  DEV_DEFAULT_API_BASE_URL;
+const ENV_API_WEB =
+  getEnvValue("EXPO_PUBLIC_API_BASE_URL_WEB") || DEV_DEFAULT_API_BASE_URL;
+const ENV_API_NATIVE =
+  getEnvValue("EXPO_PUBLIC_API_BASE_URL_NATIVE") || DEV_DEFAULT_API_BASE_URL;
 
-// Normalize to remove trailing slash and whitespace
-const normalizeBase = (url) => String(url || "").trim().replace(/\/+$/, "");
-
-const extraApiUrl =
-  Constants.expoConfig?.extra?.apiUrl ||
-  Constants.manifest2?.extra?.apiUrl ||
-  Constants.manifest?.extra?.apiUrl ||
-  "";
+// Normalize to remove any trailing slashes
+const normalizeBase = (url) =>
+  url && url.endsWith("/") ? url.slice(0, -1) : url;
 
 const extractExpoHost = () => {
   const hostUri =
     Constants.expoConfig?.hostUri ||
-    Constants.expoConfig?.extra?.expoGo?.debuggerHost ||
     Constants.manifest2?.extra?.expoGo?.debuggerHost ||
     Constants.manifest?.debuggerHost ||
     "";
-
-  const host = String(hostUri).split(":")[0].trim();
-  return host || null;
+  return String(hostUri).split(":")[0] || "";
 };
 
 const rewriteLocalhostForDevice = (url) => {
@@ -54,41 +58,20 @@ const rewriteLocalhostForDevice = (url) => {
   }
 };
 
-const isDev = __DEV__ || process.env.NODE_ENV === "development";
-
 const selectedBase =
   Platform.OS === "web"
-    ? isDev
-      ? DEV_API_DEFAULT
-      : ENV_API_WEB || ENV_API_DEFAULT || extraApiUrl
-    : isDev
-      ? DEV_API_DEFAULT
-      : ENV_API_NATIVE || ENV_API_DEFAULT || extraApiUrl;
+    ? ENV_API_WEB || ENV_API_DEFAULT
+    : ENV_API_NATIVE || ENV_API_DEFAULT;
 
 const resolvedBase = rewriteLocalhostForDevice(normalizeBase(selectedBase));
 
 if (!resolvedBase) {
   throw new Error(
-    "Missing EXPO_PUBLIC_API_BASE_URL. Set it in .env.local (e.g. https://api.medi-trap.com).",
+    "Missing API base URL. Set EXPO_PUBLIC_API_BASE_URL in your production environment or local .env file.",
   );
 }
 
 export const API_BASE = resolvedBase;
-
-if (
-  process.env.NODE_ENV === "production" &&
-  API_BASE.startsWith("http://") &&
-  !API_BASE.includes("localhost") &&
-  !API_BASE.includes("127.0.0.1")
-) {
-  throw new Error("In production, EXPO_PUBLIC_API_BASE_URL must use HTTPS.");
-}
-
-const normalizeToken = (token) => {
-  if (token == null) return null;
-  const normalized = String(token).trim();
-  return normalized.replace(/^Bearer\s+/i, "").trim() || null;
-};
 
 /**
  * Helper to safely build complete URLs.
@@ -107,53 +90,36 @@ export const apiUrl = (path = "") => {
 
 // JSON Fetch Helper
 export const fetchJson = async (path, options = {}) => {
-  try {
-    const url = apiUrl(path);
-    const token = normalizeToken(await secureStorage.getItem("token"));
-    const headerToken = normalizeToken(options.token || token);
-    if (__DEV__) console.log(`[API] ${options.method || "GET"} -> ${url}`);
+  const url = apiUrl(path);
+  const token = await AsyncStorage.getItem("token");
 
-    const opts = {
-      ...options,
-      method: options.method || "GET",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-        ...(headerToken ? { Authorization: `Bearer ${headerToken}` } : {}),
-      },
-    };
+  const opts = {
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...options,
+  };
 
-    const res = await fetch(url, opts);
-    const text = await res.text();
-    const isJson = res.headers.get("content-type")?.includes("application/json");
-    const body = text && isJson ? JSON.parse(text) : text;
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  const isJson = res.headers.get("content-type")?.includes("application/json");
+  const body = text && isJson ? JSON.parse(text) : text;
 
-    if (!res.ok) {
-      if (res.status === 401) {
-        await secureStorage.removeItem("token");
-        await secureStorage.removeItem("refreshToken");
-        await secureStorage.removeItem("user");
-      }
-      const err = new Error(body?.message || `Request failed ${res.status}`);
-      err.status = res.status;
-      err.body = body;
-      throw err;
+  if (!res.ok) {
+    if (res.status === 401) {
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
     }
-
-    if (Array.isArray(body)) {
-      return { data: body };
-    }
-
-    return body;
-  } catch (error) {
-    console.error("[API] fetchJson failed", {
-      path,
-      method: options.method || "GET",
-      message: error?.message || String(error),
-    });
-    throw error;
+    const err = new Error(body?.message || `Request failed ${res.status}`);
+    err.status = res.status;
+    err.body = body;
+    throw err;
   }
+
+  return body;
 };
 
 // Central request helper (Alias for fetchJson)
@@ -162,7 +128,8 @@ export const requestJson = fetchJson;
 // POST FormData Helper (Image Uploads)
 export const postForm = async (path, formData, options = {}) => {
   const url = apiUrl(path);
-  const token = normalizeToken(await secureStorage.getItem("token"));
+  const token = await AsyncStorage.getItem("token");
+
   const controller = new AbortController();
   const timeout = options.timeout || 120000;
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -178,6 +145,7 @@ export const postForm = async (path, formData, options = {}) => {
       signal: controller.signal,
     });
 
+    clearTimeout(timer);
     const text = await res.text();
     const isJson = res.headers
       .get("content-type")
@@ -192,22 +160,14 @@ export const postForm = async (path, formData, options = {}) => {
     }
 
     return body;
-  } catch (error) {
-    console.error("[API] postForm failed", {
-      path,
-      message: error?.message || String(error),
-    });
-    throw error;
-  } finally {
+  } catch (err) {
     clearTimeout(timer);
+    throw err;
   }
 };
 
 // POST JSON Helper
 export const postJson = async (path, data, options = {}) => {
-  if (__DEV__) {
-    console.log("[API] postJson payload", path, data);
-  }
   return fetchJson(path, {
     ...options,
     method: "POST",

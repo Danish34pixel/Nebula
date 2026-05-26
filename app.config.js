@@ -16,7 +16,7 @@ module.exports = {
   expo: {
     name: "Meditrap",
     slug: "Meditrap",
-    version: "26.0.0",
+    version: "45.0.0",
     orientation: "portrait",
     icon: "./assets/images/app-icon.png",
     scheme: "meditrap",
@@ -75,8 +75,7 @@ module.exports = {
       ),
       eas: {
         projectId:
-          getEnv("EAS_PROJECT_ID") ||
-          "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6",
+          getEnv("EAS_PROJECT_ID") || "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6",
       },
     },
   },

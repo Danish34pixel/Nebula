@@ -1,40 +1,39 @@
-import React, { useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Modal,
-  Dimensions,
-  Platform,
-} from "react-native";
-import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useMemo } from "react";
+import {
+  Dimensions,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const { width, height } = Dimensions.get("window");
 
 export default function StaffModel({ staff, onClose }) {
   const router = useRouter();
 
-  if (!staff) return null;
-
   const qrUrl = useMemo(() => {
-    // Correct frontend URL for the staff profile
+    if (!staff) return null;
     const profileUrl = `https://meditrap.com/Staff/${staff._id}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-      profileUrl
+      profileUrl,
     )}`;
-  }, [staff._id]);
+  }, [staff]);
 
   const formattedAddress = useMemo(() => {
-    if (!staff.address) return "N/A";
+    if (!staff) return "N/A";
     if (typeof staff.address === "object") {
       const { street, city, state, pincode } = staff.address;
       return [street, city, state, pincode].filter(Boolean).join(", ");
     }
     return staff.address;
-  }, [staff.address]);
+  }, [staff]);
+
+  if (!staff) return null;
 
   const handleOpenFull = () => {
     onClose();
@@ -54,12 +53,15 @@ export default function StaffModel({ staff, onClose }) {
           onPress={onClose}
           style={styles.backdrop}
         />
-        
+
         <View style={styles.modalCard}>
           <View style={styles.cardHeader}>
             <Image
               source={{
-                uri: staff.image || staff.profileImageUrl || "https://via.placeholder.com/400",
+                uri:
+                  staff.image ||
+                  staff.profileImageUrl ||
+                  "https://via.placeholder.com/400",
               }}
               style={styles.profileImage}
             />
@@ -67,8 +69,12 @@ export default function StaffModel({ staff, onClose }) {
               <Text style={styles.staffName} numberOfLines={1}>
                 {staff.fullName || staff.name}
               </Text>
-              <Text style={styles.staffContact}>{staff.contact || staff.phone || "N/A"}</Text>
-              <Text style={styles.staffEmail} numberOfLines={1}>{staff.email || "N/A"}</Text>
+              <Text style={styles.staffContact}>
+                {staff.contact || staff.phone || "N/A"}
+              </Text>
+              <Text style={styles.staffEmail} numberOfLines={1}>
+                {staff.email || "N/A"}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Feather name="x" size={24} color="#64748b" />
@@ -92,7 +98,12 @@ export default function StaffModel({ staff, onClose }) {
                 style={styles.openFullBtn}
               >
                 <Text style={styles.openFullText}>Open Full Profile</Text>
-                <Feather name="external-link" size={16} color="#fff" style={{ marginLeft: 8 }} />
+                <Feather
+                  name="external-link"
+                  size={16}
+                  color="#fff"
+                  style={{ marginLeft: 8 }}
+                />
               </TouchableOpacity>
               <Text style={styles.qrLabel}>Scan to view profile</Text>
             </View>

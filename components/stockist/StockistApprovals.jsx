@@ -1,17 +1,17 @@
-import React, { useEffect, useState, useCallback, memo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Modal,
-  Alert,
-  Dimensions,
-} from "react-native";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { memo, useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { fetchJson } from "../../config/api";
 
 const { width } = Dimensions.get("window");
@@ -20,15 +20,32 @@ const RequestModal = memo(({ request, onClose, onApprove, processing }) => {
   if (!request) return null;
 
   return (
-    <Modal animationType="fade" transparent visible={!!request} onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
+    <Modal
+      animationType="fade"
+      transparent
+      visible={!!request}
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View
+          style={styles.modalContainer}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.modalHeader}>
             {request.photo ? (
-              <Image source={{ uri: request.photo }} style={styles.largeAvatar} />
+              <Image
+                source={{ uri: request.photo }}
+                style={styles.largeAvatar}
+              />
             ) : (
               <View style={styles.largeAvatarPlaceholder}>
-                <Text style={styles.largeAvatarText}>{(request.name || "?").slice(0, 2).toUpperCase()}</Text>
+                <Text style={styles.largeAvatarText}>
+                  {(request.name || "?").slice(0, 2).toUpperCase()}
+                </Text>
               </View>
             )}
             <View style={styles.headerInfo}>
@@ -40,17 +57,24 @@ const RequestModal = memo(({ request, onClose, onApprove, processing }) => {
           <View style={styles.modalBody}>
             <View style={styles.detailRow}>
               <Feather name="tag" size={16} color="#64748b" />
-              <Text style={styles.detailText}>Type: {request.kind === "staff" ? "Staff Approval" : "Purchase Card"}</Text>
+              <Text style={styles.detailText}>
+                Type:{" "}
+                {request.kind === "staff" ? "Staff Approval" : "Purchase Card"}
+              </Text>
             </View>
             <View style={styles.detailRow}>
               <Feather name="calendar" size={16} color="#64748b" />
-              <Text style={styles.detailText}>Requested: {new Date(request.createdAt).toLocaleString()}</Text>
+              <Text style={styles.detailText}>
+                Requested: {new Date(request.createdAt).toLocaleString()}
+              </Text>
             </View>
             {request.workForName ? (
               <View style={styles.detailRow}>
                 <Feather name="briefcase" size={16} color="#64748b" />
                 <Text style={styles.detailText}>
-                  Works at: {request.workForType === "medical" ? "Medical" : "Stockist"} - {request.workForName}
+                  Works at:{" "}
+                  {request.workForType === "medical" ? "Medical" : "Stockist"} -{" "}
+                  {request.workForName}
                 </Text>
               </View>
             ) : null}
@@ -65,7 +89,11 @@ const RequestModal = memo(({ request, onClose, onApprove, processing }) => {
               onPress={() => onApprove(request)}
               disabled={processing}
             >
-              {processing ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.approveBtnText}>Approve</Text>}
+              {processing ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.approveBtnText}>Approve</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -73,6 +101,8 @@ const RequestModal = memo(({ request, onClose, onApprove, processing }) => {
     </Modal>
   );
 });
+
+RequestModal.displayName = "RequestModal";
 
 export default function StockistApprovals() {
   const [requests, setRequests] = useState([]);
@@ -100,8 +130,11 @@ export default function StockistApprovals() {
       let purchaseRequests = purchasingRes?.data || [];
       if (currentStockistId) {
         purchaseRequests = purchaseRequests.filter((req) => {
-          if (!Array.isArray(req.approvals) || req.approvals.length === 0) return true;
-          return !req.approvals.some((a) => String(a.stockist) === String(currentStockistId));
+          if (!Array.isArray(req.approvals) || req.approvals.length === 0)
+            return true;
+          return !req.approvals.some(
+            (a) => String(a.stockist) === String(currentStockistId),
+          );
         });
       }
 
@@ -124,7 +157,8 @@ export default function StockistApprovals() {
       }));
 
       const merged = [...normalizedStaff, ...normalizedPurchasing].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
       setRequests(merged);
     } catch (err) {
@@ -148,12 +182,20 @@ export default function StockistApprovals() {
       if (request.kind === "staff") {
         await fetchJson(`/api/staff/${id}/approve`, { method: "PATCH" });
       } else {
-        await fetchJson(`/api/purchasing-card/approve/${id}`, { method: "POST", body: JSON.stringify({}) });
+        await fetchJson(`/api/purchasing-card/approve/${id}`, {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
       }
 
       setRequests((rs) => rs.filter((r) => String(r._id) !== String(id)));
       setSelectedRequest(null);
-      Alert.alert("Approved", request.kind === "staff" ? "Staff request approved." : "Purchasing card request approved.");
+      Alert.alert(
+        "Approved",
+        request.kind === "staff"
+          ? "Staff request approved."
+          : "Purchasing card request approved.",
+      );
     } catch (err) {
       Alert.alert("Error", err.message || "Approval failed");
     } finally {
@@ -161,7 +203,8 @@ export default function StockistApprovals() {
     }
   };
 
-  if (loading) return <ActivityIndicator style={styles.center} color="#06b6d4" />;
+  if (loading)
+    return <ActivityIndicator style={styles.center} color="#06b6d4" />;
   if (error) return <Text style={styles.errorText}>{error}</Text>;
   if (!requests || requests.length === 0) {
     return (
@@ -175,28 +218,47 @@ export default function StockistApprovals() {
   return (
     <View style={styles.container}>
       {requests.map((r) => (
-        <TouchableOpacity key={`${r.kind}-${r._id}`} onPress={() => setSelectedRequest(r)} style={styles.requestCard}>
+        <TouchableOpacity
+          key={`${r.kind}-${r._id}`}
+          onPress={() => setSelectedRequest(r)}
+          style={styles.requestCard}
+        >
           <View style={styles.cardMain}>
             {r.photo ? (
               <Image source={{ uri: r.photo }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{(r.name || "?").slice(0, 1).toUpperCase()}</Text>
+                <Text style={styles.avatarText}>
+                  {(r.name || "?").slice(0, 1).toUpperCase()}
+                </Text>
               </View>
             )}
             <View style={styles.cardInfo}>
               <Text style={styles.requesterName}>{r.name}</Text>
-              <Text style={styles.dateText}>{new Date(r.createdAt).toLocaleDateString()}</Text>
-              <Text style={styles.kindText}>{r.kind === "staff" ? "Staff Approval" : "Purchase Card Approval"}</Text>
+              <Text style={styles.dateText}>
+                {new Date(r.createdAt).toLocaleDateString()}
+              </Text>
+              <Text style={styles.kindText}>
+                {r.kind === "staff"
+                  ? "Staff Approval"
+                  : "Purchase Card Approval"}
+              </Text>
             </View>
           </View>
 
           <TouchableOpacity
-            style={[styles.smallApproveBtn, processing[r._id] && styles.btnDisabled]}
+            style={[
+              styles.smallApproveBtn,
+              processing[r._id] && styles.btnDisabled,
+            ]}
             onPress={() => approve(r)}
             disabled={processing[r._id]}
           >
-            {processing[r._id] ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="check" size={18} color="#fff" />}
+            {processing[r._id] ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Feather name="check" size={18} color="#fff" />
+            )}
           </TouchableOpacity>
         </TouchableOpacity>
       ))}
@@ -214,9 +276,19 @@ export default function StockistApprovals() {
 const styles = StyleSheet.create({
   container: { paddingBottom: 20 },
   center: { marginTop: 40 },
-  errorText: { color: "#ef4444", textAlign: "center", marginTop: 20, fontWeight: "600" },
+  errorText: {
+    color: "#ef4444",
+    textAlign: "center",
+    marginTop: 20,
+    fontWeight: "600",
+  },
   emptyState: { alignItems: "center", padding: 60, opacity: 0.5 },
-  emptyText: { marginTop: 12, fontSize: 16, color: "#64748b", fontWeight: "600" },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#64748b",
+    fontWeight: "600",
+  },
   requestCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
@@ -234,19 +306,53 @@ const styles = StyleSheet.create({
   },
   cardMain: { flexDirection: "row", alignItems: "center", flex: 1 },
   avatar: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#f1f5f9", justifyContent: "center", alignItems: "center" },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#f1f5f9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   avatarText: { fontWeight: "700", color: "#64748b" },
   cardInfo: { marginLeft: 12, flex: 1 },
   requesterName: { fontSize: 16, fontWeight: "700", color: "#1e293b" },
   dateText: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
   kindText: { fontSize: 11, color: "#0f766e", marginTop: 3, fontWeight: "700" },
-  smallApproveBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#10b981", justifyContent: "center", alignItems: "center" },
+  smallApproveBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#10b981",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   btnDisabled: { opacity: 0.7 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
-  modalContainer: { width: width * 0.85, backgroundColor: "#fff", borderRadius: 28, padding: 24, elevation: 20 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: width * 0.85,
+    backgroundColor: "#fff",
+    borderRadius: 28,
+    padding: 24,
+    elevation: 20,
+  },
   modalHeader: { flexDirection: "row", alignItems: "center", marginBottom: 24 },
   largeAvatar: { width: 64, height: 64, borderRadius: 32 },
-  largeAvatarPlaceholder: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#f8fafc", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#e2e8f0" },
+  largeAvatarPlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#f8fafc",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
   largeAvatarText: { fontSize: 24, fontWeight: "800", color: "#10b981" },
   headerInfo: { marginLeft: 16, flex: 1 },
   modalName: { fontSize: 18, fontWeight: "800", color: "#1e293b" },
@@ -255,8 +361,20 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   detailText: { fontSize: 14, color: "#475569", fontWeight: "500" },
   modalFooter: { flexDirection: "row", gap: 12 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: "#f1f5f9", alignItems: "center" },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+  },
   cancelBtnText: { fontWeight: "700", color: "#64748b" },
-  approveBtn: { flex: 2, paddingVertical: 14, borderRadius: 12, backgroundColor: "#10b981", alignItems: "center" },
+  approveBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#10b981",
+    alignItems: "center",
+  },
   approveBtnText: { fontWeight: "700", color: "#fff" },
 });

@@ -12,7 +12,7 @@ const getExpoExtra = () =>
 const getEnvValue = (key, fallback = "") =>
   process.env[key] || getExpoExtra()[key] || fallback;
 
-const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:80" : "";
+const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:5000" : "";
 const PROD_DEFAULT_API_BASE_URL = "https://medi-trap.com";
 
 // Normalize to remove any trailing slashes
@@ -83,10 +83,10 @@ const getResolvedBase = () => {
         parsed.hostname === "medi-trap.com" ||
         parsed.hostname === "www.medi-trap.com"
       ) {
-        return normalizeBase("http://localhost:80");
+        return normalizeBase("http://localhost:5000");
       }
     } catch {
-      return normalizeBase("http://localhost:80");
+      return normalizeBase("http://localhost:5000");
     }
   }
 

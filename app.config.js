@@ -8,7 +8,17 @@ const envFile = process.env.APP_ENV
     ? ".env.production"
     : ".env.local";
 
-expand(config({ path: envFile, silent: true }));
+const loadedEnv = config({ path: envFile, silent: true });
+expand(loadedEnv);
+
+if (
+  process.env.NODE_ENV === "production" &&
+  (!loadedEnv ||
+    !loadedEnv.parsed ||
+    Object.keys(loadedEnv.parsed).length === 0)
+) {
+  expand(config({ path: ".env.local", silent: true }));
+}
 
 const getEnv = (key, fallback = "") => process.env[key] || fallback;
 
@@ -16,7 +26,7 @@ module.exports = {
   expo: {
     name: "Meditrap",
     slug: "Meditrap",
-    version: "43",
+    version: "45",
     orientation: "portrait",
     icon: "./assets/images/app-icon.png",
     scheme: "meditrap",
@@ -64,19 +74,22 @@ module.exports = {
     },
     extra: {
       router: {},
-      apiUrl: getEnv("EXPO_PUBLIC_API_URL", "https://medi-trap.com/"),
+      apiUrl: getEnv("EXPO_PUBLIC_API_URL", "https://api.medi-trap.com/"),
       EXPO_PUBLIC_API_BASE_URL: getEnv(
         "EXPO_PUBLIC_API_BASE_URL",
-        getEnv("EXPO_PUBLIC_API_URL"),
+        getEnv("EXPO_PUBLIC_API_URL", "https://api.medi-trap.com"),
       ),
-      EXPO_PUBLIC_API_BASE_URL_WEB: getEnv("EXPO_PUBLIC_API_BASE_URL_WEB"),
+      EXPO_PUBLIC_API_BASE_URL_WEB: getEnv(
+        "EXPO_PUBLIC_API_BASE_URL_WEB",
+        "https://api.medi-trap.com",
+      ),
       EXPO_PUBLIC_API_BASE_URL_NATIVE: getEnv(
         "EXPO_PUBLIC_API_BASE_URL_NATIVE",
+        "https://api.medi-trap.com",
       ),
       eas: {
         projectId:
-          getEnv("EAS_PROJECT_ID") ||
-          "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6",
+          getEnv("EAS_PROJECT_ID") || "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6",
       },
     },
   },

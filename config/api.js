@@ -1,7 +1,7 @@
 // Central API configuration helper for Meditrap (React Native / Expo)
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { secureStorage } from "../utils/secureStore";
 
 const getExpoExtra = () =>
   Constants.expoConfig?.extra ||
@@ -12,8 +12,8 @@ const getExpoExtra = () =>
 const getEnvValue = (key, fallback = "") =>
   process.env[key] || getExpoExtra()[key] || fallback;
 
-const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:5000" : "";
-const PROD_DEFAULT_API_BASE_URL = "https://medi-trap.com";
+const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:80" : "";
+const PROD_DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
 
 // Normalize to remove any trailing slashes
 const normalizeBase = (url) =>
@@ -130,7 +130,7 @@ export const apiUrl = (path = "") => {
 // JSON Fetch Helper
 export const fetchJson = async (path, options = {}) => {
   const url = apiUrl(path);
-  const token = await AsyncStorage.getItem("token");
+  const token = normalizeToken(await secureStorage.getItem("token"));
 
   const opts = {
     ...options,
@@ -149,8 +149,8 @@ export const fetchJson = async (path, options = {}) => {
 
   if (!res.ok) {
     if (res.status === 401) {
-      await AsyncStorage.removeItem("token");
-      await AsyncStorage.removeItem("user");
+      await secureStorage.removeItem("token");
+      await secureStorage.removeItem("user");
     }
     const err = new Error(body?.message || `Request failed ${res.status}`);
     err.status = res.status;
@@ -167,7 +167,7 @@ export const requestJson = fetchJson;
 // POST FormData Helper (Image Uploads)
 export const postForm = async (path, formData, options = {}) => {
   const url = apiUrl(path);
-  const token = await AsyncStorage.getItem("token");
+  const token = normalizeToken(await secureStorage.getItem("token"));
 
   const controller = new AbortController();
   const timeout = options.timeout || 120000;

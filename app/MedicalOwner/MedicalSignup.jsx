@@ -1,24 +1,24 @@
-import React, { useState } from "react";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  Image,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiUrl, postForm } from "../../config/api";
+import { postForm } from "../../config/api";
 
 const InputField = ({
   icon,
@@ -86,7 +86,9 @@ export default function MedicalSignup() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType?.Images || "images",
+      mediaTypes:
+        ImagePicker.MediaTypeOptions?.Images ||
+        ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.8,
     });

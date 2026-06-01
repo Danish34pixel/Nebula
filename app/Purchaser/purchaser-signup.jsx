@@ -1,24 +1,24 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  Image,
-  Platform,
-  KeyboardAvoidingView,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { fetchJson, postForm, postJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
-import { apiUrl, fetchJson, postForm, postJson } from "../../config/api";
 
 export default function PurchaserSignup() {
   const router = useRouter();
@@ -845,7 +845,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     shadowColor: "#000",
     shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
     shadowOffset: { width: 0, height: 4 },
     elevation: 20,
     zIndex: 9999,

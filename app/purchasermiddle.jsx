@@ -1,26 +1,25 @@
-import React, { useEffect, useState, useRef } from "react";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
   ActivityIndicator,
   SafeAreaView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiUrl } from "../config/api";
-import { secureStorage } from "../utils/secureStore";
 import { fetchJson } from "../config/api";
+import { secureStorage } from "../utils/secureStore";
 
 const PurchaserVerification = () => {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [approvalCount, setApprovalCount] = useState(0);
   const [message, setMessage] = useState(
-    "Thanks for registering. Your documents are being reviewed by the selected stockists."
+    "Thanks for registering. Your documents are being reviewed by the selected stockists.",
   );
   const timerRef = useRef(null);
 
@@ -35,7 +34,9 @@ const PurchaserVerification = () => {
       try {
         const token = await secureStorage.getItem("token");
         const purchaserId = await AsyncStorage.getItem("pendingPurchaserId");
-        const purchasingRequestId = await AsyncStorage.getItem("pendingPurchasingRequestId");
+        const purchasingRequestId = await AsyncStorage.getItem(
+          "pendingPurchasingRequestId",
+        );
         const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
         // ── 1. Check the Purchaser document for approved flag ──────────────
@@ -47,7 +48,10 @@ const PurchaserVerification = () => {
             if (json && json.data) {
               if (json.data.approved || json.data.verified) {
                 console.log("[StatusCheck] APPROVED! Redirecting to Login...");
-                await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
+                await AsyncStorage.multiRemove([
+                  "pendingPurchaserId",
+                  "pendingPurchasingRequestId",
+                ]);
                 router.replace("/Purchaser/purchaser-login");
                 return;
               }
@@ -60,12 +64,17 @@ const PurchaserVerification = () => {
         // ── 2. Check the PurchaseCardRequest for approval count ───────────
         if (purchasingRequestId && looksLikeObjectId(purchasingRequestId)) {
           try {
-            const json2 = await fetchJson(`/purchasing-card/status/${purchasingRequestId}`);
+            const json2 = await fetchJson(
+              `/purchasing-card/status/${purchasingRequestId}`,
+            );
             if (json2 && json2.data) {
               const count = json2.data.approvals || 0;
               setApprovalCount(count);
               if (json2.data.status === "approved" || count >= 3) {
-                await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
+                await AsyncStorage.multiRemove([
+                  "pendingPurchaserId",
+                  "pendingPurchasingRequestId",
+                ]);
                 router.replace("/Purchaser/purchaser-login");
                 return;
               }
@@ -76,7 +85,10 @@ const PurchaserVerification = () => {
               if (purchaserId) {
                 const j3 = await fetchJson(`/purchaser/${purchaserId}`);
                 if (j3?.data && (j3.data.approved || j3.data.verified)) {
-                  await AsyncStorage.multiRemove(["pendingPurchaserId", "pendingPurchasingRequestId"]);
+                  await AsyncStorage.multiRemove([
+                    "pendingPurchaserId",
+                    "pendingPurchasingRequestId",
+                  ]);
                   router.replace("/Purchaser/purchaser-login");
                   return;
                 }
@@ -164,9 +176,15 @@ const PurchaserVerification = () => {
 
           {!isFailed ? (
             <View style={styles.footer}>
-              <Feather name="info" size={16} color="#94a3b8" style={styles.infoIcon} />
+              <Feather
+                name="info"
+                size={16}
+                color="#94a3b8"
+                style={styles.infoIcon}
+              />
               <Text style={styles.footerText}>
-                You can close the app and come back. We'll unlock your account once all 3 stockists approve.
+                You can close the app and come back. We&apos;ll unlock your
+                account once all 3 stockists approve.
               </Text>
             </View>
           ) : null}
@@ -301,7 +319,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     color: "#fff",
     fontWeight: "bold",
-  }
+  },
 });
 
 export default PurchaserVerification;

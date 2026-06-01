@@ -1,28 +1,26 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  SafeAreaView,
-  RefreshControl,
+  Alert,
+  Animated,
   Dimensions,
   Image,
-  Alert,
-  Platform,
-  Animated,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiUrl } from "../../config/api";
-import { secureStorage } from "../../utils/secureStore";
 import IdentityCard from "../../components/stockist/IdentityCard";
 import StockistApprovals from "../../components/stockist/StockistApprovals";
+import { apiUrl } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 import StaffModel from "../Staff/StaffModel";
 
 const { width } = Dimensions.get("window");
@@ -350,7 +348,16 @@ export default function StockistDashboard() {
 
   const collectStockistCompanyKeys = (stockist) => {
     const items = [];
-    const keys = ["companies", "companyNames", "partnerCompanies", "items"];
+    const keys = [
+      "companies",
+      "companyNames",
+      "partnerCompanies",
+      "items",
+      "company",
+      "companyId",
+      "companyIds",
+      "stockistCompanies",
+    ];
     keys.forEach((key) => {
       const field = stockist?.[key];
       if (Array.isArray(field)) items.push(...field);
@@ -703,11 +710,21 @@ export default function StockistDashboard() {
       );
 
       if (__DEV__) {
-        console.log(`[Dashboard] Filtering complete for ${target.name || target.medicalName}`);
-        console.log(`- Matched Companies: ${filteredCompanies.length} (from ${allCompanies.length} total)`);
-        console.log(`- Matched Medicines: ${filteredMeds.length} (from ${allMeds.length} total)`);
+        console.log(
+          `[Dashboard] Filtering complete for ${target.name || target.medicalName}`,
+        );
+        console.log(
+          `- Matched Companies: ${filteredCompanies.length} (from ${allCompanies.length} total)`,
+        );
+        console.log(
+          `- Matched Medicines: ${filteredMeds.length} (from ${allMeds.length} total)`,
+        );
         if (filteredCompanies.length === 0) {
-          console.warn("[Dashboard] No companies matched by ID. Check if linkages are ID-based or if stockist identifiers [", Array.from(targetIds).join(','), "] are correct.");
+          console.warn(
+            "[Dashboard] No companies matched by ID. Check if linkages are ID-based or if stockist identifiers [",
+            Array.from(targetIds).join(","),
+            "] are correct.",
+          );
         }
       }
 

@@ -19,6 +19,12 @@ const PROD_DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
 const normalizeBase = (url) =>
   url && url.endsWith("/") ? url.slice(0, -1) : url;
 
+const normalizeToken = (token) => {
+  if (token == null) return null;
+  const normalized = String(token).trim();
+  return normalized.replace(/^Bearer\s+/i, "").trim() || null;
+};
+
 const isWebLocalhost = () => {
   if (Platform.OS !== "web") return false;
   try {

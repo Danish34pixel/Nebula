@@ -1,30 +1,24 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from "react";
+import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Pressable,
-  ScrollView,
-  StyleSheet,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, useFocusEffect } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { apiUrl, fetchJson, requestJson, postJson } from "../../config/api";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { postJson, requestJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 
 const { width, height } = Dimensions.get("window");
@@ -140,6 +134,9 @@ export default function AdminCreateMedicine() {
     );
   }, [stockistsList, stockistSearch]);
 
+  const getCompanyId = (company) =>
+    company?._id || company?.id || company || null;
+
   const setField = (path, value) => {
     setForm((f) => ({ ...f, [path]: value }));
   };
@@ -225,10 +222,11 @@ export default function AdminCreateMedicine() {
   };
 
   const CompanyCard = ({ company }) => {
-    const isSelected = form.company === company._id;
+    const companyId = getCompanyId(company);
+    const isSelected = form.company === companyId;
     return (
       <TouchableOpacity
-        onPress={() => setField("company", company._id)}
+        onPress={() => setField("company", companyId)}
         style={[styles.miniCard, isSelected ? styles.miniCardSelected : null]}
       >
         <LinearGradient

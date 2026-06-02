@@ -75,18 +75,96 @@ const Avatar = ({ name, size = 48, style }) => {
   );
 };
 
-const CompanyCard = ({ company, productCount = 0 }) => {
-  const router = useRouter();
-  const goToCompany = () => {
-    if (company?._id) router.push(`/company/${company._id}/products`);
+const normalizeStockist = (stockist) => {
+  if (!stockist) return stockist;
+  const normalized = {
+    ...stockist,
+    ...(stockist.data || {}),
+    ...(stockist.user || {}),
+    ...(stockist.data?.user || {}),
   };
+  return {
+    ...normalized,
+    address:
+      normalized.address || normalized.fullAddress || normalized.location,
+    licenseNumber:
+      normalized.licenseNumber ||
+      normalized.licenseNo ||
+      normalized.drivingLicense ||
+      normalized.dlNo ||
+      null,
+    contactNumber:
+      normalized.contactNumber ||
+      normalized.cntxNumber ||
+      normalized.phone ||
+      normalized.contactNo ||
+      normalized.mobileNumber ||
+      null,
+  };
+};
 
+const getCompanyId = (company) =>
+  company?._id ||
+  company?.id ||
+  company?.companyId ||
+  company?.company?._id ||
+  null;
+
+const normalizeText = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .trim();
+
+const getCompanyNames = (company) =>
+  [company?.name, company?.companyName, company?.title, company?.shortName]
+    .filter(Boolean)
+    .map(normalizeText);
+
+const countCompanyMedicines = (company, medicines) => {
+  if (!company || !Array.isArray(medicines)) return 0;
+
+  if (Array.isArray(company?.Medicines) && company.Medicines.length > 0)
+    return company.Medicines.length;
+  if (Array.isArray(company?.medicines) && company.medicines.length > 0)
+    return company.medicines.length;
+  if (Array.isArray(company?.items) && company.items.length > 0)
+    return company.items.length;
+  if (Array.isArray(company?.products) && company.products.length > 0)
+    return company.products.length;
+
+  const companyId = getCompanyId(company);
+  const companyNames = getCompanyNames(company);
+
+  return medicines.filter((med) => {
+    if (!med) return false;
+
+    const medCompanyId =
+      med?.company?._id ||
+      med?.company?.id ||
+      med?.companyId ||
+      med?.company?._id ||
+      med?.companyIds?.[0] ||
+      null;
+
+    if (companyId && medCompanyId && String(medCompanyId) === String(companyId))
+      return true;
+
+    if (
+      Array.isArray(med?.companyIds) &&
+      med.companyIds.some((id) => String(id) === String(companyId))
+    )
+      return true;
+
+    const medCompanyName = normalizeText(
+      med?.company?.name || med?.companyName || med?.companyTitle,
+    );
+    return medCompanyName && companyNames.includes(medCompanyName);
+  }).length;
+};
+
+const CompanyCard = ({ company, medicineCount = 0 }) => {
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={goToCompany}
-      style={styles.cardWrapper}
-    >
+    <View style={styles.cardWrapper}>
       <LinearGradient
         colors={["#ffffff", "#fff7ed"]}
         style={[styles.cardContainer, { borderColor: "#ffedd5" }]}
@@ -106,19 +184,11 @@ const CompanyCard = ({ company, productCount = 0 }) => {
                 company.shortName ||
                 "Company"}
             </Text>
-            <Text style={styles.cardSubtitle}>{productCount} products</Text>
+            <Text style={styles.cardSubtitle}>{medicineCount} medicines</Text>
           </View>
         </View>
-        <TouchableOpacity
-          onPress={goToCompany}
-          style={[styles.actionButton, { backgroundColor: "#f97316" }]}
-        >
-          <Text style={styles.actionButtonText}>
-            {company?._id ? "View Details →" : "No Details"}
-          </Text>
-        </TouchableOpacity>
       </LinearGradient>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -615,7 +685,7 @@ export default function StockistDashboard() {
 
       const targetIds = new Set(extractReferenceIds(target).map(String));
 
-      setStockist(target);
+      setStockist(normalizeStockist(target));
 
       const [cRes, mRes, sRes] = await Promise.all([
         fetch(apiUrl("/company"), { headers }),
@@ -993,7 +1063,16 @@ export default function StockistDashboard() {
               ) : filteredData[activeTab].length > 0 ? (
                 filteredData[activeTab].map((item, i) => {
                   if (activeTab === "companies")
-                    return <CompanyCard key={i} company={item} />;
+                    return (
+                      <CompanyCard
+                        key={i}
+                        company={item}
+                        medicineCount={countCompanyMedicines(
+                          item,
+                          medicinesList,
+                        )}
+                      />
+                    );
                   if (activeTab === "medicines")
                     return <MedicineCard key={i} medicine={item} />;
                   if (activeTab === "staff")

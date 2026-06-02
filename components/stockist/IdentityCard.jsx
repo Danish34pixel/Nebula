@@ -1,15 +1,13 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Dimensions,
-  Platform,
-} from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import {
+  Dimensions,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 const { width } = Dimensions.get("window");
 
@@ -66,7 +64,7 @@ function formatDate(d) {
   try {
     const dt = new Date(d);
     if (isNaN(dt.getTime())) return "—";
-    const options = { year: 'numeric', month: 'short', day: '2-digit' };
+    const options = { year: "numeric", month: "short", day: "2-digit" };
     return dt.toLocaleDateString(undefined, options);
   } catch {
     return "—";
@@ -76,8 +74,50 @@ function formatDate(d) {
 export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
   if (!stockist) return null;
 
-  const displayName = stockist.contactPerson || stockist.name || "Authorized User";
-  const idNum = stockist._id ? String(stockist._id).slice(-8).toUpperCase() : "MT-88291";
+  const normalizedStockist = {
+    ...stockist,
+    ...(stockist.data || {}),
+    ...(stockist.user || {}),
+    ...(stockist.data?.user || {}),
+  };
+
+  const licenseNumber =
+    normalizedStockist.licenseNumber ||
+    normalizedStockist.licenseNo ||
+    normalizedStockist.drivingLicense ||
+    "N/A";
+
+  const phoneNumber =
+    normalizedStockist.contactNumber ||
+    normalizedStockist.cntxNumber ||
+    normalizedStockist.phone ||
+    normalizedStockist.contactNo ||
+    normalizedStockist.mobileNumber ||
+    "N/A";
+
+  const formattedAddress = (() => {
+    const address =
+      normalizedStockist.address ||
+      normalizedStockist.fullAddress ||
+      normalizedStockist.location;
+    if (!address) return "N/A";
+    if (typeof address === "object") {
+      return (
+        [address.street, address.city, address.state, address.pincode]
+          .filter(Boolean)
+          .join(", ") || "N/A"
+      );
+    }
+    return address;
+  })();
+
+  const displayName =
+    normalizedStockist.contactPerson ||
+    normalizedStockist.name ||
+    "Authorized User";
+  const idNum = stockist._id
+    ? String(stockist._id).slice(-8).toUpperCase()
+    : "MT-88291";
 
   return (
     <View style={styles.container}>
@@ -101,11 +141,21 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
                 <Text style={styles.statusText}>VERIFIED</Text>
               </View>
             </View>
-            
+
             {/* Card Pattern Decoration */}
             <View style={styles.patternLayer}>
-              <View style={[styles.patternCircle, { left: -50, top: -20, opacity: 0.1 }]} />
-              <View style={[styles.patternCircle, { right: -30, bottom: -10, opacity: 0.15 }]} />
+              <View
+                style={[
+                  styles.patternCircle,
+                  { left: -50, top: -20, opacity: 0.1 },
+                ]}
+              />
+              <View
+                style={[
+                  styles.patternCircle,
+                  { right: -30, bottom: -10, opacity: 0.15 },
+                ]}
+              />
             </View>
           </LinearGradient>
 
@@ -127,10 +177,12 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
                 style={styles.photoOverlay}
               />
             </View>
-            
+
             <View style={styles.nameBadge}>
               <Text style={styles.roleText}>
-                {String(stockist.role || stockist.roleType || "STOCKIST").toUpperCase().replace("PROPRITER", "PROPRIETOR")}
+                {String(stockist.role || stockist.roleType || "STOCKIST")
+                  .toUpperCase()
+                  .replace("PROPRITER", "PROPRIETOR")}
               </Text>
             </View>
           </View>
@@ -140,7 +192,7 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
             <Text style={styles.nameText} numberOfLines={1}>
               {displayName}
             </Text>
-            
+
             <View style={styles.idContainer}>
               <Text style={styles.idLabel}>ID NO:</Text>
               <Text style={styles.idValue}>{idNum}</Text>
@@ -159,7 +211,10 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
               <View style={styles.statItem}>
                 <Feather name="briefcase" size={12} color="#6366f1" />
                 <Text style={styles.statValue} numberOfLines={1}>
-                  {stockist.name || stockist.companyName || stockist.firmName || "N/A"}
+                  {stockist.name ||
+                    stockist.companyName ||
+                    stockist.firmName ||
+                    "N/A"}
                 </Text>
                 <Text style={styles.statLabel}>FIRM NAME</Text>
               </View>
@@ -167,9 +222,39 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
               <View style={styles.statItem}>
                 <Feather name="droplet" size={12} color="#ef4444" />
                 <Text style={styles.statValue} numberOfLines={1}>
-                  {stockist.bloodGroup || stockist.blood || stockist.user?.bloodGroup || "O+"}
+                  {stockist.bloodGroup ||
+                    stockist.blood ||
+                    stockist.user?.bloodGroup ||
+                    "O+"}
                 </Text>
                 <Text style={styles.statLabel}>BLOOD</Text>
+              </View>
+            </View>
+
+            {/* Additional Details Section */}
+            <View style={styles.detailsSection}>
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Feather name="credit-card" size={14} color="#0d9488" />
+                  <Text style={styles.detailLabel}>LICENSE NO</Text>
+                  <Text style={styles.detailValue} numberOfLines={2}>
+                    {licenseNumber}
+                  </Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Feather name="map-pin" size={14} color="#0d9488" />
+                  <Text style={styles.detailLabel}>ADDRESS</Text>
+                  <Text style={styles.detailValue} numberOfLines={2}>
+                    {formattedAddress}
+                  </Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Feather name="phone" size={14} color="#0d9488" />
+                  <Text style={styles.detailLabel}>PHONE</Text>
+                  <Text style={styles.detailValue} numberOfLines={2}>
+                    {phoneNumber}
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -185,14 +270,13 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
                 </View>
                 <Text style={styles.scanHint}>SCAN TO VERIFY</Text>
               </View>
-              
+
               <View style={styles.securitySeal}>
                 <Feather name="shield" size={24} color="#f59e0b" />
                 <Text style={styles.sealText}>AUTHENTIC</Text>
               </View>
             </View>
           </View>
-
         </LinearGradient>
       </View>
     </View>
@@ -208,7 +292,7 @@ const styles = StyleSheet.create({
   },
   cardFrame: {
     width: Math.min(360, width - 32),
-    minHeight: 560,
+    minHeight: 680,
     borderRadius: 32,
     backgroundColor: "#fff",
     ...Platform.select({
@@ -265,7 +349,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 6,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#4ade80" },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#4ade80",
+  },
   statusText: { color: "#fff", fontSize: 10, fontWeight: "800" },
   patternLayer: { ...StyleSheet.absoluteFillObject },
   patternCircle: {
@@ -294,7 +383,11 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   profileImage: { width: "100%", height: "100%" },
-  avatarPlaceholder: { flex: 1, justifyContent: "center", alignItems: "center" },
+  avatarPlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   photoOverlay: { ...StyleSheet.absoluteFillObject },
   nameBadge: {
     backgroundColor: "#1e1b4b",
@@ -307,7 +400,12 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 4,
   },
-  roleText: { color: "#fff", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
+  roleText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
   infoBody: {
     flex: 1,
     alignItems: "center",
@@ -329,7 +427,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   idLabel: { fontSize: 12, color: "#64748b", fontWeight: "700" },
-  idValue: { fontSize: 12, color: "#4338ca", fontWeight: "800", letterSpacing: 1 },
+  idValue: {
+    fontSize: 12,
+    color: "#4338ca",
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
   statsGrid: {
     flexDirection: "row",
     width: "100%",
@@ -344,8 +447,41 @@ const styles = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: "center", gap: 3 },
   statValue: { fontSize: 11, fontWeight: "800", color: "#1e293b" },
-  statLabel: { fontSize: 8, fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" },
+  statLabel: {
+    fontSize: 8,
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+  },
   dividerV: { width: 1, height: "100%", backgroundColor: "#e2e8f0" },
+  detailsSection: {
+    width: "100%",
+    backgroundColor: "#f0fdfa",
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#ccfbf1",
+  },
+  detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
+  detailItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 8,
+  },
+  detailLabel: {
+    fontSize: 8,
+    fontWeight: "700",
+    color: "#0d9488",
+    textTransform: "uppercase",
+  },
+  detailValue: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#0f766e",
+    textAlign: "center",
+  },
   bottomSection: {
     flexDirection: "row",
     width: "100%",
@@ -376,5 +512,10 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 12,
   },
-  sealText: { fontSize: 9, fontWeight: "900", color: "#f59e0b", letterSpacing: 1 },
+  sealText: {
+    fontSize: 9,
+    fontWeight: "900",
+    color: "#f59e0b",
+    letterSpacing: 1,
+  },
 });

@@ -11,7 +11,7 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "abb"
+        "buildType": "app-bundle"
       }
     },
     "production": {

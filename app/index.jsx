@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
   Animated,
+  Dimensions,
+  Image,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
 
@@ -28,15 +28,23 @@ const ASSETS = {
 
 const Logo = ({ style }) => (
   <View style={[styles.logoContainer, style]}>
-    <Image source={ASSETS.finalLogo} style={styles.logoMain} resizeMode="contain" />
-    <Image source={ASSETS.logoSmall} style={styles.logoSecondary} resizeMode="contain" />
+    <Image
+      source={ASSETS.finalLogo}
+      style={styles.logoMain}
+      resizeMode="contain"
+    />
+    <Image
+      source={ASSETS.logoSmall}
+      style={styles.logoSecondary}
+      resizeMode="contain"
+    />
   </View>
 );
 
 export default function Page() {
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState(null);
-  
+
   // Animation for floating background particles
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -53,7 +61,7 @@ export default function Page() {
           duration: 2000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, []);
 
@@ -66,18 +74,18 @@ export default function Page() {
       description: "Manage inventory",
     },
     {
-      id: "Purchaser",
-      name: "Purchaser",
-      icon: ASSETS.purchaser,
-      gradient: ["#60a5fa", "#6366f1"], // blue-400 to indigo-500
-      description: "Handle procurement",
-    },
-    {
       id: "Medical Owner",
       name: "Medical (Retailer)",
       icon: ASSETS.medicalOwner,
       gradient: ["#fb923c", "#ef4444"], // orange-400 to red-500
       description: "Clinic management",
+    },
+    {
+      id: "Purchaser",
+      name: "Purchaser",
+      icon: ASSETS.purchaser,
+      gradient: ["#60a5fa", "#6366f1"], // blue-400 to indigo-500
+      description: "Handle procurement",
     },
     {
       id: "Staff",
@@ -98,7 +106,7 @@ export default function Page() {
       } else if (roleId === "Medical Owner") {
         router.push("/login");
       } else if (roleId === "Staff") {
-        router.push("/Staff/staff-login"); 
+        router.push("/Staff/staff-login");
       } else {
         router.push("/Home");
       }
@@ -114,11 +122,21 @@ export default function Page() {
         style={styles.container}
       >
         {/* Background Decorations */}
-        <Animated.View style={[styles.bgDecoration1, { transform: [{ scale: pulseAnim }] }]}>
-           <LinearGradient colors={["rgba(96, 165, 250, 0.15)", "rgba(192, 132, 252, 0.15)"]} style={styles.blurCircle} />
+        <Animated.View
+          style={[styles.bgDecoration1, { transform: [{ scale: pulseAnim }] }]}
+        >
+          <LinearGradient
+            colors={["rgba(96, 165, 250, 0.15)", "rgba(192, 132, 252, 0.15)"]}
+            style={styles.blurCircle}
+          />
         </Animated.View>
-        <Animated.View style={[styles.bgDecoration2, { transform: [{ scale: pulseAnim }] }]}>
-           <LinearGradient colors={["rgba(52, 211, 153, 0.1)", "rgba(45, 212, 191, 0.1)"]} style={styles.blurCircle} />
+        <Animated.View
+          style={[styles.bgDecoration2, { transform: [{ scale: pulseAnim }] }]}
+        >
+          <LinearGradient
+            colors={["rgba(52, 211, 153, 0.1)", "rgba(45, 212, 191, 0.1)"]}
+            style={styles.blurCircle}
+          />
         </Animated.View>
 
         <View style={styles.cardWrapper}>
@@ -127,7 +145,10 @@ export default function Page() {
             <Text style={styles.title}>Select Your Role</Text>
           </View>
 
-          <ScrollView style={styles.rolesGridScroll} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.rolesGridScroll}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.rolesGrid}>
               {roles.map((role) => (
                 <TouchableOpacity
@@ -136,14 +157,18 @@ export default function Page() {
                   activeOpacity={0.7}
                   style={[
                     styles.roleCard,
-                    selectedRole === role.id && styles.roleCardActive
+                    selectedRole === role.id && styles.roleCardActive,
                   ]}
                 >
                   <LinearGradient
                     colors={role.gradient}
                     style={styles.iconContainer}
                   >
-                    <Image source={role.icon} style={styles.roleIcon} resizeMode="cover" />
+                    <Image
+                      source={role.icon}
+                      style={styles.roleIcon}
+                      resizeMode="cover"
+                    />
                   </LinearGradient>
 
                   <Text style={styles.roleName}>{role.name}</Text>
@@ -154,11 +179,18 @@ export default function Page() {
                       <View style={styles.activeDot} />
                     </View>
                   )}
-                  
-                  <View style={[
-                     styles.roleProgress, 
-                     { backgroundColor: selectedRole === role.id ? role.gradient[1] : 'transparent' }
-                  ]} />
+
+                  <View
+                    style={[
+                      styles.roleProgress,
+                      {
+                        backgroundColor:
+                          selectedRole === role.id
+                            ? role.gradient[1]
+                            : "transparent",
+                      },
+                    ]}
+                  />
                 </TouchableOpacity>
               ))}
             </View>

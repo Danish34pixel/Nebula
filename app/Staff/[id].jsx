@@ -30,6 +30,7 @@ export default function StaffDetails() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [stockistName, setStockistName] = useState(null);
+  const [stockistAddress, setStockistAddress] = useState(null);
 
   // Load staff data
   const loadStaff = useCallback(async () => {
@@ -75,6 +76,7 @@ export default function StaffDetails() {
         // If s is an object
         if (s && typeof s === "object") {
           setStockistName(s.name || s.companyName || s.title || null);
+          setStockistAddress(s.address || null);
           return;
         }
 
@@ -88,6 +90,7 @@ export default function StaffDetails() {
 
           if (res.ok && data?.data) {
             setStockistName(data.data.name || data.data.companyName || null);
+            setStockistAddress(data.data.address || null);
             return;
           }
         }
@@ -132,13 +135,14 @@ export default function StaffDetails() {
   };
 
   const formattedAddress = useMemo(() => {
-    if (!staff?.address) return "N/A";
-    if (typeof staff.address === "object") {
-      const { street, city, state, pincode } = staff.address;
+    const a = stockistAddress || staff?.address;
+    if (!a) return "N/A";
+    if (typeof a === "object") {
+      const { street, city, state, pincode } = a;
       return [street, city, state, pincode].filter(Boolean).join(", ");
     }
-    return staff.address;
-  }, [staff]);
+    return a;
+  }, [staff, stockistAddress]);
 
   if (loading) {
     return (
@@ -206,7 +210,7 @@ export default function StaffDetails() {
               <Text style={styles.staffName}>{staff.fullName || staff.name}</Text>
 
               <View style={styles.detailsTable}>
-                <DetailRow label="Staff ID" value={staff.staffId || staff.id || "N/A"} />
+                <DetailRow label="Staff ID" value={staff._id ? String(staff._id).slice(-8).toUpperCase() : "N/A"} />
                 <DetailRow
                   label="Approval"
                   value={(staff.approvalStatus || (staff.approved ? "approved" : "pending")).toUpperCase()}
@@ -237,7 +241,7 @@ export default function StaffDetails() {
                   <View key={i} style={[styles.barcodeLine, { height: h * 6 }]} />
                 ))}
               </View>
-              <Text style={styles.barcodeLabel}>{staff.staffId || staff.id || "000000000000"}</Text>
+              <Text style={styles.barcodeLabel}>{staff._id ? String(staff._id).toUpperCase() : "000000000000"}</Text>
             </View>
 
             {/* Footer Curves */}

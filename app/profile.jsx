@@ -6,6 +6,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl } from "../config/api";
 import { secureStorage } from "../utils/secureStore";
+import SecureScreen from "../components/SecureScreen";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -110,6 +111,7 @@ const Profile = () => {
   }
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header Section */}
@@ -258,6 +260,7 @@ const Profile = () => {
         )}
       </ScrollView>
     </SafeAreaView>
+    </SecureScreen>
   );
 };
 

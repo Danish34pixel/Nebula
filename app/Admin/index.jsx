@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import SecureScreen from "../../components/SecureScreen";
 
 const AdminDashboard = () => {
   const router = useRouter();
@@ -13,6 +14,7 @@ const AdminDashboard = () => {
   };
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient
         colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]}
@@ -131,6 +133,7 @@ const AdminDashboard = () => {
         </View>
       </LinearGradient>
     </SafeAreaView>
+    </SecureScreen>
   );
 };
 

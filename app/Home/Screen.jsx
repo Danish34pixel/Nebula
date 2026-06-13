@@ -18,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
 import { fetchJson } from "../../config/api";
+import SecureScreen from "../../components/SecureScreen";
 
 const medicineReferencesStockist = (med, stockist) => {
   if (!med || !stockist) return false;
@@ -967,6 +968,7 @@ const Screen = ({ navigation: navProp }) => {
   );
 
   return (
+    <SecureScreen>
     <View style={{ flex: 1 }}>
       {fullscreenStockist === null ? (
         <>
@@ -1055,6 +1057,7 @@ const Screen = ({ navigation: navProp }) => {
         </Modal>
       )}
     </View>
+    </SecureScreen>
   );
 
   function renderDetailViewForFullscreen(idx) {

@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl } from "../../config/api";
 import { useRouter } from "expo-router";
+import SecureScreen from "../../components/SecureScreen";
 
 export default function InstantDemand() {
   const router = useRouter();
@@ -61,6 +62,7 @@ export default function InstantDemand() {
   };
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -189,6 +191,7 @@ export default function InstantDemand() {
         )}
       </ScrollView>
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

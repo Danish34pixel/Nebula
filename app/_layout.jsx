@@ -2,9 +2,14 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "react-native-reanimated";
+import { SecurityProvider } from "../context/SecurityContext";
 
 export default function RootLayout() {
   return (
+    // SecurityProvider must be the outermost wrapper so every screen can
+    // access globalEnabled, isRoleProtected, and logSecurityEvent via
+    // useSecurityConfig() without prop drilling.
+    <SecurityProvider>
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
@@ -31,5 +36,6 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="auto" />
     </SafeAreaProvider>
+    </SecurityProvider>
   );
 }

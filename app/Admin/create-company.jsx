@@ -18,6 +18,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl, fetchJson, requestJson, postJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import SecureScreen from "../../components/SecureScreen";
 
 const { width, height } = Dimensions.get("window");
 
@@ -268,6 +269,7 @@ export default function AdminCreateCompany() {
   };
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -477,6 +479,7 @@ export default function AdminCreateCompany() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

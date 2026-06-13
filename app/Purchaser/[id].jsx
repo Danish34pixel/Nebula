@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
 import { apiUrl, fetchJson } from "../../config/api";
+import SecureScreen from "../../components/SecureScreen";
 
 export default function PurchaserDashboard() {
   const { id } = useLocalSearchParams();
@@ -341,6 +342,7 @@ export default function PurchaserDashboard() {
   }
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       {/* Top Bar */}
       <LinearGradient colors={["#1d4ed8", "#1e3a8a"]} style={styles.topBar}>
@@ -860,6 +862,7 @@ export default function PurchaserDashboard() {
         </View>
       </Modal>
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

@@ -15,10 +15,9 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl, fetchJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
-import usePreventScreenCapture from "../../utils/usePreventScreenCapture";
+import SecureScreen from "../../components/SecureScreen";
 
 export default function StockistDetailScreen() {
-  usePreventScreenCapture();
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [stockist, setStockist] = useState(null);
@@ -163,6 +162,7 @@ export default function StockistDetailScreen() {
   };
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBackPress}>
@@ -302,6 +302,7 @@ export default function StockistDetailScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

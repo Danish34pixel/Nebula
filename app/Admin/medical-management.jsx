@@ -15,6 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import SecureScreen from "../../components/SecureScreen";
 
 const MedicalManagement = () => {
   const router = useRouter();
@@ -216,6 +217,7 @@ const MedicalManagement = () => {
   };
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
@@ -324,6 +326,7 @@ const MedicalManagement = () => {
         </ScrollView>
       </View>
     </SafeAreaView>
+    </SecureScreen>
   );
 };
 

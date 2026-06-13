@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../config/api";
 import { useRouter } from "expo-router";
+import SecureScreen from "../components/SecureScreen";
 
 const normalize = (value) =>
   String(value || "")
@@ -182,6 +183,7 @@ export default function Demand() {
   };
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safe}>
       <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -318,6 +320,7 @@ export default function Demand() {
         ) : null}
       </ScrollView>
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

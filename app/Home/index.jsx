@@ -9,6 +9,7 @@ import { secureStorage } from "../../utils/secureStore";
 // Note: We renamed the huge Screen file you provided earlier to "Screen.jsx".
 import Nav from "./Nav.jsx";
 import Screen from "./Screen.jsx";
+import SecureScreen from "../../components/SecureScreen";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -66,6 +67,7 @@ export default function Dashboard() {
   }
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.container}>
       {/* Fallback Nav */}
       <Nav navigation={navigation} />
@@ -85,6 +87,7 @@ export default function Dashboard() {
       {/* Screen */}
       <Screen navigation={navigation} />
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

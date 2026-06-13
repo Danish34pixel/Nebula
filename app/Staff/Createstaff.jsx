@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import SecureScreen from "../../components/SecureScreen";
 
 export default function CreateStaff() {
   const router = useRouter();
@@ -184,6 +185,7 @@ export default function CreateStaff() {
   const isPublicSignup = !user;
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -307,6 +309,7 @@ export default function CreateStaff() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

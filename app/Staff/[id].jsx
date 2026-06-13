@@ -18,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import SecureScreen from "../../components/SecureScreen";
 
 const { width } = Dimensions.get("window");
 
@@ -166,6 +167,7 @@ export default function StaffDetails() {
   }
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.cardWrapper}>
@@ -273,6 +275,7 @@ export default function StaffDetails() {
         )}
       </ScrollView>
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

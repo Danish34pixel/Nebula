@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import SecureScreen from "../../components/SecureScreen";
 
 const UserAdmin = () => {
   const router = useRouter();
@@ -70,6 +71,7 @@ const UserAdmin = () => {
   };
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
@@ -159,6 +161,7 @@ const UserAdmin = () => {
         </ScrollView>
       </View>
     </SafeAreaView>
+    </SecureScreen>
   );
 };
 

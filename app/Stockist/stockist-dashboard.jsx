@@ -22,6 +22,7 @@ import StockistApprovals from "../../components/stockist/StockistApprovals";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 import StaffModel from "../Staff/StaffModel";
+import SecureScreen from "../../components/SecureScreen";
 
 const { width } = Dimensions.get("window");
 
@@ -938,6 +939,7 @@ export default function StockistDashboard() {
   }
 
   return (
+    <SecureScreen>
     <SafeAreaView style={styles.safeArea}>
       <LinearGradient colors={["#f5f3ff", "#fdf2f8"]} style={styles.container}>
         {/* Header */}
@@ -1106,6 +1108,7 @@ export default function StockistDashboard() {
         onClose={() => setSelectedStaff(null)}
       />
     </SafeAreaView>
+    </SecureScreen>
   );
 }
 

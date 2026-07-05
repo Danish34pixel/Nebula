@@ -4,17 +4,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
+import { Feather } from "@expo/vector-icons";
 
-// Import your child components.
-// Note: We renamed the huge Screen file you provided earlier to "Screen.jsx".
 import Nav from "./Nav.jsx";
 import Screen from "./Screen.jsx";
 import SecureScreen from "../../components/SecureScreen";
+import AdToast from "../../components/AdToast";
+import AnnouncementPanel from "../../components/AnnouncementPanel";
 
 export default function Dashboard() {
   const router = useRouter();
   const [isAdminEmail, setIsAdminEmail] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
 
   // Provide a navigation-like object for backwards compatibility 
   // with child components anticipating native navigation properties.
@@ -86,6 +88,23 @@ export default function Dashboard() {
 
       {/* Screen */}
       <Screen navigation={navigation} />
+
+      {/* Floating bell icon for announcements */}
+      <TouchableOpacity
+        style={styles.bellBtn}
+        onPress={() => setShowAnnouncements(true)}
+      >
+        <Feather name="bell" size={20} color="#6366f1" />
+      </TouchableOpacity>
+
+      {/* Ad toast — absolute overlay */}
+      <AdToast />
+
+      {/* Announcement panel */}
+      <AnnouncementPanel
+        isVisible={showAnnouncements}
+        onClose={() => setShowAnnouncements(false)}
+      />
     </SafeAreaView>
     </SecureScreen>
   );
@@ -95,6 +114,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#ffffff",
+  },
+  bellBtn: {
+    position: "absolute",
+    bottom: 24,
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#ede9fe",
+    zIndex: 50,
   },
   adminBox: {
     padding: 24,

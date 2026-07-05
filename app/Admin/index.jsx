@@ -126,6 +126,44 @@ const AdminDashboard = () => {
             </View>
             <Feather name="chevron-right" size={24} color="#94a3b8" />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/Admin/ads")}
+          >
+            <LinearGradient
+              colors={["#f97316", "#ea580c"]}
+              style={styles.iconBox}
+            >
+              <Feather name="radio" size={32} color="#fff" />
+            </LinearGradient>
+            <View style={styles.menuText}>
+              <Text style={styles.menuTitle}>Manage Ads</Text>
+              <Text style={styles.menuSub}>
+                Upload and control in-app advertisements
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={24} color="#94a3b8" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push("/Admin/announcements")}
+          >
+            <LinearGradient
+              colors={["#0891b2", "#0e7490"]}
+              style={styles.iconBox}
+            >
+              <Feather name="megaphone" size={32} color="#fff" />
+            </LinearGradient>
+            <View style={styles.menuText}>
+              <Text style={styles.menuTitle}>Announcements</Text>
+              <Text style={styles.menuSub}>
+                Broadcast messages to all user roles
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={24} color="#94a3b8" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>

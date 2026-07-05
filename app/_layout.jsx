@@ -28,6 +28,8 @@ export default function RootLayout() {
         <Stack.Screen name="Admin/medical-management" />
         <Stack.Screen name="Admin/create-company" />
         <Stack.Screen name="Admin/create-medicine" />
+        <Stack.Screen name="Admin/ads" />
+        <Stack.Screen name="Admin/announcements" />
         <Stack.Screen name="Staff/Createstaff" />
         <Stack.Screen name="Staff/[id]" />
         <Stack.Screen name="MedicalOwner/MedicalSignup" />

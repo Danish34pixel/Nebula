@@ -23,6 +23,8 @@ import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 import StaffModel from "../Staff/StaffModel";
 import SecureScreen from "../../components/SecureScreen";
+import AdToast from "../../components/AdToast";
+import AnnouncementPanel from "../../components/AnnouncementPanel";
 
 const { width } = Dimensions.get("window");
 
@@ -335,6 +337,7 @@ export default function StockistDashboard() {
   const [activeTab, setActiveTab] = useState("medicines");
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [authError, setAuthError] = useState(false);
 
@@ -960,6 +963,12 @@ export default function StockistDashboard() {
           >
             <Feather name="user" size={20} color="#fff" />
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowAnnouncements(true)}
+            style={styles.bellBtnTop}
+          >
+            <Feather name="bell" size={20} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
             <Feather name="log-out" size={20} color="#fff" />
           </TouchableOpacity>
@@ -1107,6 +1116,13 @@ export default function StockistDashboard() {
         staff={selectedStaff}
         onClose={() => setSelectedStaff(null)}
       />
+
+      <AdToast />
+
+      <AnnouncementPanel
+        isVisible={showAnnouncements}
+        onClose={() => setShowAnnouncements(false)}
+      />
     </SafeAreaView>
     </SecureScreen>
   );
@@ -1149,6 +1165,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 2,
   },
+  bellBtnTop: { padding: 8 },
   profileBtn: {
     width: 40,
     height: 40,

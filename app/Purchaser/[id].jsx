@@ -20,6 +20,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
 import { apiUrl, fetchJson } from "../../config/api";
 import SecureScreen from "../../components/SecureScreen";
+import AdToast from "../../components/AdToast";
+import AnnouncementPanel from "../../components/AnnouncementPanel";
 
 export default function PurchaserDashboard() {
   const { id } = useLocalSearchParams();
@@ -37,6 +39,7 @@ export default function PurchaserDashboard() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [pendingUrgentCount, setPendingUrgentCount] = useState(0);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
 
   const handleCall = async (phone) => {
     const cleaned = String(phone || "").trim();
@@ -371,6 +374,12 @@ export default function PurchaserDashboard() {
             <Text style={styles.topBarRole}>Authorized Purchaser</Text>
           </View>
         </View>
+        <TouchableOpacity
+          onPress={() => setShowAnnouncements(true)}
+          style={styles.bellBtnTop}
+        >
+          <Feather name="bell" size={18} color="#bfdbfe" />
+        </TouchableOpacity>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
           <Feather name="log-out" size={18} color="#bfdbfe" />
         </TouchableOpacity>
@@ -898,6 +907,12 @@ export default function PurchaserDashboard() {
           </View>
         </View>
       </Modal>
+
+      <AdToast />
+      <AnnouncementPanel
+        isVisible={showAnnouncements}
+        onClose={() => setShowAnnouncements(false)}
+      />
     </SafeAreaView>
     </SecureScreen>
   );
@@ -951,6 +966,7 @@ const styles = StyleSheet.create({
   topBarName: { color: "#fff", fontWeight: "bold", fontSize: 15 },
   topBarRole: { color: "#bfdbfe", fontSize: 11, fontWeight: "500" },
   logoutBtn: { padding: 8 },
+  bellBtnTop: { padding: 8 },
 
   // Tabs
   tabBar: {

@@ -126,6 +126,7 @@ export default function Login() {
         }
 
         await secureStorage.setItem("token", data.accessToken);
+        if (data.refreshToken) await secureStorage.setItem("refreshToken", data.refreshToken);
         await AsyncStorage.setItem("user", JSON.stringify(data.user));
 
         if (rememberMe) {

@@ -12,7 +12,7 @@ const getExpoExtra = () =>
 const getEnvValue = (key, fallback = "") =>
   process.env[key] || getExpoExtra()[key] || fallback;
 
-const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:80" : "";
+const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:5002" : "";
 const PROD_DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
 
 // Normalize to remove any trailing slashes
@@ -82,18 +82,9 @@ const getResolvedBase = () => {
   // When Expo Web is running on localhost, prefer a local API even if the
   // bundled env still points at production. This avoids stale web bundles
   // continuing to hit the remote origin during development.
+  // When running on localhost (web dev), always use local backend.
   if (isWebLocalhost()) {
-    try {
-      const parsed = new URL(normalizeBase(selectedBase));
-      if (
-        parsed.hostname === "medi-trap.com" ||
-        parsed.hostname === "www.medi-trap.com"
-      ) {
-        return normalizeBase("http://localhost:5000");
-      }
-    } catch {
-      return normalizeBase("http://localhost:5000");
-    }
+    return "http://localhost:5002";
   }
 
   return rewriteLocalhostForDevice(normalizeBase(selectedBase));
@@ -133,8 +124,34 @@ export const apiUrl = (path = "") => {
   return `${base}/api${p}`;
 };
 
+// Attempt to exchange a refresh token for a new access token.
+// Returns the new access token string, or null on failure.
+const tryRefreshAccessToken = async () => {
+  try {
+    const refreshToken = normalizeToken(await secureStorage.getItem("refreshToken"));
+    if (!refreshToken) return null;
+
+    const base = getResolvedBase() || safeResolvedBase;
+    const res = await fetch(`${base}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.accessToken) {
+      await secureStorage.setItem("token", data.accessToken);
+      if (data.refreshToken) await secureStorage.setItem("refreshToken", data.refreshToken);
+      return data.accessToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 // JSON Fetch Helper
-export const fetchJson = async (path, options = {}) => {
+export const fetchJson = async (path, options = {}, _isRetry = false) => {
   const url = apiUrl(path);
   const token = normalizeToken(await secureStorage.getItem("token"));
 
@@ -154,8 +171,15 @@ export const fetchJson = async (path, options = {}) => {
   const body = text && isJson ? JSON.parse(text) : text;
 
   if (!res.ok) {
-    if (res.status === 401) {
+    if (res.status === 401 && !_isRetry) {
+      // Try to silently refresh the access token once, then retry
+      const newToken = await tryRefreshAccessToken();
+      if (newToken) {
+        return fetchJson(path, options, true);
+      }
+      // Refresh failed — clear session
       await secureStorage.removeItem("token");
+      await secureStorage.removeItem("refreshToken");
       await secureStorage.removeItem("user");
     }
     const err = new Error(body?.message || `Request failed ${res.status}`);

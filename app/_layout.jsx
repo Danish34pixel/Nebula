@@ -32,6 +32,9 @@ export default function RootLayout() {
         <Stack.Screen name="Staff/[id]" />
         <Stack.Screen name="MedicalOwner/MedicalSignup" />
         <Stack.Screen name="MedicalOwner/MedicalMiddle" />
+        <Stack.Screen name="MedicalOwner/urgent-request" />
+        <Stack.Screen name="Purchaser/urgent-requests" />
+        <Stack.Screen name="urgent-request-chat/[id]" />
         <Stack.Screen name="login" />
       </Stack>
       <StatusBar style="auto" />

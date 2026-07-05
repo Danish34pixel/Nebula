@@ -36,6 +36,7 @@ export default function PurchaserDashboard() {
   const [medLoading, setMedLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [pendingUrgentCount, setPendingUrgentCount] = useState(0);
 
   const handleCall = async (phone) => {
     const cleaned = String(phone || "").trim();
@@ -70,6 +71,14 @@ export default function PurchaserDashboard() {
     };
     if (id) fetchPurchaser();
   }, [id]);
+
+  useEffect(() => {
+    if (activeTab !== "medical") return;
+    // Fetch pending urgent request count for badge
+    fetchJson("/urgent-request/pending")
+      .then((res) => setPendingUrgentCount((res.data || []).length))
+      .catch(() => {});
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "medical") return;
@@ -561,6 +570,34 @@ export default function PurchaserDashboard() {
       {/* ── TAB: MEDICAL DASHBOARD ── */}
       {activeTab === "medical" ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Urgent Requests button */}
+          <TouchableOpacity
+            style={styles.urgentCard}
+            onPress={() => router.push("/Purchaser/urgent-requests")}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={["#ef4444", "#dc2626"]}
+              style={styles.urgentCardGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Feather name="alert-circle" size={22} color="#fff" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.urgentCardTitle}>Urgent Requests</Text>
+                <Text style={styles.urgentCardSub}>
+                  Medical owners need items fast — be first to accept
+                </Text>
+              </View>
+              {pendingUrgentCount > 0 && (
+                <View style={styles.urgentBadge}>
+                  <Text style={styles.urgentBadgeText}>{pendingUrgentCount}</Text>
+                </View>
+              )}
+              <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.7)" />
+            </LinearGradient>
+          </TouchableOpacity>
+
           {/* Summary Cards */}
           <View style={styles.statsRow}>
             <LinearGradient
@@ -1164,6 +1201,41 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   hologram: { height: 6, width: "100%" },
+
+  // Urgent Requests CTA
+  urgentCard: {
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 16,
+    shadowColor: "#ef4444",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  urgentCardGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 4,
+  },
+  urgentCardTitle: { color: "#fff", fontWeight: "bold", fontSize: 15 },
+  urgentCardSub: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 11,
+    marginTop: 2,
+  },
+  urgentBadge: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    marginRight: 4,
+  },
+  urgentBadgeText: { color: "#dc2626", fontWeight: "bold", fontSize: 13 },
 
   // Medical Dashboard
   statsRow: { flexDirection: "row", gap: 10, marginBottom: 20 },

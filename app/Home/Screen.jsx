@@ -695,6 +695,19 @@ const Screen = ({ navigation: navProp }) => {
         </TouchableOpacity>
       )}
 
+      <TouchableOpacity
+        onPress={() => navigation.navigate("/MedicalOwner/urgent-request")}
+        style={styles.urgentButtonContainer}
+      >
+        <LinearGradient
+          colors={["#ef4444", "#dc2626"]}
+          style={styles.urgentGradient}
+        >
+          <Text style={styles.urgentIcon}>🚨</Text>
+          <Text style={styles.urgentText}>Need Medicine Urgently?</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
       <View style={styles.subHeader}>
         <View>
           <Text style={styles.subHeaderTitle}>Medical Suppliers</Text>
@@ -1128,7 +1141,7 @@ const styles = StyleSheet.create({
   bannerPillText: { color: "rgba(255,255,255,0.9)", fontSize: 12 },
   bannerIcon: { fontSize: 48, opacity: 0.9 },
   adminButtonContainer: {
-    marginBottom: 32,
+    marginBottom: 16,
     borderRadius: 16,
     overflow: "hidden",
   },
@@ -1138,6 +1151,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   adminText: { color: "#ffffff", fontWeight: "bold" },
+  urgentButtonContainer: {
+    marginBottom: 32,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  urgentGradient: {
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  urgentIcon: { fontSize: 18 },
+  urgentText: { color: "#ffffff", fontWeight: "bold", fontSize: 15 },
   subHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

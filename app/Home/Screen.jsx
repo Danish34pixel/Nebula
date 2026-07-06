@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
 import { fetchJson } from "../../config/api";
 import SecureScreen from "../../components/SecureScreen";
+import AdsCarousel from "../../components/AdsCarousel";
 
 const medicineReferencesStockist = (med, stockist) => {
   if (!med || !stockist) return false;
@@ -707,6 +708,8 @@ const Screen = ({ navigation: navProp }) => {
           <Text style={styles.urgentText}>Need Medicine Urgently?</Text>
         </LinearGradient>
       </TouchableOpacity>
+
+      <AdsCarousel />
 
       <View style={styles.subHeader}>
         <View>

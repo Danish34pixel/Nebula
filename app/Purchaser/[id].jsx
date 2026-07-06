@@ -21,6 +21,7 @@ import { secureStorage } from "../../utils/secureStore";
 import { apiUrl, fetchJson } from "../../config/api";
 import SecureScreen from "../../components/SecureScreen";
 import AdToast from "../../components/AdToast";
+import AdsCarousel from "../../components/AdsCarousel";
 import AnnouncementPanel from "../../components/AnnouncementPanel";
 
 export default function PurchaserDashboard() {
@@ -634,6 +635,8 @@ export default function PurchaserDashboard() {
               <Text style={styles.statLabel}>Stockists</Text>
             </LinearGradient>
           </View>
+
+          <AdsCarousel />
 
           {/* Stockist Browser */}
           <View style={styles.sectionHeader}>

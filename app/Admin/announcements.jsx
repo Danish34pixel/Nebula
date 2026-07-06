@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,6 +41,8 @@ export default function AdminAnnouncements() {
 
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadAnnouncements = useCallback(async () => {
     try {
@@ -85,33 +86,37 @@ export default function AdminAnnouncements() {
   };
 
   const handleToggleActive = async (a) => {
+    setFormError("");
     try {
       await fetchJson(`/announcements/${a._id}`, {
         method: "PATCH",
         body: JSON.stringify({ isActive: !a.isActive }),
       });
       await loadAnnouncements();
-    } catch (_) {
-      Alert.alert("Error", "Failed to update.");
+    } catch (err) {
+      setFormError(err?.message || "Failed to update announcement.");
     }
   };
 
   const handleDelete = (a) => {
-    Alert.alert("Delete Announcement", `Delete "${a.title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await fetchJson(`/announcements/${a._id}`, { method: "DELETE" });
-            await loadAnnouncements();
-          } catch (_) {
-            Alert.alert("Error", "Failed to delete.");
-          }
-        },
-      },
-    ]);
+    setFormError("");
+    setConfirmDeleteId(a._id);
+  };
+
+  const confirmDelete = async (a) => {
+    setDeleting(true);
+    setFormError("");
+    try {
+      setAnnouncements((prev) => prev.filter((x) => x._id !== a._id));
+      await fetchJson(`/announcements/${a._id}`, { method: "DELETE" });
+      await loadAnnouncements();
+    } catch (err) {
+      setFormError(err?.message || "Failed to delete announcement.");
+      await loadAnnouncements();
+    } finally {
+      setDeleting(false);
+      setConfirmDeleteId(null);
+    }
   };
 
   return (
@@ -226,11 +231,35 @@ export default function AdminAnnouncements() {
                         .join(", ")}{" "}
                       · {timeAgo(a.createdAt)} · {a.readBy?.length || 0} reads
                     </Text>
+                    {confirmDeleteId === a._id && (
+                      <View style={styles.deleteConfirm}>
+                        <Text style={styles.deleteConfirmText}>Delete this announcement?</Text>
+                        <View style={styles.deleteConfirmBtns}>
+                          <TouchableOpacity
+                            onPress={() => setConfirmDeleteId(null)}
+                            style={styles.deleteConfirmCancel}
+                            disabled={deleting}
+                          >
+                            <Text style={styles.deleteConfirmCancelText}>Cancel</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => confirmDelete(a)}
+                            style={styles.deleteConfirmOk}
+                            disabled={deleting}
+                          >
+                            <Text style={styles.deleteConfirmOkText}>
+                              {deleting ? "Deleting…" : "Delete"}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
                   </View>
                   <View style={styles.annoActions}>
                     <TouchableOpacity
                       onPress={() => handleToggleActive(a)}
                       style={styles.actionBtn}
+                      disabled={confirmDeleteId === a._id}
                     >
                       <Feather
                         name={a.isActive ? "eye-off" : "eye"}
@@ -347,4 +376,30 @@ const styles = StyleSheet.create({
   annoMeta: { fontSize: 11, color: "#94a3b8", marginTop: 4 },
   annoActions: { flexDirection: "row", gap: 4 },
   actionBtn: { padding: 6 },
+  deleteConfirm: {
+    marginTop: 8,
+    backgroundColor: "#fff5f5",
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  deleteConfirmText: { fontSize: 12, color: "#dc2626", marginBottom: 8 },
+  deleteConfirmBtns: { flexDirection: "row", gap: 8 },
+  deleteConfirmCancel: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+  },
+  deleteConfirmCancelText: { fontSize: 12, fontWeight: "600", color: "#475569" },
+  deleteConfirmOk: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+  },
+  deleteConfirmOkText: { fontSize: 12, fontWeight: "600", color: "#fff" },
 });

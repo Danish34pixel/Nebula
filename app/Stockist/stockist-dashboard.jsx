@@ -24,6 +24,7 @@ import { secureStorage } from "../../utils/secureStore";
 import StaffModel from "../Staff/StaffModel";
 import SecureScreen from "../../components/SecureScreen";
 import AdToast from "../../components/AdToast";
+import AdsCarousel from "../../components/AdsCarousel";
 import AnnouncementPanel from "../../components/AnnouncementPanel";
 
 const { width } = Dimensions.get("window");
@@ -1018,6 +1019,8 @@ export default function StockistDashboard() {
               colors={["#8b5cf6", "#d946ef"]}
             />
           </View>
+
+          <AdsCarousel />
 
           {/* Main Content */}
           <View style={styles.contentSection}>

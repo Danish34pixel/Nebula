@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 import SecureScreen from "../../components/SecureScreen";
+import AdsCarousel from "../../components/AdsCarousel";
 
 const { width } = Dimensions.get("window");
 
@@ -255,6 +256,8 @@ export default function StaffDetails() {
           </View>
           <Text style={styles.tagline}>Official Staff Identification Card</Text>
         </View>
+
+        <AdsCarousel />
 
         {/* Actions for Admin */}
         {user?.role === "admin" ? (

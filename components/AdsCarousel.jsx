@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  Platform,
-} from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { fetchJson, postJson, API_BASE } from "../config/api";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  FlatList,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { API_BASE, fetchJson, postJson } from "../config/api";
 import { useAdVisibility } from "../utils/useAdVisibility";
 
 const AD_H = 170;
@@ -19,7 +19,14 @@ const ENGAGE_THRESHOLD_MS = 3000;
 function mediaFullUrl(url) {
   if (!url) return null;
   if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  const path = url.startsWith("/") ? url : `/${url}`;
+  return `${API_BASE}${path}`;
+}
+
+function isVideoType(type) {
+  return String(type || "")
+    .toLowerCase()
+    .startsWith("video");
 }
 
 export default function AdsCarousel() {
@@ -47,7 +54,9 @@ export default function AdsCarousel() {
         }
       })
       .catch(() => {});
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Send impression for current ad
@@ -82,17 +91,24 @@ export default function AdsCarousel() {
     async (ad) => {
       tapTimeRef.current = Date.now();
       tappedAdIdRef.current = ad._id;
-      try { await postJson(`/ads/${ad._id}/click`, {}); } catch (_) {}
+      try {
+        await postJson(`/ads/${ad._id}/click`, {});
+      } catch (_) {}
       router.push(`/Stockist/${ad.stockistId}`);
     },
     [router],
   );
 
-  const handleMomentumScrollEnd = useCallback((e) => {
-    if (containerWidth === 0) return;
-    const newIndex = Math.round(e.nativeEvent.contentOffset.x / containerWidth);
-    setCurrentIndex(newIndex);
-  }, [containerWidth]);
+  const handleMomentumScrollEnd = useCallback(
+    (e) => {
+      if (containerWidth === 0) return;
+      const newIndex = Math.round(
+        e.nativeEvent.contentOffset.x / containerWidth,
+      );
+      setCurrentIndex(newIndex);
+    },
+    [containerWidth],
+  );
 
   const onLayout = useCallback((e) => {
     const { width } = e.nativeEvent.layout;
@@ -114,7 +130,7 @@ export default function AdsCarousel() {
         onPress={() => handlePress(ad)}
         style={[styles.adSlide, { width: containerWidth }]}
       >
-        {ad.mediaType === "video" ? (
+        {isVideoType(ad.mediaType) ? (
           Platform.OS === "web" ? (
             // eslint-disable-next-line jsx-a11y/media-has-caption
             <video
@@ -123,7 +139,12 @@ export default function AdsCarousel() {
               muted
               loop
               playsInline
-              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 16 }}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                borderRadius: 16,
+              }}
             />
           ) : (
             <View style={[styles.media, styles.videoFallback]}>
@@ -138,9 +159,13 @@ export default function AdsCarousel() {
           <View style={styles.badge}>
             <Text style={styles.badgeText}>Ad</Text>
           </View>
-          <Text style={styles.adTitle} numberOfLines={1}>{ad.title}</Text>
+          <Text style={styles.adTitle} numberOfLines={1}>
+            {ad.title}
+          </Text>
           {ad.stockistName ? (
-            <Text style={styles.adSub} numberOfLines={1}>by {ad.stockistName}</Text>
+            <Text style={styles.adSub} numberOfLines={1}>
+              by {ad.stockistName}
+            </Text>
           ) : null}
         </View>
       </TouchableOpacity>
@@ -171,7 +196,10 @@ export default function AdsCarousel() {
           {ads.map((_, i) => (
             <View
               key={i}
-              style={[styles.dot, i === currentIndex % ads.length && styles.dotActive]}
+              style={[
+                styles.dot,
+                i === currentIndex % ads.length && styles.dotActive,
+              ]}
             />
           ))}
         </View>
@@ -202,7 +230,11 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: "#1e293b",
   },
-  videoFallbackText: { color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "600" },
+  videoFallbackText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    fontWeight: "600",
+  },
   overlay: {
     position: "absolute",
     bottom: 0,

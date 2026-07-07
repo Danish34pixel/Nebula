@@ -83,7 +83,9 @@ const getResolvedBase = () => {
     return "http://localhost:5002";
   }
 
-  return rewriteLocalhostForDevice(normalizeBase(selectedBase));
+  return rewriteLocalhostForDevice(
+    normalizeBase(selectedBase || DEV_DEFAULT_API_BASE_URL),
+  );
 };
 
 const resolvedBase = getResolvedBase();
@@ -124,7 +126,9 @@ export const apiUrl = (path = "") => {
 // Returns the new access token string, or null on failure.
 const tryRefreshAccessToken = async () => {
   try {
-    const refreshToken = normalizeToken(await secureStorage.getItem("refreshToken"));
+    const refreshToken = normalizeToken(
+      await secureStorage.getItem("refreshToken"),
+    );
     if (!refreshToken) return null;
 
     const base = getResolvedBase() || safeResolvedBase;
@@ -137,7 +141,9 @@ const tryRefreshAccessToken = async () => {
     const data = await res.json();
     if (data?.accessToken) {
       await secureStorage.setItem("token", data.accessToken);
-      if (data.refreshToken) await secureStorage.setItem("refreshToken", data.refreshToken);
+      if (data.refreshToken) {
+        await secureStorage.setItem("refreshToken", data.refreshToken);
+      }
       return data.accessToken;
     }
     return null;

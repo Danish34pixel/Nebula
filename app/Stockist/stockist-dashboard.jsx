@@ -17,15 +17,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AdToast from "../../components/AdToast";
+import AdsCarousel from "../../components/AdsCarousel";
+import AnnouncementPanel from "../../components/AnnouncementPanel";
+import SecureScreen from "../../components/SecureScreen";
 import IdentityCard from "../../components/stockist/IdentityCard";
 import StockistApprovals from "../../components/stockist/StockistApprovals";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 import StaffModel from "../Staff/StaffModel";
-import SecureScreen from "../../components/SecureScreen";
-import AdToast from "../../components/AdToast";
-import AdsCarousel from "../../components/AdsCarousel";
-import AnnouncementPanel from "../../components/AnnouncementPanel";
 
 const { width } = Dimensions.get("window");
 
@@ -339,6 +339,9 @@ export default function StockistDashboard() {
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [announcementCount, setAnnouncementCount] = useState(0);
+  const [showUnreadAnnouncementDot, setShowUnreadAnnouncementDot] =
+    useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [authError, setAuthError] = useState(false);
 
@@ -889,6 +892,11 @@ export default function StockistDashboard() {
     }
   };
 
+  const openAnnouncements = () => {
+    setShowAnnouncements(true);
+    setShowUnreadAnnouncementDot(false);
+  };
+
   const TAB_CONFIG = [
     {
       key: "medicines",
@@ -944,97 +952,104 @@ export default function StockistDashboard() {
 
   return (
     <SecureScreen>
-    <SafeAreaView style={styles.safeArea}>
-      <LinearGradient colors={["#f5f3ff", "#fdf2f8"]} style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {displayName}
-            </Text>
-            <Text style={styles.headerSubtitle}>
-              {stockist?.email ||
-                stockist?.contactPerson ||
-                "Authorized Stockist"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => router.push("/profile")}
-            style={styles.profileBtn}
-          >
-            <Feather name="user" size={20} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowAnnouncements(true)}
-            style={styles.bellBtnTop}
-          >
-            <Feather name="bell" size={20} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Feather name="log-out" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={loadStockistData}
-              tintColor="#8b5cf6"
-            />
-          }
-          contentContainerStyle={styles.scrollContent}
+      <SafeAreaView style={styles.safeArea}>
+        <LinearGradient
+          colors={["#f5f3ff", "#fdf2f8"]}
+          style={styles.container}
         >
-          {/* Identity Card */}
-          <IdentityCard
-            stockist={{
-              ...(stockist || {}),
-              contactPerson: stockist?.contactPerson || displayName,
-            }}
-            qrDataUrl={qrDataUrl}
-            onPrint={() =>
-              Alert.alert("Print", "Connect to a printer to print this ID.")
-            }
-          />
-
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <StatCard
-              icon="briefcase"
-              count={stats.companies}
-              label="Companies"
-              colors={["#fb923c", "#f59e0b"]}
-            />
-            <StatCard
-              icon="package"
-              count={stats.medicines}
-              label="Medicines"
-              colors={["#3b82f6", "#06b6d4"]}
-            />
-            <StatCard
-              icon="users"
-              count={stats.staff}
-              label="Staff Members"
-              colors={["#8b5cf6", "#d946ef"]}
-            />
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {displayName}
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                {stockist?.email ||
+                  stockist?.contactPerson ||
+                  "Authorized Stockist"}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+              <Feather name="log-out" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={openAnnouncements}
+              style={styles.bellBtnTop}
+              accessibilityLabel="Open announcements"
+            >
+              <Feather name="bell" size={20} color="#fff" />
+              {showUnreadAnnouncementDot && announcementCount > 0 ? (
+                <View style={styles.bellBadge} />
+              ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/profile")}
+              style={styles.profileBtn}
+            >
+              <Feather name="user" size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
 
-          <AdsCarousel />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={loadStockistData}
+                tintColor="#8b5cf6"
+              />
+            }
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Identity Card */}
+            <IdentityCard
+              stockist={{
+                ...(stockist || {}),
+                contactPerson: stockist?.contactPerson || displayName,
+              }}
+              qrDataUrl={qrDataUrl}
+              onPrint={() =>
+                Alert.alert("Print", "Connect to a printer to print this ID.")
+              }
+            />
 
-          {/* Main Content */}
-          <View style={styles.contentSection}>
-            <View style={styles.actionRow}>
-              <View style={styles.searchContainer}>
-                <Feather name="search" size={20} color="#94a3b8" />
-                <TextInput
-                  placeholder={`Search ${activeTab}...`}
-                  style={styles.searchInput}
-                  value={query}
-                  onChangeText={setQuery}
-                />
-              </View>
-              {/* <TouchableOpacity
+            {/* Stats */}
+            <View style={styles.statsRow}>
+              <StatCard
+                icon="briefcase"
+                count={stats.companies}
+                label="Companies"
+                colors={["#fb923c", "#f59e0b"]}
+              />
+              <StatCard
+                icon="package"
+                count={stats.medicines}
+                label="Medicines"
+                colors={["#3b82f6", "#06b6d4"]}
+              />
+              <StatCard
+                icon="users"
+                count={stats.staff}
+                label="Staff Members"
+                colors={["#8b5cf6", "#d946ef"]}
+              />
+            </View>
+
+            <AdsCarousel />
+
+            {/* Main Content */}
+            <View style={styles.contentSection}>
+              <View style={styles.actionRow}>
+                <View style={styles.searchContainer}>
+                  <Feather name="search" size={20} color="#94a3b8" />
+                  <TextInput
+                    placeholder={`Search ${activeTab}...`}
+                    style={styles.searchInput}
+                    value={query}
+                    onChangeText={setQuery}
+                  />
+                </View>
+                {/* <TouchableOpacity
                 onPress={() => router.push("/Staff/Createstaff")}
                 style={styles.addStaffBtn}
               >
@@ -1042,91 +1057,97 @@ export default function StockistDashboard() {
                   <Feather name="user-plus" size={20} color="#fff" />
                 </LinearGradient>
               </TouchableOpacity> */}
-            </View>
+              </View>
 
-            <View style={styles.tabsContainer}>
-              {TAB_CONFIG.map((t) => (
-                <TouchableOpacity
-                  key={t.key}
-                  onPress={() => setActiveTab(t.key)}
-                  style={[
-                    styles.tabBtn,
-                    { backgroundColor: activeTab === t.key ? t.color : t.bg },
-                  ]}
-                >
-                  <Feather
-                    name={t.icon}
-                    size={16}
-                    color={activeTab === t.key ? "#fff" : t.color}
-                  />
-                  <Text
+              <View style={styles.tabsContainer}>
+                {TAB_CONFIG.map((t) => (
+                  <TouchableOpacity
+                    key={t.key}
+                    onPress={() => setActiveTab(t.key)}
                     style={[
-                      styles.tabText,
-                      { color: activeTab === t.key ? "#fff" : t.color },
+                      styles.tabBtn,
+                      { backgroundColor: activeTab === t.key ? t.color : t.bg },
                     ]}
                   >
-                    {t.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Feather
+                      name={t.icon}
+                      size={16}
+                      color={activeTab === t.key ? "#fff" : t.color}
+                    />
+                    <Text
+                      style={[
+                        styles.tabText,
+                        { color: activeTab === t.key ? "#fff" : t.color },
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.tabContent}>
+                {activeTab === "approvals" ? (
+                  <StockistApprovals />
+                ) : filteredData[activeTab].length > 0 ? (
+                  filteredData[activeTab].map((item, i) => {
+                    if (activeTab === "companies")
+                      return (
+                        <CompanyCard
+                          key={i}
+                          company={item}
+                          medicineCount={countCompanyMedicines(
+                            item,
+                            medicinesList,
+                          )}
+                        />
+                      );
+                    if (activeTab === "medicines")
+                      return <MedicineCard key={i} medicine={item} />;
+                    if (activeTab === "staff")
+                      return (
+                        <StaffCard
+                          key={i}
+                          staff={item}
+                          onPreview={setSelectedStaff}
+                          onApprove={handleApproveStaff}
+                        />
+                      );
+                    return null;
+                  })
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <Feather name="inbox" size={48} color="#cbd5e1" />
+                    <Text style={styles.emptyTitle}>No {activeTab} found</Text>
+                    <Text style={styles.emptyText}>
+                      Try searching for something else
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
+          </ScrollView>
+        </LinearGradient>
 
-            <View style={styles.tabContent}>
-              {activeTab === "approvals" ? (
-                <StockistApprovals />
-              ) : filteredData[activeTab].length > 0 ? (
-                filteredData[activeTab].map((item, i) => {
-                  if (activeTab === "companies")
-                    return (
-                      <CompanyCard
-                        key={i}
-                        company={item}
-                        medicineCount={countCompanyMedicines(
-                          item,
-                          medicinesList,
-                        )}
-                      />
-                    );
-                  if (activeTab === "medicines")
-                    return <MedicineCard key={i} medicine={item} />;
-                  if (activeTab === "staff")
-                    return (
-                      <StaffCard
-                        key={i}
-                        staff={item}
-                        onPreview={setSelectedStaff}
-                        onApprove={handleApproveStaff}
-                      />
-                    );
-                  return null;
-                })
-              ) : (
-                <View style={styles.emptyContainer}>
-                  <Feather name="inbox" size={48} color="#cbd5e1" />
-                  <Text style={styles.emptyTitle}>No {activeTab} found</Text>
-                  <Text style={styles.emptyText}>
-                    Try searching for something else
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </ScrollView>
-      </LinearGradient>
+        {/* Staff Quick View Modal */}
+        <StaffModel
+          staff={selectedStaff}
+          onClose={() => setSelectedStaff(null)}
+        />
 
-      {/* Staff Quick View Modal */}
-      <StaffModel
-        staff={selectedStaff}
-        onClose={() => setSelectedStaff(null)}
-      />
+        <AdToast />
 
-      <AdToast />
-
-      <AnnouncementPanel
-        isVisible={showAnnouncements}
-        onClose={() => setShowAnnouncements(false)}
-      />
-    </SafeAreaView>
+        <AnnouncementPanel
+          isVisible={showAnnouncements}
+          onClose={() => {
+            setShowAnnouncements(false);
+            setShowUnreadAnnouncementDot(announcementCount > 0);
+          }}
+          onAnnouncementsLoaded={(items) => {
+            setAnnouncementCount(items.length);
+          }}
+        />
+      </SafeAreaView>
     </SecureScreen>
   );
 }
@@ -1168,7 +1189,27 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 2,
   },
-  bellBtnTop: { padding: 8 },
+  bellBtnTop: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#8b5cf6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 12,
+    position: "relative",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#ef4444",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
   profileBtn: {
     width: 40,
     height: 40,

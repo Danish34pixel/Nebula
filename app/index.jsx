@@ -147,53 +147,52 @@ export default function Page() {
 
           <ScrollView
             style={styles.rolesGridScroll}
+            contentContainerStyle={styles.rolesGrid}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.rolesGrid}>
-              {roles.map((role) => (
-                <TouchableOpacity
-                  key={role.id}
-                  onPress={() => handleRoleSelect(role.id)}
-                  activeOpacity={0.7}
-                  style={[
-                    styles.roleCard,
-                    selectedRole === role.id && styles.roleCardActive,
-                  ]}
+            {roles.map((role) => (
+              <TouchableOpacity
+                key={role.id}
+                onPress={() => handleRoleSelect(role.id)}
+                activeOpacity={0.7}
+                style={[
+                  styles.roleCard,
+                  selectedRole === role.id && styles.roleCardActive,
+                ]}
+              >
+                <LinearGradient
+                  colors={role.gradient}
+                  style={styles.iconContainer}
                 >
-                  <LinearGradient
-                    colors={role.gradient}
-                    style={styles.iconContainer}
-                  >
-                    <Image
-                      source={role.icon}
-                      style={styles.roleIcon}
-                      resizeMode="cover"
-                    />
-                  </LinearGradient>
-
-                  <Text style={styles.roleName}>{role.name}</Text>
-                  <Text style={styles.roleDescription}>{role.description}</Text>
-
-                  {selectedRole === role.id && (
-                    <View style={styles.activeIndicator}>
-                      <View style={styles.activeDot} />
-                    </View>
-                  )}
-
-                  <View
-                    style={[
-                      styles.roleProgress,
-                      {
-                        backgroundColor:
-                          selectedRole === role.id
-                            ? role.gradient[1]
-                            : "transparent",
-                      },
-                    ]}
+                  <Image
+                    source={role.icon}
+                    style={styles.roleIcon}
+                    resizeMode="cover"
                   />
-                </TouchableOpacity>
-              ))}
-            </View>
+                </LinearGradient>
+
+                <Text style={styles.roleName}>{role.name}</Text>
+                <Text style={styles.roleDescription}>{role.description}</Text>
+
+                {selectedRole === role.id && (
+                  <View style={styles.activeIndicator}>
+                    <View style={styles.activeDot} />
+                  </View>
+                )}
+
+                <View
+                  style={[
+                    styles.roleProgress,
+                    {
+                      backgroundColor:
+                        selectedRole === role.id
+                          ? role.gradient[1]
+                          : "transparent",
+                    },
+                  ]}
+                />
+              </TouchableOpacity>
+            ))}
           </ScrollView>
         </View>
       </LinearGradient>
@@ -274,17 +273,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   rolesGridScroll: {
-    maxHeight: 500, // Limit height to make it scrollable
+    maxHeight: 500,
     width: "100%",
   },
   rolesGrid: {
-    gap: 16,
-    paddingBottom: 20, // Add padding to bottom for better scrolling experience
+    gap: 14,
+    paddingBottom: 10,
   },
   roleCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    backgroundColor: "rgba(255, 255, 255, 0.78)",
     borderRadius: 24,
-    padding: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     alignItems: "center",
     borderWidth: 2,
     borderColor: "rgba(226, 232, 240, 0.4)",
@@ -299,15 +299,15 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 20,
-    padding: 1, // small border effect
-    marginBottom: 16,
+    padding: 1,
+    marginBottom: 14,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 4,
   },
   roleIcon: {
     width: "100%",

@@ -1,16 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Feather } from "@expo/vector-icons";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  FlatList,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  Animated,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  Dimensions,
+  View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import { fetchJson, postJson } from "../config/api";
+import {
+  dismissAdNotification,
+  filterDismissedAdNotifications,
+  readDismissedAdNotificationIds,
+} from "../utils/adNotificationDismissals";
 
 const SCREEN_W = Dimensions.get("window").width;
 const PANEL_W = Math.min(SCREEN_W * 0.88, 380);
@@ -25,21 +30,55 @@ function timeAgo(dateStr) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function AnnouncementPanel({ isVisible, onClose }) {
+function formatAnnouncementTime(dateStr) {
+  if (!dateStr) return "No date";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "No date";
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export default function AnnouncementPanel({
+  isVisible,
+  onClose,
+  onAnnouncementsLoaded,
+}) {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dismissedIds, setDismissedIds] = useState([]);
 
-  const slideX = useRef(new Animated.Value(PANEL_W)).current;
+  const slideX = useRef(new Animated.Value(SCREEN_W)).current;
   const markedRef = useRef(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const storedDismissedIds = await readDismissedAdNotificationIds();
+      setDismissedIds(storedDismissedIds);
       const res = await fetchJson("/announcements");
-      if (res.success) setAnnouncements(res.data || []);
-    } catch (_) {}
-    finally { setLoading(false); }
-  }, []);
+      const payload = res?.data ?? res?.announcements ?? res;
+      const items = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.announcements)
+            ? payload.announcements
+            : [];
+      const filteredItems = filterDismissedAdNotifications(items, storedDismissedIds);
+      setAnnouncements(filteredItems);
+      onAnnouncementsLoaded?.(filteredItems);
+    } catch (_) {
+      setAnnouncements([]);
+      onAnnouncementsLoaded?.([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [onAnnouncementsLoaded]);
 
   // Slide in/out based on isVisible
   useEffect(() => {
@@ -70,6 +109,19 @@ export default function AnnouncementPanel({ isVisible, onClose }) {
     });
   }, [isVisible, announcements]);
 
+  if (!isVisible) {
+    return null;
+  }
+
+  const handleDismissItem = async (item) => {
+    if (!item?._id) return;
+    const id = String(item._id);
+    const nextDismissedIds = [...new Set([...(dismissedIds || []), id])];
+    setDismissedIds(nextDismissedIds);
+    setAnnouncements((prev) => prev.filter((entry) => String(entry._id) !== id));
+    await dismissAdNotification(id);
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.item}>
       <View style={styles.itemIcon}>
@@ -77,14 +129,25 @@ export default function AnnouncementPanel({ isVisible, onClose }) {
       </View>
       <View style={styles.itemBody}>
         <Text style={styles.itemTitle}>{item.title}</Text>
-        <Text style={styles.itemMessage}>{item.message}</Text>
-        <Text style={styles.itemTime}>{timeAgo(item.createdAt)}</Text>
+        <Text style={styles.itemMessage} numberOfLines={3}>
+          {item.message || item.description || "No announcement details available."}
+        </Text>
+        <Text style={styles.itemTime}>
+          {formatAnnouncementTime(item.createdAt)} · {timeAgo(item.createdAt)}
+        </Text>
       </View>
+      <TouchableOpacity
+        onPress={() => handleDismissItem(item)}
+        style={styles.dismissBtn}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Feather name="x" size={14} color="#64748b" />
+      </TouchableOpacity>
     </View>
   );
 
   return (
-    <>
+    <View style={styles.wrapper} pointerEvents="box-none">
       {/* Backdrop */}
       {isVisible && (
         <TouchableOpacity
@@ -124,7 +187,7 @@ export default function AnnouncementPanel({ isVisible, onClose }) {
           />
         )}
       </Animated.View>
-    </>
+    </View>
   );
 }
 
@@ -136,7 +199,15 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "rgba(0,0,0,0.35)",
-    zIndex: 998,
+  },
+  wrapper: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    overflow: "hidden",
+    zIndex: 999,
   },
   panel: {
     position: "absolute",
@@ -145,7 +216,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: PANEL_W,
     backgroundColor: "#fff",
-    zIndex: 999,
     shadowColor: "#000",
     shadowOpacity: 0.18,
     shadowOffset: { width: -4, height: 0 },
@@ -187,9 +257,24 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   itemBody: { flex: 1 },
-  itemTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b", marginBottom: 4 },
+  itemTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
   itemMessage: { fontSize: 13, color: "#475569", lineHeight: 19 },
   itemTime: { fontSize: 11, color: "#94a3b8", marginTop: 6 },
+  dismissBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#f8fafc",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
   separator: { height: 16 },
   empty: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { color: "#94a3b8", fontSize: 14 },

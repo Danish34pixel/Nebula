@@ -1,25 +1,23 @@
-import React, { useEffect, useState } from "react";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
+  Dimensions,
   Image,
-  TouchableOpacity,
+  Linking,
+  Modal,
   ScrollView,
   StyleSheet,
-  Modal,
-  ActivityIndicator,
-  Linking,
-  SafeAreaView,
-  Dimensions,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { secureStorage } from "../../utils/secureStore";
-import { fetchJson } from "../../config/api";
-import SecureScreen from "../../components/SecureScreen";
 import AdsCarousel from "../../components/AdsCarousel";
+import SecureScreen from "../../components/SecureScreen";
+import { fetchJson } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 const medicineReferencesStockist = (med, stockist) => {
   if (!med || !stockist) return false;
@@ -42,7 +40,7 @@ const medicineReferencesStockist = (med, stockist) => {
   return candidates.some((c) => {
     if (!c) return false;
     const itemIds = extractIdCandidates(c);
-    return itemIds.some(id => targetIds.has(id));
+    return itemIds.some((id) => targetIds.has(id));
   });
 };
 
@@ -99,12 +97,24 @@ const extractIdCandidates = (value) => {
   if (typeof value === "object") {
     const direct = [];
     // Check common ID keys
-    const keys = ["_id", "id", "stockist", "stockistId", "seller", "sellerId", "userId", "uid", "owner", "ownerId"];
+    const keys = [
+      "_id",
+      "id",
+      "stockist",
+      "stockistId",
+      "seller",
+      "sellerId",
+      "userId",
+      "uid",
+      "owner",
+      "ownerId",
+    ];
     for (const k of keys) {
       if (value[k] != null) direct.push(...extractIdCandidates(value[k]));
     }
     // If it's the object itself from a search result, it might be the ID if it's just a ref string but somehow type object
-    if (value.toString && value.toString().length === 24) direct.push(value.toString());
+    if (value.toString && value.toString().length === 24)
+      direct.push(value.toString());
     return direct;
   }
   return [];
@@ -152,10 +162,13 @@ const companyLinksStockist = (company, stockist) => {
     company.supplierIds,
   ];
 
-  if (refs.some((ref) => {
-    const ids = extractIdCandidates(ref);
-    return ids.some(id => targetIds.has(id));
-  })) return true;
+  if (
+    refs.some((ref) => {
+      const ids = extractIdCandidates(ref);
+      return ids.some((id) => targetIds.has(id));
+    })
+  )
+    return true;
 
   const stockistName = normalizeString(
     stockist.name ||
@@ -163,7 +176,7 @@ const companyLinksStockist = (company, stockist) => {
       stockist.companyName ||
       stockist.contactPerson ||
       stockist.medicalName ||
-      stockist.ownerName
+      stockist.ownerName,
   );
   const stockistNameArrays = [
     company.stockistNames,
@@ -177,9 +190,13 @@ const companyLinksStockist = (company, stockist) => {
     return stockistNameArrays.some((names) => {
       if (!names) return false;
       const arr = Array.isArray(names) ? names : [names];
-      return arr.map(normalizeString).some(name => {
+      return arr.map(normalizeString).some((name) => {
         if (!name) return false;
-        return name === stockistName || name.includes(stockistName) || stockistName.includes(name);
+        return (
+          name === stockistName ||
+          name.includes(stockistName) ||
+          stockistName.includes(name)
+        );
       });
     });
   }
@@ -261,16 +278,25 @@ const Screen = ({ navigation: navProp }) => {
             companiesLength: companies.length,
           });
           if (stockists.length > 0) {
-            console.log("[Screen] Sample Stockist ID candidates for the first one:", {
-              title: stockists[0].name,
-              ids: extractIdCandidates(stockists[0])
-            });
+            console.log(
+              "[Screen] Sample Stockist ID candidates for the first one:",
+              {
+                title: stockists[0].name,
+                ids: extractIdCandidates(stockists[0]),
+              },
+            );
           }
           if (medicines.length > 0) {
-             console.log("[Screen] Sample Medicine entry:", JSON.stringify(medicines[0]).substring(0, 200));
+            console.log(
+              "[Screen] Sample Medicine entry:",
+              JSON.stringify(medicines[0]).substring(0, 200),
+            );
           }
           if (companies.length > 0) {
-             console.log("[Screen] Sample Company entry:", JSON.stringify(companies[0]).substring(0, 200));
+            console.log(
+              "[Screen] Sample Company entry:",
+              JSON.stringify(companies[0]).substring(0, 200),
+            );
           }
         }
 
@@ -496,7 +522,7 @@ const Screen = ({ navigation: navProp }) => {
                 mappedCompanies: items.length,
                 mappedMedicines: meds.length,
                 itemsSample: JSON.stringify(items).substring(0, 100),
-                medsSample: JSON.stringify(meds).substring(0, 100)
+                medsSample: JSON.stringify(meds).substring(0, 100),
               });
             }
 
@@ -985,94 +1011,95 @@ const Screen = ({ navigation: navProp }) => {
 
   return (
     <SecureScreen>
-    <View style={{ flex: 1 }}>
-      {fullscreenStockist === null ? (
-        <>
-          <ScrollView
-            contentContainerStyle={{ paddingBottom: 150 }}
-            style={{ flex: 1 }}
-          >
-            <ListHeader />
-            {sectionData.map((s, i) => renderCard(s, i))}
+      <View style={{ flex: 1 }}>
+        {fullscreenStockist === null ? (
+          <>
+            <ScrollView
+              contentContainerStyle={{ paddingBottom: 80 }}
+              style={{ flex: 1 }}
+            >
+              <ListHeader />
+              {sectionData.map((s, i) => renderCard(s, i))}
 
-            {/* Pagination */}
-            <View style={styles.paginationRow}>
-              <TouchableOpacity
-                onPress={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || pageLoading}
-                style={[
-                  styles.pageBtn,
-                  (page <= 1 || pageLoading) && styles.pageBtnDisabled,
-                ]}
-              >
-                <Feather
-                  name="chevron-left"
-                  size={20}
-                  color={page <= 1 || pageLoading ? "#9ca3af" : "#fff"}
-                />
-                <Text
+              {/* Pagination */}
+              <View style={styles.paginationRow}>
+                <TouchableOpacity
+                  onPress={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || pageLoading}
                   style={[
-                    page <= 1 || pageLoading
-                      ? styles.pageBtnTextDisabled
-                      : styles.pageBtnText,
+                    styles.pageBtn,
+                    (page <= 1 || pageLoading) && styles.pageBtnDisabled,
                   ]}
                 >
-                  Prev
-                </Text>
-              </TouchableOpacity>
+                  <Feather
+                    name="chevron-left"
+                    size={20}
+                    color={page <= 1 || pageLoading ? "#9ca3af" : "#fff"}
+                  />
+                  <Text
+                    style={[
+                      page <= 1 || pageLoading
+                        ? styles.pageBtnTextDisabled
+                        : styles.pageBtnText,
+                    ]}
+                  >
+                    Prev
+                  </Text>
+                </TouchableOpacity>
 
-              <View style={styles.pageIndicator}>
-                <Text style={styles.pageIndicatorText}>
-                  Page {page}
-                  {totalPages ? ` of ${totalPages}` : ""}
-                </Text>
-              </View>
+                <View style={styles.pageIndicator}>
+                  <Text style={styles.pageIndicatorText}>
+                    Page {page}
+                    {totalPages ? ` of ${totalPages}` : ""}
+                  </Text>
+                </View>
 
-              <TouchableOpacity
-                onPress={() => setPage((p) => p + 1)}
-                disabled={
-                  pageLoading || (totalPages != null && page >= totalPages)
-                }
-                style={[
-                  styles.pageBtn,
-                  (pageLoading || (totalPages != null && page >= totalPages)) &&
-                    styles.pageBtnDisabled,
-                ]}
-              >
-                <Text
-                  style={[
+                <TouchableOpacity
+                  onPress={() => setPage((p) => p + 1)}
+                  disabled={
                     pageLoading || (totalPages != null && page >= totalPages)
-                      ? styles.pageBtnTextDisabled
-                      : styles.pageBtnText,
-                  ]}
-                >
-                  Next
-                </Text>
-                <Feather
-                  name="chevron-right"
-                  size={20}
-                  color={
-                    pageLoading || (totalPages != null && page >= totalPages)
-                      ? "#9ca3af"
-                      : "#fff"
                   }
-                />
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-          {renderBottomNavigation()}
-        </>
-      ) : (
-        <Modal
-          visible={true}
-          animationType="slide"
-          presentationStyle="formSheet"
-          onRequestClose={() => setFullscreenStockist(null)}
-        >
-          {renderDetailViewForFullscreen(fullscreenStockist)}
-        </Modal>
-      )}
-    </View>
+                  style={[
+                    styles.pageBtn,
+                    (pageLoading ||
+                      (totalPages != null && page >= totalPages)) &&
+                      styles.pageBtnDisabled,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      pageLoading || (totalPages != null && page >= totalPages)
+                        ? styles.pageBtnTextDisabled
+                        : styles.pageBtnText,
+                    ]}
+                  >
+                    Next
+                  </Text>
+                  <Feather
+                    name="chevron-right"
+                    size={20}
+                    color={
+                      pageLoading || (totalPages != null && page >= totalPages)
+                        ? "#9ca3af"
+                        : "#fff"
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+            {renderBottomNavigation()}
+          </>
+        ) : (
+          <Modal
+            visible={true}
+            animationType="slide"
+            presentationStyle="formSheet"
+            onRequestClose={() => setFullscreenStockist(null)}
+          >
+            {renderDetailViewForFullscreen(fullscreenStockist)}
+          </Modal>
+        )}
+      </View>
     </SecureScreen>
   );
 

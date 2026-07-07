@@ -1,9 +1,14 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import SecureScreen from "../../components/SecureScreen";
 
 const AdminDashboard = () => {
@@ -15,162 +20,163 @@ const AdminDashboard = () => {
 
   return (
     <SecureScreen>
-    <SafeAreaView style={styles.safeArea}>
-      <LinearGradient
-        colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]}
-        style={styles.container}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={safeBack}
-            style={styles.backBtn}
-          >
-            <Feather name="arrow-left" size={24} color="#1e293b" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Admin Panel</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <SafeAreaView style={styles.safeArea}>
+        <LinearGradient
+          colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]}
+          style={styles.container}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity onPress={safeBack} style={styles.backBtn}>
+              <Feather name="arrow-left" size={24} color="#1e293b" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Admin Panel</Text>
+            <View style={{ width: 40 }} />
+          </View>
 
-        <View style={styles.menu}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/Admin/users")}
+          <ScrollView
+            contentContainerStyle={styles.menu}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <LinearGradient
-              colors={["#3b82f6", "#2563eb"]}
-              style={styles.iconBox}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/Admin/users")}
             >
-              <Feather name="users" size={32} color="#fff" />
-            </LinearGradient>
-            <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>Purchaser Management</Text>
-              <Text style={styles.menuSub}>
-                Approve or decline purchaser registrations
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
+              <LinearGradient
+                colors={["#3b82f6", "#2563eb"]}
+                style={styles.iconBox}
+              >
+                <Feather name="users" size={32} color="#fff" />
+              </LinearGradient>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle}>Purchaser Management</Text>
+                <Text style={styles.menuSub}>
+                  Approve or decline purchaser registrations
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={24} color="#94a3b8" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/Admin/stockists")}
-          >
-            <LinearGradient
-              colors={["#0d9488", "#0f766e"]}
-              style={styles.iconBox}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/Admin/stockists")}
             >
-              <Feather name="package" size={32} color="#fff" />
-            </LinearGradient>
-            <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>Stockist Management</Text>
-              <Text style={styles.menuSub}>
-                Verify and approve supplier applications
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
+              <LinearGradient
+                colors={["#0d9488", "#0f766e"]}
+                style={styles.iconBox}
+              >
+                <Feather name="package" size={32} color="#fff" />
+              </LinearGradient>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle}>Stockist Management</Text>
+                <Text style={styles.menuSub}>
+                  Verify and approve supplier applications
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={24} color="#94a3b8" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/Admin/create-company")}
-          >
-            <LinearGradient
-              colors={["#fbbf24", "#d97706"]}
-              style={styles.iconBox}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/Admin/create-company")}
             >
-              <Feather name="plus-circle" size={32} color="#fff" />
-            </LinearGradient>
-            <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>Create Company</Text>
-              <Text style={styles.menuSub}>
-                Register a new pharmaceutical company
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
+              <LinearGradient
+                colors={["#fbbf24", "#d97706"]}
+                style={styles.iconBox}
+              >
+                <Feather name="plus-circle" size={32} color="#fff" />
+              </LinearGradient>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle}>Create Company</Text>
+                <Text style={styles.menuSub}>
+                  Register a new pharmaceutical company
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={24} color="#94a3b8" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/Admin/medical-management")}
-          >
-            <LinearGradient
-              colors={["#6366f1", "#4f46e5"]}
-              style={styles.iconBox}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/Admin/medical-management")}
             >
-              <Feather name="activity" size={32} color="#fff" />
-            </LinearGradient>
-            <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>Medical Management</Text>
-              <Text style={styles.menuSub}>
-                Approve or decline medical retailer registrations
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
+              <LinearGradient
+                colors={["#6366f1", "#4f46e5"]}
+                style={styles.iconBox}
+              >
+                <Feather name="activity" size={32} color="#fff" />
+              </LinearGradient>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle}>Medical Management</Text>
+                <Text style={styles.menuSub}>
+                  Approve or decline medical retailer registrations
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={24} color="#94a3b8" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/Admin/create-medicine")}
-          >
-            <LinearGradient
-              colors={["#f472b6", "#db2777"]}
-              style={styles.iconBox}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/Admin/create-medicine")}
             >
-              <Feather name="tablet" size={32} color="#fff" />
-            </LinearGradient>
-            <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>Create Medicine</Text>
-              <Text style={styles.menuSub}>
-                Add new medicine with assignments
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
+              <LinearGradient
+                colors={["#f472b6", "#db2777"]}
+                style={styles.iconBox}
+              >
+                <Feather name="tablet" size={32} color="#fff" />
+              </LinearGradient>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle}>Create Medicine</Text>
+                <Text style={styles.menuSub}>
+                  Add new medicine with assignments
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={24} color="#94a3b8" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/Admin/ads")}
-          >
-            <LinearGradient
-              colors={["#f97316", "#ea580c"]}
-              style={styles.iconBox}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/Admin/ads")}
             >
-              <Feather name="radio" size={32} color="#fff" />
-            </LinearGradient>
-            <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>Manage Ads</Text>
-              <Text style={styles.menuSub}>
-                Upload and control in-app advertisements
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
+              <LinearGradient
+                colors={["#f97316", "#ea580c"]}
+                style={styles.iconBox}
+              >
+                <Feather name="radio" size={32} color="#fff" />
+              </LinearGradient>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle}>Manage Ads</Text>
+                <Text style={styles.menuSub}>
+                  Upload and control in-app advertisements
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={24} color="#94a3b8" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => router.push("/Admin/announcements")}
-          >
-            <LinearGradient
-              colors={["#0891b2", "#0e7490"]}
-              style={styles.iconBox}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("/Admin/announcements")}
             >
-              <Feather name="megaphone" size={32} color="#fff" />
-            </LinearGradient>
-            <View style={styles.menuText}>
-              <Text style={styles.menuTitle}>Announcements</Text>
-              <Text style={styles.menuSub}>
-                Broadcast messages to all user roles
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={24} color="#94a3b8" />
-          </TouchableOpacity>
-        </View>
+              <LinearGradient
+                colors={["#0891b2", "#0e7490"]}
+                style={styles.iconBox}
+              >
+                <Feather name="megaphone" size={32} color="#fff" />
+              </LinearGradient>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle}>Announcements</Text>
+                <Text style={styles.menuSub}>
+                  Broadcast messages to all user roles
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={24} color="#94a3b8" />
+            </TouchableOpacity>
+          </ScrollView>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Logged in as Administrator</Text>
-        </View>
-      </LinearGradient>
-    </SafeAreaView>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Logged in as Administrator</Text>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
     </SecureScreen>
   );
 };
@@ -198,7 +204,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   title: { fontSize: 28, fontWeight: "bold", color: "#1e293b" },
-  menu: { gap: 20 },
+  menu: { paddingBottom: 20, gap: 20 },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,29 +1,42 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Image,
-  Alert,
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Platform,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import { fetchJson, postForm, API_BASE } from "../../config/api";
 import SecureScreen from "../../components/SecureScreen";
+import { API_BASE, fetchJson, postForm } from "../../config/api";
 
 function mediaFullUrl(url) {
   if (!url) return null;
   if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  const path = url.startsWith("/") ? url : `/${url}`;
+  return `${API_BASE}${path}`;
+}
+
+function isImageType(type) {
+  return String(type || "")
+    .toLowerCase()
+    .startsWith("image");
+}
+
+function isVideoType(type) {
+  return String(type || "")
+    .toLowerCase()
+    .startsWith("video");
 }
 
 export default function AdminAds() {
@@ -49,8 +62,10 @@ export default function AdminAds() {
     try {
       const res = await fetchJson("/ads");
       if (res.success) setAds(res.data || []);
-    } catch (_) {}
-    finally { setLoadingAds(false); }
+    } catch (_) {
+    } finally {
+      setLoadingAds(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -66,7 +81,10 @@ export default function AdminAds() {
   const pickMedia = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission required", "Allow media library access to upload ads.");
+      Alert.alert(
+        "Permission required",
+        "Allow media library access to upload ads.",
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -83,9 +101,30 @@ export default function AdminAds() {
 
   const handleSubmit = async () => {
     setFormError("");
-    if (!title.trim()) { setFormError("Title is required."); return; }
-    if (!selectedStockist) { setFormError("Select a stockist."); return; }
-    if (!media) { setFormError("Select a media file (image or video)."); return; }
+    if (!title.trim()) {
+      setFormError("Title is required.");
+      return;
+    }
+    if (!selectedStockist) {
+      setFormError("Select a stockist.");
+      return;
+    }
+    if (!media) {
+      setFormError("Select a media file (image or video).");
+      return;
+    }
+
+    if (expiresAt.trim()) {
+      const expiryDate = new Date(expiresAt.trim());
+      if (Number.isNaN(expiryDate.getTime())) {
+        setFormError("Expiry date must be a valid date in YYYY-MM-DD format.");
+        return;
+      }
+      if (expiryDate <= new Date()) {
+        setFormError("Expiry date must be in the future.");
+        return;
+      }
+    }
 
     setUploading(true);
     try {
@@ -94,8 +133,12 @@ export default function AdminAds() {
       const extFromName = (media.fileName || "").split(".").pop().toLowerCase();
       const ext = extFromName || extFromUri || "jpg";
       const mimeMap = {
-        jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
-        webp: "image/webp", mp4: "video/mp4", mov: "video/quicktime",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        webp: "image/webp",
+        mp4: "video/mp4",
+        mov: "video/quicktime",
       };
       const mimeType = media.mimeType || mimeMap[ext] || "image/jpeg";
       const fileName = media.fileName || `ad.${ext}`;
@@ -108,7 +151,11 @@ export default function AdminAds() {
         formData.append("media", blob, fileName);
       } else {
         // On native, { uri, type, name } is the React Native FormData file shape
-        formData.append("media", { uri: rawUri, type: mimeType, name: fileName });
+        formData.append("media", {
+          uri: rawUri,
+          type: mimeType,
+          name: fileName,
+        });
       }
 
       formData.append("title", title.trim());
@@ -169,14 +216,20 @@ export default function AdminAds() {
     <SecureScreen>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
             <Feather name="arrow-left" size={22} color="#1e293b" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manage Ads</Text>
           <View style={{ width: 44 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Upload Form */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Upload New Ad</Text>
@@ -192,9 +245,20 @@ export default function AdminAds() {
             />
 
             <Text style={styles.label}>Stockist</Text>
-            <TouchableOpacity style={styles.pickerBtn} onPress={() => setPickerVisible(true)}>
-              <Text style={selectedStockist ? styles.pickerSelected : styles.pickerPlaceholder}>
-                {selectedStockist ? (selectedStockist.name || selectedStockist.contactPerson) : "Select stockist..."}
+            <TouchableOpacity
+              style={styles.pickerBtn}
+              onPress={() => setPickerVisible(true)}
+            >
+              <Text
+                style={
+                  selectedStockist
+                    ? styles.pickerSelected
+                    : styles.pickerPlaceholder
+                }
+              >
+                {selectedStockist
+                  ? selectedStockist.name || selectedStockist.contactPerson
+                  : "Select stockist..."}
               </Text>
               <Feather name="chevron-down" size={16} color="#64748b" />
             </TouchableOpacity>
@@ -202,18 +266,27 @@ export default function AdminAds() {
             <Text style={styles.label}>Media (image or video)</Text>
             <TouchableOpacity style={styles.mediaPicker} onPress={pickMedia}>
               {media ? (
-                media.type === "video" || (media.mimeType || "").startsWith("video") ? (
+                media.type === "video" ||
+                (media.mimeType || "").startsWith("video") ? (
                   <View style={styles.videoPreview}>
                     <Feather name="film" size={32} color="#6366f1" />
-                    <Text style={styles.videoLabel}>{media.fileName || "video selected"}</Text>
+                    <Text style={styles.videoLabel}>
+                      {media.fileName || "video selected"}
+                    </Text>
                   </View>
                 ) : (
-                  <Image source={{ uri: media.uri }} style={styles.imagePreview} resizeMode="cover" />
+                  <Image
+                    source={{ uri: media.uri }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
                 )
               ) : (
                 <View style={styles.mediaPlaceholder}>
                   <Feather name="upload" size={28} color="#94a3b8" />
-                  <Text style={styles.mediaPlaceholderText}>Tap to select image or video</Text>
+                  <Text style={styles.mediaPlaceholderText}>
+                    Tap to select image or video
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -252,7 +325,7 @@ export default function AdminAds() {
             ) : (
               ads.map((ad) => (
                 <View key={ad._id} style={styles.adRow}>
-                  {ad.mediaType === "image" ? (
+                  {isImageType(ad.mediaType) ? (
                     <Image
                       source={{ uri: mediaFullUrl(ad.mediaUrl) }}
                       style={styles.adThumb}
@@ -264,19 +337,39 @@ export default function AdminAds() {
                     </View>
                   )}
                   <View style={styles.adInfo}>
-                    <Text style={styles.adTitle} numberOfLines={1}>{ad.title}</Text>
-                    <Text style={styles.adMeta}>
-                      {ad.stockistName || "Stockist"} · {ad.clickCount} clicks · {ad.impressionCount} impressions
+                    <Text style={styles.adTitle} numberOfLines={1}>
+                      {ad.title}
                     </Text>
-                    <Text style={[styles.adStatus, ad.isActive ? styles.statusActive : styles.statusInactive]}>
+                    <Text style={styles.adMeta}>
+                      {ad.stockistName || "Stockist"} · {ad.clickCount} clicks ·{" "}
+                      {ad.impressionCount} impressions
+                    </Text>
+                    <Text
+                      style={[
+                        styles.adStatus,
+                        ad.isActive
+                          ? styles.statusActive
+                          : styles.statusInactive,
+                      ]}
+                    >
                       {ad.isActive ? "Active" : "Inactive"}
                     </Text>
                   </View>
                   <View style={styles.adActions}>
-                    <TouchableOpacity onPress={() => toggleActive(ad)} style={styles.actionBtn}>
-                      <Feather name={ad.isActive ? "pause-circle" : "play-circle"} size={20} color="#6366f1" />
+                    <TouchableOpacity
+                      onPress={() => toggleActive(ad)}
+                      style={styles.actionBtn}
+                    >
+                      <Feather
+                        name={ad.isActive ? "pause-circle" : "play-circle"}
+                        size={20}
+                        color="#6366f1"
+                      />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteAd(ad)} style={styles.actionBtn}>
+                    <TouchableOpacity
+                      onPress={() => deleteAd(ad)}
+                      style={styles.actionBtn}
+                    >
                       <Feather name="trash-2" size={20} color="#ef4444" />
                     </TouchableOpacity>
                   </View>
@@ -316,13 +409,19 @@ export default function AdminAds() {
                       setStockistSearch("");
                     }}
                   >
-                    <Text style={styles.stockistName}>{item.name || item.contactPerson || item._id}</Text>
+                    <Text style={styles.stockistName}>
+                      {item.name || item.contactPerson || item._id}
+                    </Text>
                     {item.contactPerson && item.name ? (
-                      <Text style={styles.stockistSub}>{item.contactPerson}</Text>
+                      <Text style={styles.stockistSub}>
+                        {item.contactPerson}
+                      </Text>
                     ) : null}
                   </TouchableOpacity>
                 )}
-                ListEmptyComponent={<Text style={styles.emptyText}>No stockists found.</Text>}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>No stockists found.</Text>
+                }
               />
             </View>
           </View>
@@ -363,8 +462,19 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  sectionTitle: { fontSize: 17, fontWeight: "700", color: "#1e293b", marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6, marginTop: 12 },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 6,
+    marginTop: 12,
+  },
   input: {
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
@@ -395,10 +505,20 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     height: 140,
   },
-  mediaPlaceholder: { flex: 1, justifyContent: "center", alignItems: "center", gap: 8 },
+  mediaPlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
   mediaPlaceholderText: { color: "#94a3b8", fontSize: 13 },
   imagePreview: { width: "100%", height: "100%" },
-  videoPreview: { flex: 1, justifyContent: "center", alignItems: "center", gap: 6 },
+  videoPreview: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+  },
   videoLabel: { color: "#6366f1", fontSize: 12 },
   errorText: { color: "#ef4444", fontSize: 13, marginTop: 10 },
   submitBtn: {
@@ -409,7 +529,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  emptyText: { color: "#94a3b8", fontSize: 14, textAlign: "center", paddingVertical: 16 },
+  emptyText: {
+    color: "#94a3b8",
+    fontSize: 14,
+    textAlign: "center",
+    paddingVertical: 16,
+  },
   adRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -418,7 +543,12 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f1f5f9",
     gap: 12,
   },
-  adThumb: { width: 60, height: 60, borderRadius: 8, backgroundColor: "#f1f5f9" },
+  adThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: "#f1f5f9",
+  },
   videoThumb: { justifyContent: "center", alignItems: "center" },
   adInfo: { flex: 1 },
   adTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b" },

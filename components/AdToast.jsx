@@ -1,26 +1,38 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  Animated,
-  StyleSheet,
-  Dimensions,
-} from "react-native";
-import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { fetchJson, postJson, API_BASE } from "../config/api";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { API_BASE, fetchJson, postJson } from "../config/api";
+import {
+  dismissAdNotification,
+  filterDismissedAdNotifications,
+  readDismissedAdNotificationIds,
+} from "../utils/adNotificationDismissals";
 
 const SCREEN_W = Dimensions.get("window").width;
-const TOAST_DELAY = 1200;   // wait before sliding in
-const AUTO_DISMISS = 7000;  // auto-dismiss after 7s
-const SKIP_DELAY = 5000;    // skip button appears after 5s
+const TOAST_DELAY = 1200; // wait before sliding in
+const AUTO_DISMISS = 7000; // auto-dismiss after 7s
+const SKIP_DELAY = 5000; // skip button appears after 5s
 
 function mediaFullUrl(url) {
   if (!url) return null;
   if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  const path = url.startsWith("/") ? url : `/${url}`;
+  return `${API_BASE}${path}`;
+}
+
+function isImageType(type) {
+  return String(type || "")
+    .toLowerCase()
+    .startsWith("image");
 }
 
 export default function AdToast() {
@@ -30,6 +42,7 @@ export default function AdToast() {
   const [visible, setVisible] = useState(false);
   const [canSkip, setCanSkip] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [dismissedIds, setDismissedIds] = useState([]);
 
   const slideY = useRef(new Animated.Value(-120)).current;
   const skipTimerRef = useRef(null);
@@ -50,46 +63,61 @@ export default function AdToast() {
     }).start();
   }, [slideY]);
 
-  const slideOut = useCallback((onDone) => {
-    Animated.timing(slideY, {
-      toValue: -120,
-      duration: 260,
-      useNativeDriver: true,
-    }).start(() => {
-      setVisible(false);
-      onDone?.();
-    });
-  }, [slideY]);
+  const slideOut = useCallback(
+    (onDone) => {
+      Animated.timing(slideY, {
+        toValue: -120,
+        duration: 260,
+        useNativeDriver: true,
+      }).start(() => {
+        setVisible(false);
+        onDone?.();
+      });
+    },
+    [slideY],
+  );
 
-  const startTimers = useCallback((adId, totalAds) => {
-    clearTimers();
-    setCanSkip(false);
-    skipTimerRef.current = setTimeout(() => setCanSkip(true), SKIP_DELAY);
-    dismissTimerRef.current = setTimeout(() => {
-      if (totalAds > 1) {
-        slideOut(() => {
-          setIndex((prev) => (prev + 1) % totalAds);
-        });
-      } else {
-        slideOut(() => setDismissed(true));
+  const startTimers = useCallback(
+    (adId, totalAds) => {
+      clearTimers();
+      setCanSkip(false);
+      skipTimerRef.current = setTimeout(() => setCanSkip(true), SKIP_DELAY);
+      dismissTimerRef.current = setTimeout(() => {
+        if (totalAds > 1) {
+          slideOut(() => {
+            setIndex((prev) => (prev + 1) % totalAds);
+          });
+        } else {
+          slideOut(() => setDismissed(true));
+        }
+      }, AUTO_DISMISS);
+      if (adId && !impressionSentRef.current.has(adId)) {
+        impressionSentRef.current.add(adId);
+        postJson(`/ads/${adId}/impression`, {}).catch(() => {});
       }
-    }, AUTO_DISMISS);
-    if (adId && !impressionSentRef.current.has(adId)) {
-      impressionSentRef.current.add(adId);
-      postJson(`/ads/${adId}/impression`, {}).catch(() => {});
-    }
-  }, [clearTimers, slideOut]);
+    },
+    [clearTimers, slideOut],
+  );
 
   useEffect(() => {
     let alive = true;
-    fetchJson("/ads/active")
-      .then((res) => {
-        if (alive && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          setAds(res.data);
+    const loadAds = async () => {
+      try {
+        const dismissed = await readDismissedAdNotificationIds();
+        if (alive) setDismissedIds(dismissed);
+        const res = await fetchJson("/ads/active");
+        if (alive && res.success && Array.isArray(res.data)) {
+          const visibleAds = filterDismissedAdNotifications(res.data, dismissed);
+          setAds(visibleAds);
+          setIndex(0);
         }
-      })
-      .catch(() => {});
-    return () => { alive = false; };
+      } catch (_) {}
+    };
+
+    loadAds();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Slide in when a new ad becomes current
@@ -112,23 +140,45 @@ export default function AdToast() {
   if (ads.length === 0 || dismissed) return null;
 
   const ad = ads[index % ads.length];
-  const thumbUri = ad.mediaType === "image" ? mediaFullUrl(ad.mediaUrl) : null;
+  const thumbUri = isImageType(ad.mediaType) ? mediaFullUrl(ad.mediaUrl) : null;
 
   const handleTap = async () => {
     clearTimers();
     slideOut(async () => {
-      try { await postJson(`/ads/${ad._id}/click`, {}); } catch (_) {}
+      try {
+        await postJson(`/ads/${ad._id}/click`, {});
+      } catch (_) {}
       router.push(`/Stockist/${ad.stockistId}`);
     });
   };
 
-  const handleDismiss = () => {
+  const handleDismiss = async () => {
+    const currentAd = ads[index % ads.length];
     clearTimers();
-    if (ads.length <= 1) {
-      slideOut(() => setDismissed(true));
-    } else {
-      slideOut(() => setIndex((prev) => (prev + 1) % ads.length));
+    if (currentAd?._id) {
+      await dismissAdNotification(currentAd._id);
+      const nextDismissedIds = [...dismissedIds, String(currentAd._id)];
+      setDismissedIds(nextDismissedIds);
     }
+
+    const remainingAds = filterDismissedAdNotifications(ads, [
+      ...(dismissedIds || []),
+      currentAd?._id ? String(currentAd._id) : null,
+    ].filter(Boolean));
+
+    if (remainingAds.length === 0) {
+      slideOut(() => setDismissed(true));
+      return;
+    }
+
+    if (remainingAds.length <= 1) {
+      setAds(remainingAds);
+      slideOut(() => setIndex(0));
+      return;
+    }
+
+    setAds(remainingAds);
+    slideOut(() => setIndex((prev) => prev % remainingAds.length));
   };
 
   return (
@@ -161,9 +211,13 @@ export default function AdToast() {
           <View style={styles.adBadge}>
             <Text style={styles.adBadgeText}>Ad</Text>
           </View>
-          <Text style={styles.title} numberOfLines={1}>{ad.title}</Text>
+          <Text style={styles.title} numberOfLines={1}>
+            {ad.title}
+          </Text>
           {ad.stockistName ? (
-            <Text style={styles.sub} numberOfLines={1}>by {ad.stockistName}</Text>
+            <Text style={styles.sub} numberOfLines={1}>
+              by {ad.stockistName}
+            </Text>
           ) : null}
         </View>
 

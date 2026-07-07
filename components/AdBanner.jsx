@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Platform,
-} from "react-native";
-import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { fetchJson, postJson, API_BASE } from "../config/api";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Dimensions,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { API_BASE, fetchJson, postJson } from "../config/api";
 
 const SCREEN_W = Dimensions.get("window").width;
 const BANNER_H = 200;
@@ -20,9 +20,15 @@ const AUTO_ADVANCE = 9000;
 function mediaFullUrl(url) {
   if (!url) return null;
   if (url.startsWith("http")) return url;
-  return `${API_BASE}${url}`;
+  const path = url.startsWith("/") ? url : `/${url}`;
+  return `${API_BASE}${path}`;
 }
 
+function isVideoType(type) {
+  return String(type || "")
+    .toLowerCase()
+    .startsWith("video");
+}
 
 export default function AdBanner() {
   const router = useRouter();
@@ -41,20 +47,23 @@ export default function AdBanner() {
     clearTimeout(advanceTimerRef.current);
   }, []);
 
-  const startTimers = useCallback((adId, totalAds) => {
-    clearTimers();
-    setCanSkip(false);
-    skipTimerRef.current = setTimeout(() => setCanSkip(true), SKIP_DELAY);
-    if (totalAds > 1) {
-      advanceTimerRef.current = setTimeout(() => {
-        setIndex((prev) => (prev + 1) % totalAds);
-      }, AUTO_ADVANCE);
-    }
-    if (adId && !impressionSentRef.current.has(adId)) {
-      impressionSentRef.current.add(adId);
-      postJson(`/ads/${adId}/impression`, {}).catch(() => {});
-    }
-  }, [clearTimers]);
+  const startTimers = useCallback(
+    (adId, totalAds) => {
+      clearTimers();
+      setCanSkip(false);
+      skipTimerRef.current = setTimeout(() => setCanSkip(true), SKIP_DELAY);
+      if (totalAds > 1) {
+        advanceTimerRef.current = setTimeout(() => {
+          setIndex((prev) => (prev + 1) % totalAds);
+        }, AUTO_ADVANCE);
+      }
+      if (adId && !impressionSentRef.current.has(adId)) {
+        impressionSentRef.current.add(adId);
+        postJson(`/ads/${adId}/impression`, {}).catch(() => {});
+      }
+    },
+    [clearTimers],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -65,8 +74,12 @@ export default function AdBanner() {
         }
       })
       .catch(() => {})
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -77,7 +90,9 @@ export default function AdBanner() {
   }, [index, ads, startTimers, clearTimers]);
 
   const handleTap = async () => {
-    try { await postJson(`/ads/${ad._id}/click`, {}); } catch (_) {}
+    try {
+      await postJson(`/ads/${ad._id}/click`, {});
+    } catch (_) {}
     router.push(`/Stockist/${ad.stockistId}`);
   };
 
@@ -95,13 +110,24 @@ export default function AdBanner() {
 
   const ad = ads[index % ads.length];
   const uri = mediaFullUrl(ad.mediaUrl);
-  console.log("[AdBanner] rendering ad:", ad._id, "mediaType:", ad.mediaType, "uri:", uri);
+  console.log(
+    "[AdBanner] rendering ad:",
+    ad._id,
+    "mediaType:",
+    ad.mediaType,
+    "uri:",
+    uri,
+  );
 
   return (
     <View style={styles.wrapper}>
       {/* Main tap target — navigates to stockist */}
-      <TouchableOpacity activeOpacity={0.9} onPress={handleTap} style={styles.container}>
-        {ad.mediaType === "video" ? (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={handleTap}
+        style={styles.container}
+      >
+        {isVideoType(ad.mediaType) ? (
           Platform.OS === "web" ? (
             // eslint-disable-next-line jsx-a11y/media-has-caption
             <video
@@ -116,7 +142,9 @@ export default function AdBanner() {
             <View style={[styles.media, styles.videoFallback]}>
               <Feather name="film" size={40} color="rgba(255,255,255,0.6)" />
               <Text style={styles.videoFallbackText}>{ad.title}</Text>
-              <Text style={styles.videoInstallHint}>Install expo-video for playback</Text>
+              <Text style={styles.videoInstallHint}>
+                Install expo-video for playback
+              </Text>
             </View>
           )
         ) : (
@@ -124,23 +152,38 @@ export default function AdBanner() {
             source={{ uri }}
             style={styles.media}
             resizeMode="cover"
-            onError={(e) => console.warn("[AdBanner] image load error:", e.nativeEvent?.error, "uri:", uri)}
+            onError={(e) =>
+              console.warn(
+                "[AdBanner] image load error:",
+                e.nativeEvent?.error,
+                "uri:",
+                uri,
+              )
+            }
           />
         )}
         <View style={styles.overlay} pointerEvents="none">
           <View style={styles.badge}>
             <Text style={styles.badgeText}>Ad</Text>
           </View>
-          <Text style={styles.title} numberOfLines={1}>{ad.title}</Text>
+          <Text style={styles.title} numberOfLines={1}>
+            {ad.title}
+          </Text>
           {ad.stockistName ? (
-            <Text style={styles.sub} numberOfLines={1}>by {ad.stockistName}</Text>
+            <Text style={styles.sub} numberOfLines={1}>
+              by {ad.stockistName}
+            </Text>
           ) : null}
         </View>
       </TouchableOpacity>
 
       {/* Skip button — rendered OUTSIDE the tap TouchableOpacity so it gets its own touch zone */}
       {canSkip && (
-        <TouchableOpacity style={styles.skipBtn} onPress={handleSkip} activeOpacity={0.75}>
+        <TouchableOpacity
+          style={styles.skipBtn}
+          onPress={handleSkip}
+          activeOpacity={0.75}
+        >
           <Text style={styles.skipText}>Skip</Text>
           <Feather name="chevron-right" size={12} color="#fff" />
         </TouchableOpacity>
@@ -191,7 +234,16 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   skipText: { color: "#fff", fontSize: 12, fontWeight: "600" },
-  videoFallback: { backgroundColor: "#1e293b", justifyContent: "center", alignItems: "center", gap: 8 },
-  videoFallbackText: { color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "600" },
+  videoFallback: {
+    backgroundColor: "#1e293b",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  videoFallbackText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    fontWeight: "600",
+  },
   videoInstallHint: { color: "rgba(255,255,255,0.4)", fontSize: 10 },
 });

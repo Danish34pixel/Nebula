@@ -79,10 +79,6 @@ const getResolvedBase = () => {
   const selectedBase =
     Platform.OS === "web" ? envWeb || envDefault : envNative || envDefault;
 
-  // When Expo Web is running on localhost, prefer a local API even if the
-  // bundled env still points at production. This avoids stale web bundles
-  // continuing to hit the remote origin during development.
-  // When running on localhost (web dev), always use local backend.
   if (isWebLocalhost()) {
     return "http://localhost:5002";
   }

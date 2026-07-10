@@ -74,18 +74,18 @@ module.exports = {
     },
     extra: {
       router: {},
-      apiUrl: getEnv("EXPO_PUBLIC_API_URL", "http://localhost:5002"),
+      apiUrl: getEnv("EXPO_PUBLIC_API_URL", "https://api.medi-trap.com/"),
       EXPO_PUBLIC_API_BASE_URL: getEnv(
         "EXPO_PUBLIC_API_BASE_URL",
-        getEnv("EXPO_PUBLIC_API_URL", "http://localhost:5002"),
+        getEnv("EXPO_PUBLIC_API_URL", "https://api.medi-trap.com/"),
       ),
       EXPO_PUBLIC_API_BASE_URL_WEB: getEnv(
         "EXPO_PUBLIC_API_BASE_URL_WEB",
-        "http://localhost:5002",
+        "https://api.medi-trap.com/",
       ),
       EXPO_PUBLIC_API_BASE_URL_NATIVE: getEnv(
         "EXPO_PUBLIC_API_BASE_URL_NATIVE",
-        "http://localhost:5002",
+        "https://api.medi-trap.com/",
       ),
       eas: {
         projectId:

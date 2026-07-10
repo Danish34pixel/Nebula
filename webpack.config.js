@@ -6,7 +6,7 @@ module.exports = async function (env, argv) {
   if (config.devServer) {
     config.devServer.proxy = {
       "/api": {
-        target: "http://localhost:5002",
+        target: "https://api.medi-trap.com/",
         secure: false,
         changeOrigin: true,
         ws: false,

@@ -12,7 +12,7 @@ const getExpoExtra = () =>
 const getEnvValue = (key, fallback = "") =>
   process.env[key] || getExpoExtra()[key] || fallback;
 
-const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "http://localhost:5002" : "";
+const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "https://api.medi-trap.com/" : "";
 const PROD_DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
 
 // Normalize to remove any trailing slashes
@@ -80,7 +80,7 @@ const getResolvedBase = () => {
     Platform.OS === "web" ? envWeb || envDefault : envNative || envDefault;
 
   if (isWebLocalhost()) {
-    return "http://localhost:5002";
+    return "https://api.medi-trap.com/";
   }
 
   return rewriteLocalhostForDevice(

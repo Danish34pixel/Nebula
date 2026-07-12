@@ -17,7 +17,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import AdToast from "../../components/AdToast";
 import AdsCarousel from "../../components/AdsCarousel";
 import AnnouncementPanel from "../../components/AnnouncementPanel";
 import SecureScreen from "../../components/SecureScreen";
@@ -1134,9 +1133,6 @@ export default function StockistDashboard() {
           staff={selectedStaff}
           onClose={() => setSelectedStaff(null)}
         />
-
-        <AdToast />
-
         <AnnouncementPanel
           isVisible={showAnnouncements}
           onClose={() => {

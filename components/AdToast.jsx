@@ -1,26 +1,21 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
+  ActivityIndicator,
   Image,
+  Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { API_BASE, fetchJson, postJson } from "../config/api";
-import {
-  dismissAdNotification,
-  filterDismissedAdNotifications,
-  readDismissedAdNotificationIds,
-} from "../utils/adNotificationDismissals";
 
-const SCREEN_W = Dimensions.get("window").width;
-const TOAST_DELAY = 1200; // wait before sliding in
-const AUTO_DISMISS = 7000; // auto-dismiss after 7s
-const SKIP_DELAY = 5000; // skip button appears after 5s
+const SHOW_DELAY = 1000;
+const CLOSE_DELAY = 5000;
 
 function mediaFullUrl(url) {
   if (!url) return null;
@@ -29,10 +24,10 @@ function mediaFullUrl(url) {
   return `${API_BASE}${path}`;
 }
 
-function isImageType(type) {
+function isVideoType(type) {
   return String(type || "")
     .toLowerCase()
-    .startsWith("image");
+    .startsWith("video");
 }
 
 export default function AdToast() {
@@ -40,263 +35,294 @@ export default function AdToast() {
   const [ads, setAds] = useState([]);
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(false);
-  const [canSkip, setCanSkip] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const [dismissedIds, setDismissedIds] = useState([]);
+  const [canClose, setCanClose] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isClosed, setIsClosed] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
 
-  const slideY = useRef(new Animated.Value(-120)).current;
-  const skipTimerRef = useRef(null);
-  const dismissTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
+  const showTimerRef = useRef(null);
   const impressionSentRef = useRef(new Set());
 
   const clearTimers = useCallback(() => {
-    clearTimeout(skipTimerRef.current);
-    clearTimeout(dismissTimerRef.current);
+    clearTimeout(closeTimerRef.current);
+    clearTimeout(showTimerRef.current);
   }, []);
 
-  const slideIn = useCallback(() => {
-    setVisible(true);
-    Animated.timing(slideY, {
-      toValue: 0,
-      duration: 320,
-      useNativeDriver: true,
-    }).start();
-  }, [slideY]);
-
-  const slideOut = useCallback(
-    (onDone) => {
-      Animated.timing(slideY, {
-        toValue: -120,
-        duration: 260,
-        useNativeDriver: true,
-      }).start(() => {
-        setVisible(false);
-        onDone?.();
-      });
-    },
-    [slideY],
+  const currentAd = useMemo(() => ads[index % ads.length], [ads, index]);
+  const mediaUri = useMemo(
+    () => mediaFullUrl(currentAd?.mediaUrl),
+    [currentAd?.mediaUrl],
   );
 
-  const startTimers = useCallback(
-    (adId, totalAds) => {
+  const openFullscreenAd = useCallback(() => {
+    setVisible(true);
+    setCanClose(false);
+    clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => setCanClose(true), CLOSE_DELAY);
+  }, []);
+
+  const closeFullscreenAd = useCallback(
+    async () => {
       clearTimers();
-      setCanSkip(false);
-      skipTimerRef.current = setTimeout(() => setCanSkip(true), SKIP_DELAY);
-      dismissTimerRef.current = setTimeout(() => {
-        if (totalAds > 1) {
-          slideOut(() => {
-            setIndex((prev) => (prev + 1) % totalAds);
-          });
-        } else {
-          slideOut(() => setDismissed(true));
-        }
-      }, AUTO_DISMISS);
-      if (adId && !impressionSentRef.current.has(adId)) {
-        impressionSentRef.current.add(adId);
-        postJson(`/ads/${adId}/impression`, {}).catch(() => {});
-      }
+      setVisible(false);
+      setCanClose(false);
+      setIsClosed(true);
     },
-    [clearTimers, slideOut],
+    [clearTimers],
   );
 
   useEffect(() => {
     let alive = true;
     const loadAds = async () => {
       try {
-        const dismissed = await readDismissedAdNotificationIds();
-        if (alive) setDismissedIds(dismissed);
+        setLoading(true);
         const res = await fetchJson("/ads/active");
         if (alive && res.success && Array.isArray(res.data)) {
-          const visibleAds = filterDismissedAdNotifications(res.data, dismissed);
-          setAds(visibleAds);
+          setAds(res.data);
           setIndex(0);
+          setMediaError(false);
         }
-      } catch (_) {}
+      } catch (_) {
+        if (alive) setAds([]);
+      } finally {
+        if (alive) setLoading(false);
+      }
     };
 
     loadAds();
     return () => {
       alive = false;
+      clearTimers();
     };
-  }, []);
+  }, [clearTimers]);
 
-  // Slide in when a new ad becomes current
   useEffect(() => {
-    if (ads.length === 0 || dismissed) return;
-    const timer = setTimeout(() => {
-      slideIn();
-    }, TOAST_DELAY);
-    return () => clearTimeout(timer);
-  }, [ads, index, dismissed, slideIn]);
+    if (loading || ads.length === 0 || isClosed) return;
+    showTimerRef.current = setTimeout(() => {
+      openFullscreenAd();
+    }, SHOW_DELAY);
+    return () => clearTimeout(showTimerRef.current);
+  }, [ads, isClosed, loading, openFullscreenAd]);
 
-  // Start timers after slide-in completes
   useEffect(() => {
-    if (!visible || ads.length === 0) return;
-    const ad = ads[index % ads.length];
-    startTimers(ad?._id, ads.length);
-    return clearTimers;
-  }, [visible, index, ads, startTimers, clearTimers]);
+    if (!visible || !currentAd?._id) return;
+    if (impressionSentRef.current.has(currentAd._id)) return;
+    impressionSentRef.current.add(currentAd._id);
+    postJson(`/ads/${currentAd._id}/impression`, {}).catch(() => {});
+  }, [currentAd?._id, visible]);
 
-  if (ads.length === 0 || dismissed) return null;
-
-  const ad = ads[index % ads.length];
-  const thumbUri = isImageType(ad.mediaType) ? mediaFullUrl(ad.mediaUrl) : null;
+  if (loading || ads.length === 0 || isClosed || !currentAd) return null;
 
   const handleTap = async () => {
-    clearTimers();
-    slideOut(async () => {
-      try {
-        await postJson(`/ads/${ad._id}/click`, {});
-      } catch (_) {}
-      router.push(`/Stockist/${ad.stockistId}`);
-    });
+    try {
+      await postJson(`/ads/${currentAd._id}/click`, {});
+    } catch (_) {}
+    await closeFullscreenAd();
+    router.push(`/Stockist/${currentAd.stockistId}`);
   };
 
-  const handleDismiss = async () => {
-    const currentAd = ads[index % ads.length];
-    clearTimers();
-    if (currentAd?._id) {
-      await dismissAdNotification(currentAd._id);
-      const nextDismissedIds = [...dismissedIds, String(currentAd._id)];
-      setDismissedIds(nextDismissedIds);
-    }
-
-    const remainingAds = filterDismissedAdNotifications(ads, [
-      ...(dismissedIds || []),
-      currentAd?._id ? String(currentAd._id) : null,
-    ].filter(Boolean));
-
-    if (remainingAds.length === 0) {
-      slideOut(() => setDismissed(true));
-      return;
-    }
-
-    if (remainingAds.length <= 1) {
-      setAds(remainingAds);
-      slideOut(() => setIndex(0));
-      return;
-    }
-
-    setAds(remainingAds);
-    slideOut(() => setIndex((prev) => prev % remainingAds.length));
+  const handleClose = async () => {
+    if (!canClose) return;
+    await closeFullscreenAd();
   };
 
   return (
-    <Animated.View
-      style={[styles.wrapper, { transform: [{ translateY: slideY }] }]}
-      pointerEvents={visible ? "box-none" : "none"}
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent
+      statusBarTranslucent
+      onRequestClose={handleClose}
     >
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.92}
-        onPress={handleTap}
-      >
-        {/* Thumbnail / icon */}
-        <View style={styles.thumb}>
-          {thumbUri ? (
-            <Image
-              source={{ uri: thumbUri }}
-              style={styles.thumbImg}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.thumbFallback}>
-              <Feather name="film" size={22} color="#6366f1" />
-            </View>
-          )}
-        </View>
-
-        {/* Text body */}
-        <View style={styles.body}>
-          <View style={styles.adBadge}>
-            <Text style={styles.adBadgeText}>Ad</Text>
-          </View>
-          <Text style={styles.title} numberOfLines={1}>
-            {ad.title}
-          </Text>
-          {ad.stockistName ? (
-            <Text style={styles.sub} numberOfLines={1}>
-              by {ad.stockistName}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Dismiss / Skip button */}
+      <View style={styles.backdrop}>
         <TouchableOpacity
-          style={styles.closeBtn}
-          onPress={handleDismiss}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={1}
+          style={styles.touchArea}
+          onPress={handleTap}
         >
-          {canSkip ? (
-            <Feather name="x" size={16} color="#64748b" />
+          <View style={styles.card}>
+            {isVideoType(currentAd.mediaType) ? (
+              Platform.OS === "web" ? (
+                // eslint-disable-next-line jsx-a11y/media-has-caption
+                <video
+                  src={mediaUri}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  style={styles.media}
+                />
+              ) : (
+                <View style={[styles.media, styles.videoFallback]}>
+                  <Feather name="film" size={44} color="rgba(255,255,255,0.7)" />
+                  <Text style={styles.videoTitle} numberOfLines={2}>
+                    {currentAd.title}
+                  </Text>
+                </View>
+              )
+            ) : mediaError || !mediaUri ? (
+              <View style={[styles.media, styles.imageFallback]}>
+                <Feather name="image" size={44} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.videoTitle} numberOfLines={2}>
+                  {currentAd.title}
+                </Text>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: mediaUri }}
+                style={styles.media}
+                resizeMode="cover"
+                onError={() => setMediaError(true)}
+              />
+            )}
+
+            <LinearGradient
+              colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.82)"]}
+              style={styles.overlay}
+            >
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Sponsored</Text>
+              </View>
+              <Text style={styles.title} numberOfLines={2}>
+                {currentAd.title}
+              </Text>
+              {currentAd.stockistName ? (
+                <Text style={styles.sub} numberOfLines={1}>
+                  by {currentAd.stockistName}
+                </Text>
+              ) : null}
+              <Text style={styles.hint}>
+                Tap to open. Close becomes available after 5 seconds.
+              </Text>
+            </LinearGradient>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.closeBtn, !canClose && styles.closeBtnDisabled]}
+          onPress={handleClose}
+          activeOpacity={0.8}
+          disabled={!canClose}
+        >
+          {canClose ? (
+            <Feather name="x" size={20} color="#0f172a" />
           ) : (
-            <View style={styles.skipDot} />
+            <ActivityIndicator size="small" color="#0f172a" />
           )}
         </TouchableOpacity>
-      </TouchableOpacity>
-    </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    right: 12,
-    zIndex: 9999,
-  },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.14,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 16,
-    elevation: 8,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-  },
-  thumb: {
-    width: 52,
-    height: 52,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#f1f5f9",
-  },
-  thumbImg: { width: "100%", height: "100%" },
-  thumbFallback: { flex: 1, justifyContent: "center", alignItems: "center" },
-  body: { flex: 1 },
-  adBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#ede9fe",
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    marginBottom: 3,
-  },
-  adBadgeText: { color: "#6366f1", fontSize: 9, fontWeight: "700" },
-  title: { fontSize: 13, fontWeight: "700", color: "#1e293b" },
-  sub: { fontSize: 11, color: "#64748b", marginTop: 2 },
-  closeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#f8fafc",
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(2, 6, 23, 0.96)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
   },
-  skipDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#cbd5e1",
+  touchArea: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+  },
+  card: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 0,
+    overflow: "hidden",
+    backgroundColor: "#0f172a",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 24,
+    elevation: 18,
+  },
+  media: {
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 18,
+    paddingTop: 48,
+    paddingBottom: 24,
+    minHeight: 180,
+    justifyContent: "flex-end",
+  },
+  badge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 12,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  title: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "800",
+    lineHeight: 34,
+  },
+  sub: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 14,
+    marginTop: 6,
+  },
+  hint: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 12,
+    marginTop: 14,
+  },
+  closeBtn: {
+    position: "absolute",
+    top: 22,
+    right: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.24,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  closeBtnDisabled: {
+    opacity: 0.85,
+  },
+  videoFallback: {
+    backgroundColor: "#111827",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    padding: 24,
+  },
+  imageFallback: {
+    backgroundColor: "#111827",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    padding: 24,
+  },
+  videoTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
   },
 });

@@ -9,7 +9,6 @@ import { Feather } from "@expo/vector-icons";
 import Nav from "./Nav.jsx";
 import Screen from "./Screen.jsx";
 import SecureScreen from "../../components/SecureScreen";
-import AdToast from "../../components/AdToast";
 import AnnouncementPanel from "../../components/AnnouncementPanel";
 
 export default function Dashboard() {
@@ -96,9 +95,6 @@ export default function Dashboard() {
       >
         <Feather name="bell" size={20} color="#6366f1" />
       </TouchableOpacity>
-
-      {/* Ad toast — absolute overlay */}
-      <AdToast />
 
       {/* Announcement panel */}
       <AnnouncementPanel

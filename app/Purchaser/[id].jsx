@@ -20,7 +20,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { secureStorage } from "../../utils/secureStore";
 import { apiUrl, fetchJson } from "../../config/api";
 import SecureScreen from "../../components/SecureScreen";
-import AdToast from "../../components/AdToast";
 import AdsCarousel from "../../components/AdsCarousel";
 import AnnouncementPanel from "../../components/AnnouncementPanel";
 
@@ -910,8 +909,6 @@ export default function PurchaserDashboard() {
           </View>
         </View>
       </Modal>
-
-      <AdToast />
       <AnnouncementPanel
         isVisible={showAnnouncements}
         onClose={() => setShowAnnouncements(false)}

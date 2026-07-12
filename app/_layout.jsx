@@ -78,6 +78,7 @@ export default function RootLayout() {
         <Stack.Screen name="MedicalOwner/urgent-request" />
         <Stack.Screen name="Purchaser/urgent-requests" />
         <Stack.Screen name="urgent-request-chat/[id]" />
+        <Stack.Screen name="announcement/[id]" />
         <Stack.Screen name="login" />
       </Stack>
       <GlobalFullscreenAd />

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { fetchJson, postJson } from "../config/api";
 import {
   dismissAdNotification,
@@ -48,6 +49,7 @@ export default function AnnouncementPanel({
   onClose,
   onAnnouncementsLoaded,
 }) {
+  const router = useRouter();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dismissedIds, setDismissedIds] = useState([]);
@@ -123,7 +125,14 @@ export default function AnnouncementPanel({
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.item}>
+    <TouchableOpacity
+      style={styles.item}
+      activeOpacity={0.82}
+      onPress={() => {
+        onClose?.();
+        router.push(`/announcement/${item._id}`);
+      }}
+    >
       <View style={styles.itemIcon}>
         <Feather name="megaphone" size={16} color="#6366f1" />
       </View>
@@ -137,13 +146,16 @@ export default function AnnouncementPanel({
         </Text>
       </View>
       <TouchableOpacity
-        onPress={() => handleDismissItem(item)}
+        onPress={(e) => {
+          e?.stopPropagation?.();
+          handleDismissItem(item);
+        }}
         style={styles.dismissBtn}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <Feather name="x" size={14} color="#64748b" />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   return (

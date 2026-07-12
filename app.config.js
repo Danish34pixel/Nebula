@@ -42,6 +42,7 @@ module.exports = {
     android: {
       package: "com.danish.meditrap",
       versionCode: 11,
+      softwareKeyboardLayoutMode: "resize",
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/app-icon.png",

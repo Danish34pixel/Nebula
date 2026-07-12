@@ -12,11 +12,16 @@ import {
   AppState,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchJson, postJson } from "../../config/api";
 import SecureScreen from "../../components/SecureScreen";
+
+const normalizeChatRole = (role) => {
+  if (role === "medicalOwner") return "user";
+  return role || "user";
+};
 
 export default function UrgentRequestChat() {
   const { id } = useLocalSearchParams();
@@ -27,6 +32,7 @@ export default function UrgentRequestChat() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [myRole, setMyRole] = useState(null); // 'user' | 'purchaser'
+  const [myId, setMyId] = useState(null);
 
   const flatRef = useRef(null);
   const appActiveRef = useRef(true);
@@ -34,17 +40,11 @@ export default function UrgentRequestChat() {
 
   const loadMessages = useCallback(async () => {
     try {
-      const res = await fetchJson(`/urgent-request/${id}/messages`);
+      const res = await fetchJson(`/urgent-request/${id}/messages?markRead=1`);
       if (res.success) {
-        setMessages((prev) => {
-          if (
-            prev.length === res.data.length &&
-            prev[prev.length - 1]?._id === res.data[res.data.length - 1]?._id
-          ) {
-            return prev;
-          }
-          return res.data || [];
-        });
+        // Always replace the list so receipt fields like deliveredAt/readBy
+        // can refresh even when the message count stays the same.
+        setMessages(res.data || []);
       }
     } catch (e) {
       // silent
@@ -59,8 +59,16 @@ export default function UrgentRequestChat() {
       let timerId;
       appActiveRef.current = true;
 
-      AsyncStorage.getItem("role").then((r) => {
-        if (!cancelled) setMyRole(r || "user");
+      AsyncStorage.getItem("user").then((raw) => {
+        if (cancelled) return;
+        try {
+          const user = raw ? JSON.parse(raw) : null;
+          setMyRole(normalizeChatRole(user?.role));
+          setMyId(String(user?._id || user?.id || ""));
+        } catch {
+          setMyRole("user");
+          setMyId(null);
+        }
       });
 
       const tick = async () => {
@@ -109,7 +117,10 @@ export default function UrgentRequestChat() {
   };
 
   const renderMessage = ({ item }) => {
-    const isMine = item.senderRole === myRole;
+    const isMine =
+      item.senderRole === myRole || (myId && String(item.senderId) === myId);
+    const isRead = isMine && Array.isArray(item.readBy) && item.readBy.length > 0;
+    const isDelivered = isMine && Boolean(item.deliveredAt);
     return (
       <View
         style={[
@@ -123,12 +134,33 @@ export default function UrgentRequestChat() {
         <Text style={isMine ? styles.bubbleTextMine : styles.bubbleTextTheirs}>
           {item.text}
         </Text>
-        <Text style={isMine ? styles.timeTextMine : styles.timeTextTheirs}>
-          {new Date(item.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </Text>
+        <View style={styles.metaRow}>
+          <Text style={isMine ? styles.timeTextMine : styles.timeTextTheirs}>
+            {new Date(item.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
+          {isMine && (
+            <View style={styles.tickWrap}>
+              {isRead ? (
+                <MaterialCommunityIcons
+                  name="check-all"
+                  size={14}
+                  color="#3b82f6"
+                />
+              ) : isDelivered ? (
+                <MaterialCommunityIcons
+                  name="check-all"
+                  size={14}
+                  color="#94a3b8"
+                />
+              ) : (
+                <Feather name="check" size={12} color="#94a3b8" />
+              )}
+            </View>
+          )}
+        </View>
       </View>
     );
   };
@@ -146,44 +178,55 @@ export default function UrgentRequestChat() {
         </View>
 
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
-          {loading ? (
-            <ActivityIndicator color="#6366f1" style={{ marginTop: 40 }} />
-          ) : (
-            <FlatList
-              ref={flatRef}
-              data={messages}
-              keyExtractor={(item) => item._id || String(Math.random())}
-              renderItem={renderMessage}
-              contentContainerStyle={styles.messagesList}
-              ListEmptyComponent={
-                <View style={styles.emptyChat}>
-                  <Feather name="message-circle" size={36} color="#cbd5e1" />
-                  <Text style={styles.emptyChatText}>No messages yet. Say hi!</Text>
-                </View>
-              }
-              onContentSizeChange={() =>
-                flatRef.current?.scrollToEnd({ animated: false })
-              }
-            />
-          )}
+          <View style={styles.chatBody}>
+            {loading ? (
+              <ActivityIndicator color="#6366f1" style={{ marginTop: 40 }} />
+            ) : (
+              <FlatList
+                ref={flatRef}
+                data={messages}
+                keyExtractor={(item) => item._id || String(Math.random())}
+                renderItem={renderMessage}
+                contentContainerStyle={styles.messagesList}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                ListEmptyComponent={
+                  <View style={styles.emptyChat}>
+                    <Feather name="message-circle" size={36} color="#cbd5e1" />
+                    <Text style={styles.emptyChatText}>
+                      No messages yet. Say hi!
+                    </Text>
+                  </View>
+                }
+                onContentSizeChange={() =>
+                  flatRef.current?.scrollToEnd({ animated: false })
+                }
+              />
+            )}
+          </View>
 
           {/* Input bar */}
           <View style={styles.inputBar}>
-            <TextInput
-              style={styles.textInput}
-              value={text}
-              onChangeText={setText}
-              placeholder="Type a message..."
-              placeholderTextColor="#94a3b8"
-              multiline
-              returnKeyType="default"
-            />
+            <View style={styles.inputShell}>
+              <TextInput
+                style={styles.textInput}
+                value={text}
+                onChangeText={setText}
+                placeholder="Type a message..."
+                placeholderTextColor="#94a3b8"
+                multiline
+                returnKeyType="default"
+              />
+            </View>
             <TouchableOpacity
-              style={[styles.sendBtn, (!text.trim() || sending) && { opacity: 0.5 }]}
+              style={[
+                styles.sendBtn,
+                (!text.trim() || sending) && { opacity: 0.5 },
+              ]}
               onPress={handleSend}
               disabled={!text.trim() || sending}
             >
@@ -202,6 +245,8 @@ export default function UrgentRequestChat() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
+  flex: { flex: 1 },
+  chatBody: { flex: 1 },
 
   header: {
     flexDirection: "row",
@@ -234,7 +279,7 @@ const styles = StyleSheet.create({
   },
   bubbleMine: {
     alignSelf: "flex-end",
-    backgroundColor: "#6366f1",
+    backgroundColor: "#dbeafe",
     borderBottomRightRadius: 4,
   },
   bubbleTheirs: {
@@ -250,20 +295,24 @@ const styles = StyleSheet.create({
     color: "#64748b",
     marginBottom: 4,
   },
-  bubbleTextMine: { color: "#fff", fontSize: 15, lineHeight: 20 },
+  bubbleTextMine: { color: "#0f172a", fontSize: 15, lineHeight: 20 },
   bubbleTextTheirs: { color: "#1e293b", fontSize: 15, lineHeight: 20 },
-  timeTextMine: {
-    color: "rgba(255,255,255,0.65)",
-    fontSize: 10,
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 4,
     marginTop: 4,
-    alignSelf: "flex-end",
+  },
+  timeTextMine: {
+    color: "#64748b",
+    fontSize: 10,
   },
   timeTextTheirs: {
     color: "#94a3b8",
     fontSize: 10,
-    marginTop: 4,
-    alignSelf: "flex-end",
   },
+  tickWrap: { marginLeft: 2 },
 
   emptyChat: { alignItems: "center", paddingTop: 80, gap: 12 },
   emptyChatText: { color: "#94a3b8", fontSize: 14 },
@@ -272,18 +321,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === "ios" ? 18 : 12,
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderTopColor: "#f1f5f9",
     gap: 10,
   },
-  textInput: {
+  inputShell: {
     flex: 1,
     backgroundColor: "#f8fafc",
     borderRadius: 20,
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  textInput: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,

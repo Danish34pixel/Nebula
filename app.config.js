@@ -21,6 +21,7 @@ if (
 }
 
 const getEnv = (key, fallback = "") => process.env[key] || fallback;
+const normalizeUrl = (value) => (value ? value.replace(/\/+$/, "") : value);
 
 module.exports = {
   expo: {
@@ -74,18 +75,20 @@ module.exports = {
     },
     extra: {
       router: {},
-      apiUrl: getEnv("EXPO_PUBLIC_API_URL", "https://api.medi-trap.com/"),
-      EXPO_PUBLIC_API_BASE_URL: getEnv(
-        "EXPO_PUBLIC_API_BASE_URL",
-        getEnv("EXPO_PUBLIC_API_URL", "https://api.medi-trap.com/"),
+      apiUrl: normalizeUrl(
+        getEnv(
+          "EXPO_PUBLIC_API_BASE_URL",
+          getEnv("EXPO_PUBLIC_API_URL", ""),
+        ),
       ),
-      EXPO_PUBLIC_API_BASE_URL_WEB: getEnv(
-        "EXPO_PUBLIC_API_BASE_URL_WEB",
-        "https://api.medi-trap.com/",
+      EXPO_PUBLIC_API_BASE_URL: normalizeUrl(
+        getEnv("EXPO_PUBLIC_API_BASE_URL", getEnv("EXPO_PUBLIC_API_URL", "")),
       ),
-      EXPO_PUBLIC_API_BASE_URL_NATIVE: getEnv(
-        "EXPO_PUBLIC_API_BASE_URL_NATIVE",
-        "https://api.medi-trap.com/",
+      EXPO_PUBLIC_API_BASE_URL_WEB: normalizeUrl(
+        getEnv("EXPO_PUBLIC_API_BASE_URL_WEB", ""),
+      ),
+      EXPO_PUBLIC_API_BASE_URL_NATIVE: normalizeUrl(
+        getEnv("EXPO_PUBLIC_API_BASE_URL_NATIVE", ""),
       ),
       eas: {
         projectId:

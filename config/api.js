@@ -12,9 +12,6 @@ const getExpoExtra = () =>
 const getEnvValue = (key, fallback = "") =>
   process.env[key] || getExpoExtra()[key] || fallback;
 
-const DEV_DEFAULT_API_BASE_URL = __DEV__ ? "https://api.medi-trap.com/" : "";
-const PROD_DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
-
 // Normalize to remove any trailing slashes
 const normalizeBase = (url) =>
   url && url.endsWith("/") ? url.slice(0, -1) : url;
@@ -23,16 +20,6 @@ const normalizeToken = (token) => {
   if (token == null) return null;
   const normalized = String(token).trim();
   return normalized.replace(/^Bearer\s+/i, "").trim() || null;
-};
-
-const isWebLocalhost = () => {
-  if (Platform.OS !== "web") return false;
-  try {
-    const host = globalThis?.window?.location?.hostname || "";
-    return host === "localhost" || host === "127.0.0.1";
-  } catch {
-    return false;
-  }
 };
 
 const extractExpoHost = () => {
@@ -70,8 +57,7 @@ const rewriteLocalhostForDevice = (url) => {
 const getResolvedBase = () => {
   const envDefault =
     getEnvValue("EXPO_PUBLIC_API_BASE_URL") ||
-    getEnvValue("EXPO_PUBLIC_API_URL") ||
-    DEV_DEFAULT_API_BASE_URL;
+    getEnvValue("EXPO_PUBLIC_API_URL");
 
   const envWeb = getEnvValue("EXPO_PUBLIC_API_BASE_URL_WEB");
   const envNative = getEnvValue("EXPO_PUBLIC_API_BASE_URL_NATIVE");
@@ -79,25 +65,15 @@ const getResolvedBase = () => {
   const selectedBase =
     Platform.OS === "web" ? envWeb || envDefault : envNative || envDefault;
 
-  if (isWebLocalhost()) {
-    return "https://api.medi-trap.com/";
-  }
-
-  return rewriteLocalhostForDevice(
-    normalizeBase(selectedBase || DEV_DEFAULT_API_BASE_URL),
-  );
+  return rewriteLocalhostForDevice(normalizeBase(selectedBase));
 };
 
 const resolvedBase = getResolvedBase();
-const safeResolvedBase =
-  resolvedBase ||
-  (Platform.OS === "web"
-    ? DEV_DEFAULT_API_BASE_URL || PROD_DEFAULT_API_BASE_URL
-    : PROD_DEFAULT_API_BASE_URL);
+const safeResolvedBase = resolvedBase || "";
 
-if (!resolvedBase) {
+if (!safeResolvedBase) {
   console.warn(
-    "API base URL was not resolved from env; falling back to a safe default.",
+    "API base URL was not resolved from env; requests will use a relative path.",
   );
 }
 

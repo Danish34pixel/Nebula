@@ -1,12 +1,37 @@
 const createExpoWebpackConfigAsync = require("@expo/webpack-config");
+const { config } = require("dotenv");
+const { expand } = require("dotenv-expand");
+
+const envFile = process.env.APP_ENV
+  ? `.env.${process.env.APP_ENV}`
+  : process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : ".env.local";
+
+const loadedEnv = config({ path: envFile, silent: true });
+expand(loadedEnv);
+
+if (
+  process.env.NODE_ENV === "production" &&
+  (!loadedEnv ||
+    !loadedEnv.parsed ||
+    Object.keys(loadedEnv.parsed).length === 0)
+) {
+  expand(config({ path: ".env.local", silent: true }));
+}
 
 module.exports = async function (env, argv) {
   const config = await createExpoWebpackConfigAsync(env, argv);
+  const proxyTarget =
+    process.env.EXPO_PUBLIC_API_BASE_URL_WEB ||
+    process.env.EXPO_PUBLIC_API_BASE_URL ||
+    process.env.EXPO_PUBLIC_API_URL ||
+    "";
 
-  if (config.devServer) {
+  if (config.devServer && proxyTarget) {
     config.devServer.proxy = {
       "/api": {
-        target: "https://api.medi-trap.com/",
+        target: proxyTarget.replace(/\/+$/, ""),
         secure: false,
         changeOrigin: true,
         ws: false,

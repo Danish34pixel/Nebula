@@ -20,9 +20,17 @@ if (
   expand(config({ path: ".env.local", silent: true }));
 }
 
-const getEnv = (key, fallback = "") => process.env[key] || fallback;
-const normalizeUrl = (value) => (value ? value.replace(/\/+$/, "") : value);
+const normalizeLocalhostPort = (value) => {
+  if (!value) return value;
+  return String(value)
+    .replace(/https?:\/\/localhost:5000/g, "http://localhost:5002")
+    .replace(/https?:\/\/127\.0\.0\.1:5000/g, "http://127.0.0.1:5002");
+};
 
+const getEnv = (key, fallback = "") =>
+  normalizeLocalhostPort(process.env[key] || fallback);
+const normalizeUrl = (value) => (value ? value.replace(/\/+$/, "") : value);
+const LOCAL_API_BASE_URL = "http://localhost:5002";
 module.exports = {
   expo: {
     name: "Meditrap",
@@ -76,20 +84,38 @@ module.exports = {
     },
     extra: {
       router: {},
+      API_URL: normalizeUrl(
+        getEnv(
+          "API_URL",
+          getEnv(
+            "EXPO_PUBLIC_API_BASE_URL",
+            getEnv("EXPO_PUBLIC_API_URL", LOCAL_API_BASE_URL),
+          ),
+        ),
+      ),
       apiUrl: normalizeUrl(
         getEnv(
           "EXPO_PUBLIC_API_BASE_URL",
-          getEnv("EXPO_PUBLIC_API_URL", ""),
+          getEnv("EXPO_PUBLIC_API_URL", getEnv("API_URL", LOCAL_API_BASE_URL)),
         ),
       ),
       EXPO_PUBLIC_API_BASE_URL: normalizeUrl(
-        getEnv("EXPO_PUBLIC_API_BASE_URL", getEnv("EXPO_PUBLIC_API_URL", "")),
+        getEnv(
+          "EXPO_PUBLIC_API_BASE_URL",
+          getEnv("EXPO_PUBLIC_API_URL", getEnv("API_URL", LOCAL_API_BASE_URL)),
+        ),
       ),
       EXPO_PUBLIC_API_BASE_URL_WEB: normalizeUrl(
-        getEnv("EXPO_PUBLIC_API_BASE_URL_WEB", ""),
+        getEnv(
+          "EXPO_PUBLIC_API_BASE_URL_WEB",
+          getEnv("API_URL", LOCAL_API_BASE_URL),
+        ),
       ),
       EXPO_PUBLIC_API_BASE_URL_NATIVE: normalizeUrl(
-        getEnv("EXPO_PUBLIC_API_BASE_URL_NATIVE", ""),
+        getEnv(
+          "EXPO_PUBLIC_API_BASE_URL_NATIVE",
+          getEnv("API_URL", LOCAL_API_BASE_URL),
+        ),
       ),
       eas: {
         projectId:

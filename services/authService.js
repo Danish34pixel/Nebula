@@ -195,6 +195,11 @@ export const authenticateWithPassword = async ({
       ? ["/api/auth/login", "/purchaser/login", "/api/auth/purchaser/login"]
       : ["/api/auth/login", `/api/auth/login/${role}`];
 
+  console.log(
+    "[authService] authenticateWithPassword URL candidates:",
+    endpoints.map((endpoint) => apiUrl(endpoint)),
+  );
+
   return requestWithFallback(endpoints, payloads);
 };
 

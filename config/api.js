@@ -54,26 +54,45 @@ const rewriteLocalhostForDevice = (url) => {
   }
 };
 
+const LOCAL_API_BASE_URL = "http://localhost:5002";
+const DEFAULT_API_BASE_URL = "https://api.medtrap.com";
+const normalizeLocalhostPort = (value) => {
+  if (!value) return value;
+  return String(value)
+    .replace(/https?:\/\/localhost:5000/g, LOCAL_API_BASE_URL)
+    .replace(/https?:\/\/127\.0\.0\.1:5000/g, "http://127.0.0.1:5002");
+};
+
 const getResolvedBase = () => {
   const envDefault =
+    getEnvValue("API_URL") ||
     getEnvValue("EXPO_PUBLIC_API_BASE_URL") ||
     getEnvValue("EXPO_PUBLIC_API_URL");
 
-  const envWeb = getEnvValue("EXPO_PUBLIC_API_BASE_URL_WEB");
-  const envNative = getEnvValue("EXPO_PUBLIC_API_BASE_URL_NATIVE");
+  const envWeb =
+    getEnvValue("EXPO_PUBLIC_API_BASE_URL_WEB") || getEnvValue("API_URL");
+  const envNative =
+    getEnvValue("EXPO_PUBLIC_API_BASE_URL_NATIVE") || getEnvValue("API_URL");
 
   const selectedBase =
     Platform.OS === "web" ? envWeb || envDefault : envNative || envDefault;
 
-  return rewriteLocalhostForDevice(normalizeBase(selectedBase));
+  const base = normalizeLocalhostPort(
+    selectedBase ||
+      (process.env.NODE_ENV !== "production"
+        ? LOCAL_API_BASE_URL
+        : DEFAULT_API_BASE_URL),
+  );
+
+  return rewriteLocalhostForDevice(normalizeBase(base));
 };
 
 const resolvedBase = getResolvedBase();
-const safeResolvedBase = resolvedBase || "";
+const safeResolvedBase = resolvedBase || DEFAULT_API_BASE_URL;
 
-if (!safeResolvedBase) {
+if (!resolvedBase) {
   console.warn(
-    "API base URL was not resolved from env; requests will use a relative path.",
+    "API base URL was not resolved from env; falling back to default base URL.",
   );
 }
 

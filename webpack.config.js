@@ -22,11 +22,16 @@ if (
 
 module.exports = async function (env, argv) {
   const config = await createExpoWebpackConfigAsync(env, argv);
-  const proxyTarget =
+  const proxyCandidate =
+    process.env.API_URL ||
     process.env.EXPO_PUBLIC_API_BASE_URL_WEB ||
     process.env.EXPO_PUBLIC_API_BASE_URL ||
     process.env.EXPO_PUBLIC_API_URL ||
-    "";
+    "http://localhost:5002";
+
+  const proxyTarget = proxyCandidate
+    .replace(/https?:\/\/localhost:5000/g, "http://localhost:5002")
+    .replace(/https?:\/\/127\.0\.0\.1:5000/g, "http://127.0.0.1:5002");
 
   if (config.devServer && proxyTarget) {
     config.devServer.proxy = {

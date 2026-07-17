@@ -21,6 +21,8 @@ import {
   resetPassword,
   verifyOtp,
 } from "../../services/authService";
+import LegalConsentText from "../LegalConsentText";
+import PrivacyPolicyLink from "../PrivacyPolicyLink";
 import { ForgotPassword } from "./ForgotPassword";
 import { LoginForm } from "./LoginForm";
 import { OTPInput } from "./OTPInput";
@@ -430,29 +432,32 @@ const AuthFlowScreen = ({
     }
 
     return (
-      <LoginForm
-        identifier={identifier}
-        password={password}
-        onIdentifierChange={setIdentifier}
-        onPasswordChange={setPassword}
-        rememberMe={rememberMe}
-        onRememberMeChange={handleRememberToggle}
-        showPassword={showPassword}
-        onTogglePassword={() => setShowPassword((prev) => !prev)}
-        loading={loading}
-        onSubmit={handlePasswordLogin}
-        onOtpSubmit={() => {
-          setError("");
-          setSuccessMessage("");
-          handleOtpRequest();
-        }}
-        onForgotPassword={switchToForgotPassword}
-        error={error}
-        successMessage={successMessage}
-        accentColor={accentColor}
-        title={title}
-        subtitle={subtitle}
-      />
+      <>
+        <LoginForm
+          identifier={identifier}
+          password={password}
+          onIdentifierChange={setIdentifier}
+          onPasswordChange={setPassword}
+          rememberMe={rememberMe}
+          onRememberMeChange={handleRememberToggle}
+          showPassword={showPassword}
+          onTogglePassword={() => setShowPassword((prev) => !prev)}
+          loading={loading}
+          onSubmit={handlePasswordLogin}
+          onOtpSubmit={() => {
+            setError("");
+            setSuccessMessage("");
+            handleOtpRequest();
+          }}
+          onForgotPassword={switchToForgotPassword}
+          error={error}
+          successMessage={successMessage}
+          accentColor={accentColor}
+          title={title}
+          subtitle={subtitle}
+        />
+        <LegalConsentText style={{ marginTop: 16 }} />
+      </>
     );
   };
 
@@ -496,6 +501,10 @@ const AuthFlowScreen = ({
                     {signupLabel || "Create your account"}
                   </Text>
                 </TouchableOpacity>
+                <PrivacyPolicyLink
+                  style={styles.authLink}
+                  textStyle={styles.authLinkText}
+                />
               </View>
             ) : null}
           </View>
@@ -573,6 +582,8 @@ const styles = StyleSheet.create({
   secondaryText: { fontSize: 14, fontWeight: "700" },
   footer: { marginTop: 24, alignItems: "center" },
   footerText: { fontSize: 14, color: "#64748b", marginBottom: 6 },
+  authLink: { marginTop: 10 },
+  authLinkText: { color: "#2563eb" },
   createAccountText: { fontSize: 15, fontWeight: "700" },
 });
 

@@ -16,6 +16,34 @@ const getEnvValue = (key, fallback = "") =>
 const normalizeBase = (url) =>
   url && url.endsWith("/") ? url.slice(0, -1) : url;
 
+const isLocalhostHost = (hostname) =>
+  ["localhost", "127.0.0.1", "::1"].includes(String(hostname).toLowerCase());
+
+const isLocalhostUrl = (url) => {
+  try {
+    return isLocalhostHost(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+};
+
+const rewriteLocalhostToHttp = (url) => {
+  try {
+    const parsed = new URL(url);
+    if (
+      isLocalhostHost(parsed.hostname) &&
+      parsed.protocol === "https:" &&
+      process.env.NODE_ENV !== "production"
+    ) {
+      parsed.protocol = "http:";
+      return normalizeBase(parsed.toString());
+    }
+  } catch {
+    // ignore invalid urls
+  }
+  return url;
+};
+
 const normalizeToken = (token) => {
   if (token == null) return null;
   const normalized = String(token).trim();
@@ -54,14 +82,7 @@ const rewriteLocalhostForDevice = (url) => {
   }
 };
 
-const LOCAL_API_BASE_URL = "http://localhost:5002";
-const DEFAULT_API_BASE_URL = "https://api.medtrap.com";
-const normalizeLocalhostPort = (value) => {
-  if (!value) return value;
-  return String(value)
-    .replace(/https?:\/\/localhost:5000/g, LOCAL_API_BASE_URL)
-    .replace(/https?:\/\/127\.0\.0\.1:5000/g, "http://127.0.0.1:5002");
-};
+const DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
 
 const getResolvedBase = () => {
   const envDefault =
@@ -77,14 +98,11 @@ const getResolvedBase = () => {
   const selectedBase =
     Platform.OS === "web" ? envWeb || envDefault : envNative || envDefault;
 
-  const base = normalizeLocalhostPort(
-    selectedBase ||
-      (process.env.NODE_ENV !== "production"
-        ? LOCAL_API_BASE_URL
-        : DEFAULT_API_BASE_URL),
-  );
+  const base = selectedBase || DEFAULT_API_BASE_URL;
+  const normalized = normalizeBase(base);
+  const rewritten = rewriteLocalhostToHttp(normalized);
 
-  return rewriteLocalhostForDevice(normalizeBase(base));
+  return rewriteLocalhostForDevice(rewritten);
 };
 
 const resolvedBase = getResolvedBase();

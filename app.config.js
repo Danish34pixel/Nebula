@@ -1,36 +1,27 @@
 const { config } = require("dotenv");
 const { expand } = require("dotenv-expand");
 
-// Load environment file matching APP_ENV, or fallback to production / local defaults.
+// Load environment file matching APP_ENV, or fallback to development / production defaults.
 const envFile = process.env.APP_ENV
   ? `.env.${process.env.APP_ENV}`
   : process.env.NODE_ENV === "production"
     ? ".env.production"
-    : ".env.local";
+    : ".env.development";
 
 const loadedEnv = config({ path: envFile, silent: true });
 expand(loadedEnv);
 
 if (
-  process.env.NODE_ENV === "production" &&
-  (!loadedEnv ||
-    !loadedEnv.parsed ||
-    Object.keys(loadedEnv.parsed).length === 0)
+  !loadedEnv ||
+  !loadedEnv.parsed ||
+  Object.keys(loadedEnv.parsed).length === 0
 ) {
   expand(config({ path: ".env.local", silent: true }));
 }
 
-const normalizeLocalhostPort = (value) => {
-  if (!value) return value;
-  return String(value)
-    .replace(/https?:\/\/localhost:5000/g, "http://localhost:5002")
-    .replace(/https?:\/\/127\.0\.0\.1:5000/g, "http://127.0.0.1:5002");
-};
-
-const getEnv = (key, fallback = "") =>
-  normalizeLocalhostPort(process.env[key] || fallback);
+const getEnv = (key, fallback = "") => process.env[key] || fallback;
 const normalizeUrl = (value) => (value ? value.replace(/\/+$/, "") : value);
-const LOCAL_API_BASE_URL = "http://localhost:5002";
+const DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
 module.exports = {
   expo: {
     name: "Meditrap",
@@ -89,32 +80,38 @@ module.exports = {
           "API_URL",
           getEnv(
             "EXPO_PUBLIC_API_BASE_URL",
-            getEnv("EXPO_PUBLIC_API_URL", LOCAL_API_BASE_URL),
+            getEnv("EXPO_PUBLIC_API_URL", DEFAULT_API_BASE_URL),
           ),
         ),
       ),
       apiUrl: normalizeUrl(
         getEnv(
           "EXPO_PUBLIC_API_BASE_URL",
-          getEnv("EXPO_PUBLIC_API_URL", getEnv("API_URL", LOCAL_API_BASE_URL)),
+          getEnv(
+            "EXPO_PUBLIC_API_URL",
+            getEnv("API_URL", DEFAULT_API_BASE_URL),
+          ),
         ),
       ),
       EXPO_PUBLIC_API_BASE_URL: normalizeUrl(
         getEnv(
           "EXPO_PUBLIC_API_BASE_URL",
-          getEnv("EXPO_PUBLIC_API_URL", getEnv("API_URL", LOCAL_API_BASE_URL)),
+          getEnv(
+            "EXPO_PUBLIC_API_URL",
+            getEnv("API_URL", DEFAULT_API_BASE_URL),
+          ),
         ),
       ),
       EXPO_PUBLIC_API_BASE_URL_WEB: normalizeUrl(
         getEnv(
           "EXPO_PUBLIC_API_BASE_URL_WEB",
-          getEnv("API_URL", LOCAL_API_BASE_URL),
+          getEnv("API_URL", DEFAULT_API_BASE_URL),
         ),
       ),
       EXPO_PUBLIC_API_BASE_URL_NATIVE: normalizeUrl(
         getEnv(
           "EXPO_PUBLIC_API_BASE_URL_NATIVE",
-          getEnv("API_URL", LOCAL_API_BASE_URL),
+          getEnv("API_URL", DEFAULT_API_BASE_URL),
         ),
       ),
       eas: {

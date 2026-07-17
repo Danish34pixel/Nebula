@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,9 +41,7 @@ export default function AnnouncementDetailScreen() {
 
   const targetRoles = useMemo(
     () =>
-      Array.isArray(announcement?.targetRoles)
-        ? announcement.targetRoles
-        : [],
+      Array.isArray(announcement?.targetRoles) ? announcement.targetRoles : [],
     [announcement?.targetRoles],
   );
 
@@ -82,12 +79,8 @@ export default function AnnouncementDetailScreen() {
   return (
     <SecureScreen>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color="#0f172a" />
-          </TouchableOpacity>
+        <View style={[styles.header, { justifyContent: "center" }]}>
           <Text style={styles.headerTitle}>Announcement</Text>
-          <View style={{ width: 44 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -136,21 +129,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f1f5f9",
   },
   headerTitle: {
     fontSize: 18,

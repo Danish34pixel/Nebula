@@ -1,23 +1,22 @@
-import React, { useEffect, useState, useRef } from "react";
+import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  Linking,
+  Modal,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  Modal,
-  Image,
-  Dimensions,
-  Linking,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { secureStorage } from "../../utils/secureStore";
 import { fetchJson } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 const medicineReferencesStockist = (med, stockist) => {
   if (!med || !stockist) return false;
@@ -324,8 +323,14 @@ export default function Nav({ navigation: navProp }) {
           "medicine",
           "data",
         ]);
-        const companies = extractCollection(jsonCompany, ["companies", "company"]);
-        const stockists = extractCollection(jsonStockist, ["stockists", "stockist"]);
+        const companies = extractCollection(jsonCompany, [
+          "companies",
+          "company",
+        ]);
+        const stockists = extractCollection(jsonStockist, [
+          "stockists",
+          "stockist",
+        ]);
 
         if (__DEV__) {
           console.log("[Nav] Parsed data structure:", {
@@ -577,7 +582,10 @@ export default function Nav({ navigation: navProp }) {
         "medicine",
         "data",
       ]);
-      const companies = extractCollection(jsonCompany, ["companies", "company"]);
+      const companies = extractCollection(jsonCompany, [
+        "companies",
+        "company",
+      ]);
       const data = extractCollection(jsonStockist, ["stockists", "stockist"]);
 
       const mapped = data.map((s) => {
@@ -883,13 +891,16 @@ export default function Nav({ navigation: navProp }) {
         if (section.title && section.title.toLowerCase().includes(q))
           resultSet.add(section.title);
       });
-      } else if (filterType === "medicine") {
-        sectionData.forEach((section) =>
-          valueAsArray(section.directMedicines || section.Medicines).forEach((med) => {
+    } else if (filterType === "medicine") {
+      sectionData.forEach((section) =>
+        valueAsArray(section.directMedicines || section.Medicines).forEach(
+          (med) => {
             const medName = String(med || "").trim();
-            if (medName && medName.toLowerCase().includes(q)) resultSet.add(medName);
-          }),
-        );
+            if (medName && medName.toLowerCase().includes(q))
+              resultSet.add(medName);
+          },
+        ),
+      );
     } else if (filterType === "company") {
       sectionData.forEach((section) =>
         valueAsArray(section.items).forEach((item) => {
@@ -917,8 +928,8 @@ export default function Nav({ navigation: navProp }) {
         );
       } else if (filterType === "medicine") {
         matches = sectionData.filter((section) =>
-          valueAsArray(section.directMedicines || section.Medicines).some((med) =>
-            norm(String(med || "")).includes(q),
+          valueAsArray(section.directMedicines || section.Medicines).some(
+            (med) => norm(String(med || "")).includes(q),
           ),
         );
       } else if (filterType === "stockist") {
@@ -948,21 +959,17 @@ export default function Nav({ navigation: navProp }) {
       } else if (filterType === "company") {
         stockists = sectionData.filter((section) =>
           valueAsArray(section.items).some(
-            (it) =>
-              companyItemName(it)
-                .toLowerCase()
-                .trim() === sugLower,
+            (it) => companyItemName(it).toLowerCase().trim() === sugLower,
           ),
         );
       } else if (filterType === "medicine") {
-        stockists = sectionData.filter(
-          (section) =>
-            valueAsArray(section.Medicines).some(
-              (med) =>
-                String(med || "")
-                  .toLowerCase()
-                  .trim() === sugLower,
-            ),
+        stockists = sectionData.filter((section) =>
+          valueAsArray(section.Medicines).some(
+            (med) =>
+              String(med || "")
+                .toLowerCase()
+                .trim() === sugLower,
+          ),
         );
       }
       setSelectedStockists(stockists);
@@ -1347,16 +1354,7 @@ export default function Nav({ navigation: navProp }) {
               <Text style={styles.menuItemIcon}>🏠</Text>
               <Text style={styles.menuItemText}>Home</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setIsMenuOpen(false);
-                navigation.navigate("/saved");
-              }}
-            >
-              <Text style={styles.menuItemIcon}>⭐</Text>
-              <Text style={styles.menuItemText}>Saved</Text>
-            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
@@ -1366,6 +1364,16 @@ export default function Nav({ navigation: navProp }) {
             >
               <Text style={styles.menuItemIcon}>👤</Text>
               <Text style={styles.menuItemText}>Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setIsMenuOpen(false);
+                navigation.navigate("/privacy-policy");
+              }}
+            >
+              <Text style={styles.menuItemIcon}>🔒</Text>
+              <Text style={styles.menuItemText}>Privacy Policy</Text>
             </TouchableOpacity>
           </View>
         </View>

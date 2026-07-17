@@ -1,26 +1,28 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  Image,
-  Platform,
-  KeyboardAvoidingView,
-  Alert,
-  Dimensions,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiUrl, postForm } from "../../config/api";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import TermsAgreement from "../../components/TermsAgreement";
+import { postForm } from "../../config/api";
+import { hasViewedTerms, TERMS_VERSION } from "../../utils/terms";
 
 const { width } = Dimensions.get("window");
 
@@ -49,6 +51,9 @@ export default function StockistSignup() {
   const [previews, setPreviews] = useState({ profile: null, license: null });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [termsViewed, setTermsViewed] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [termsError, setTermsError] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateField, setDateField] = useState(null); // 'dob' or 'licenseExpiry'
 
@@ -70,6 +75,32 @@ export default function StockistSignup() {
       });
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const viewed = await hasViewedTerms();
+        if (active) setTermsViewed(viewed);
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const viewed = await hasViewedTerms();
+        if (active) setTermsViewed(viewed);
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const pickImage = async (type) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -208,9 +239,21 @@ export default function StockistSignup() {
         }
       }
 
+      formData.append("termsAccepted", "true");
+      formData.append("termsVersion", TERMS_VERSION);
+      formData.append("termsAcceptedAt", new Date().toISOString());
+
       // Explicitly add role and secondary mapping for Name
       formData.append("role", "stockist");
       if (form.contactPerson) formData.append("fullName", form.contactPerson);
+
+      if (!termsChecked) {
+        setTermsError(
+          "Please read and accept the Terms and Conditions to continue.",
+        );
+        setLoading(false);
+        return;
+      }
 
       const response = await postForm("/api/stockist/register", formData);
 
@@ -508,10 +551,28 @@ export default function StockistSignup() {
               </View>
             )}
 
+            {currentStep === totalSteps && (
+              <TermsAgreement
+                enabled={termsViewed}
+                checked={termsChecked}
+                onToggle={setTermsChecked}
+                onOpenTerms={() => router.push("/terms-and-conditions")}
+                error={termsError}
+              />
+            )}
+
             <TouchableOpacity
               onPress={currentStep === totalSteps ? handleSubmit : nextStep}
-              style={[styles.actionBtn, loading && styles.btnDisabled]}
-              disabled={loading}
+              style={[
+                styles.actionBtn,
+                loading && styles.btnDisabled,
+                currentStep === totalSteps &&
+                  !termsChecked &&
+                  styles.btnDisabled,
+              ]}
+              disabled={
+                loading || (currentStep === totalSteps && !termsChecked)
+              }
             >
               <LinearGradient
                 colors={["#22d3ee", "#0891b2"]}

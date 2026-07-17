@@ -1,25 +1,25 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import * as ImagePicker from "expo-image-picker";
+import SecureScreen from "../../components/SecureScreen";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
-import SecureScreen from "../../components/SecureScreen";
 
 export default function CreateStaff() {
   const router = useRouter();
@@ -72,7 +72,10 @@ export default function CreateStaff() {
   const pickImage = async (type) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission Denied", "We need access to your gallery to upload images.");
+      Alert.alert(
+        "Permission Denied",
+        "We need access to your gallery to upload images.",
+      );
       return;
     }
 
@@ -91,11 +94,13 @@ export default function CreateStaff() {
 
   const submit = async () => {
     setErrorMsg("");
-    const isStaffManager = user && (user.role === "stockist" || user.role === "admin");
-    const effectiveWorkForType = user?.role === "stockist" ? "stockist" : form.workForType;
+    const isStaffManager =
+      user && (user.role === "stockist" || user.role === "admin");
+    const effectiveWorkForType =
+      user?.role === "stockist" ? "stockist" : form.workForType;
     const effectiveWorkForName =
       user?.role === "stockist"
-        ? (user?.name || user?.contactPerson || form.workForName || "")
+        ? user?.name || user?.contactPerson || form.workForName || ""
         : form.workForName;
 
     if (!form.fullName || !form.contact || !form.email) {
@@ -103,7 +108,9 @@ export default function CreateStaff() {
       return;
     }
     if (!effectiveWorkForType || !effectiveWorkForName) {
-      setErrorMsg("Please select where you work and enter the stockist/medical name.");
+      setErrorMsg(
+        "Please select where you work and enter the stockist/medical name.",
+      );
       return;
     }
     if (!image || !aadhar) {
@@ -124,7 +131,8 @@ export default function CreateStaff() {
       fd.append("address", form.address);
       fd.append("workForType", effectiveWorkForType);
       fd.append("workForName", effectiveWorkForName);
-      if (user?.role === "stockist" && user?._id) fd.append("workForId", String(user._id));
+      if (user?.role === "stockist" && user?._id)
+        fd.append("workForId", String(user._id));
 
       if (form.password) fd.append("password", form.password);
 
@@ -133,8 +141,13 @@ export default function CreateStaff() {
         if (Platform.OS === "web") {
           const response = await fetch(uri);
           const blob = await response.blob();
-          let name = asset.name || asset.fileName || uri.split("/").pop() || `${fieldName}.jpg`;
-          if (!name.includes(".")) name += (blob.type.includes("png") ? ".png" : ".jpg");
+          let name =
+            asset.name ||
+            asset.fileName ||
+            uri.split("/").pop() ||
+            `${fieldName}.jpg`;
+          if (!name.includes("."))
+            name += blob.type.includes("png") ? ".png" : ".jpg";
           return new File([blob], name, { type: blob.type || "image/jpeg" });
         } else {
           const name = uri.split("/").pop();
@@ -148,7 +161,9 @@ export default function CreateStaff() {
       fd.append("aadharCard", await createFormDataImage(aadhar, "aadharCard"));
 
       const endpoint = isStaffManager ? "/api/staff" : "/api/auth/staff-signup";
-      const headers = isStaffManager ? { Authorization: `Bearer ${token}` } : {};
+      const headers = isStaffManager
+        ? { Authorization: `Bearer ${token}` }
+        : {};
 
       const res = await fetch(apiUrl(endpoint), {
         method: "POST",
@@ -159,7 +174,12 @@ export default function CreateStaff() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Failed to create staff");
 
-      Alert.alert("Success", user ? "Staff member created successfully!" : "Registration successful! Please login.");
+      Alert.alert(
+        "Success",
+        user
+          ? "Staff member created successfully!"
+          : "Registration successful! Please login.",
+      );
       if (user) {
         router.replace("/Stockist/stockist-dashboard");
       } else {
@@ -186,129 +206,201 @@ export default function CreateStaff() {
 
   return (
     <SecureScreen>
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <LinearGradient colors={["#c084fc", "#9333ea"]} style={styles.iconBox}>
-              <Feather name="user-plus" size={32} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.title}>Staff Registration</Text>
-            <Text style={styles.subtitle}>
-              {isPublicSignup ? "Enroll as a staff member for your organization." : "Add a new team member."}
-            </Text>
-          </View>
-
-          <View style={styles.formCard}>
-            {user?.role !== "stockist" ? (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Work For Type</Text>
-                <View style={styles.workTypeRow}>
-                  <TouchableOpacity
-                    style={[styles.typeChip, form.workForType === "stockist" && styles.typeChipActive]}
-                    onPress={() => setForm((f) => ({ ...f, workForType: "stockist" }))}
-                  >
-                    <Text style={[styles.typeChipText, form.workForType === "stockist" && styles.typeChipTextActive]}>
-                      Wholesaler
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.typeChip, form.workForType === "medical" && styles.typeChipActive]}
-                    onPress={() => setForm((f) => ({ ...f, workForType: "medical" }))}
-                  >
-                    <Text style={[styles.typeChipText, form.workForType === "medical" && styles.typeChipTextActive]}>
-                      Retailer
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : null}
-
-            <InputField
-              label={user?.role === "stockist" ? "Wholesaler Name" : "Wholesaler / Retailer Name"}
-              placeholder={user?.role === "stockist" ? "Auto-detected from your account" : "Enter wholesaler or retailer name"}
-              value={user?.role === "stockist" ? (user?.name || user?.contactPerson || form.workForName) : form.workForName}
-              onChangeText={(t) => setForm((f) => ({ ...f, workForName: t }))}
-              icon="home"
-              editable={user?.role !== "stockist"}
-            />
-
-            <InputField
-              label="Full Name"
-              placeholder="e.g., John Doe"
-              value={form.fullName}
-              onChangeText={(t) => setForm((f) => ({ ...f, fullName: t }))}
-              icon="user"
-            />
-
-            <InputField
-              label="Contact Number"
-              placeholder="e.g., 9876543210"
-              value={form.contact}
-              onChangeText={(t) => setForm((f) => ({ ...f, contact: t }))}
-              icon="phone"
-              keyboardType="phone-pad"
-            />
-
-            <InputField
-              label="Email Address"
-              placeholder="e.g., john.doe@example.com"
-              value={form.email}
-              onChangeText={(t) => setForm((f) => ({ ...f, email: t }))}
-              icon="mail"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <InputField
-              label="Password"
-              placeholder="Enter password"
-              value={form.password}
-              onChangeText={(t) => setForm((f) => ({ ...f, password: t }))}
-              icon="lock"
-              secureTextEntry
-              showPasswordToggle
-              showPassword={showPassword}
-              setShowPassword={setShowPassword}
-            />
-
-            <InputField
-              label="Full Address"
-              placeholder="Enter full address"
-              value={form.address}
-              onChangeText={(t) => setForm((f) => ({ ...f, address: t }))}
-              icon="map-pin"
-              multiline
-            />
-
-            <View style={styles.uploadRow}>
-              <UploadBox label="Profile Photo" asset={image} onPress={() => pickImage("profile")} icon="camera" />
-              <UploadBox label="Aadhar Card" asset={aadhar} onPress={() => pickImage("aadhar")} icon="file-text" />
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.header}>
+              <LinearGradient
+                colors={["#c084fc", "#9333ea"]}
+                style={styles.iconBox}
+              >
+                <Feather name="user-plus" size={32} color="#fff" />
+              </LinearGradient>
+              <Text style={styles.title}>Staff Registration</Text>
+              <Text style={styles.subtitle}>
+                {isPublicSignup
+                  ? "Enroll as a staff member for your organization."
+                  : "Add a new team member."}
+              </Text>
             </View>
 
-            {errorMsg ? (
-              <View style={styles.errorBox}>
-                <Feather name="alert-circle" size={20} color="#ef4444" />
-                <Text style={styles.errorText}>{errorMsg}</Text>
-              </View>
-            ) : null}
+            <View style={styles.formCard}>
+              {user?.role !== "stockist" ? (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Work For Type</Text>
+                  <View style={styles.workTypeRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeChip,
+                        form.workForType === "stockist" &&
+                          styles.typeChipActive,
+                      ]}
+                      onPress={() =>
+                        setForm((f) => ({ ...f, workForType: "stockist" }))
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.typeChipText,
+                          form.workForType === "stockist" &&
+                            styles.typeChipTextActive,
+                        ]}
+                      >
+                        Wholesaler
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeChip,
+                        form.workForType === "medical" && styles.typeChipActive,
+                      ]}
+                      onPress={() =>
+                        setForm((f) => ({ ...f, workForType: "medical" }))
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.typeChipText,
+                          form.workForType === "medical" &&
+                            styles.typeChipTextActive,
+                        ]}
+                      >
+                        Retailer
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
 
-            <TouchableOpacity onPress={submit} disabled={loading} style={styles.submitWrapper}>
-              <LinearGradient colors={["#c084fc", "#9333ea"]} style={styles.submitBtn}>
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Text style={styles.submitText}>{isPublicSignup ? "Complete Registration" : "Create Staff Member"}</Text>
-                    <Feather name="arrow-right" size={20} color="#fff" style={{ marginLeft: 8 }} />
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <InputField
+                label={
+                  user?.role === "stockist"
+                    ? "Wholesaler Name"
+                    : "Wholesaler / Retailer Name"
+                }
+                placeholder={
+                  user?.role === "stockist"
+                    ? "Auto-detected from your account"
+                    : "Enter wholesaler or retailer name"
+                }
+                value={
+                  user?.role === "stockist"
+                    ? user?.name || user?.contactPerson || form.workForName
+                    : form.workForName
+                }
+                onChangeText={(t) => setForm((f) => ({ ...f, workForName: t }))}
+                icon="home"
+                editable={user?.role !== "stockist"}
+              />
+
+              <InputField
+                label="Full Name"
+                placeholder="e.g., John Doe"
+                value={form.fullName}
+                onChangeText={(t) => setForm((f) => ({ ...f, fullName: t }))}
+                icon="user"
+              />
+
+              <InputField
+                label="Contact Number"
+                placeholder="e.g., 9876543210"
+                value={form.contact}
+                onChangeText={(t) => setForm((f) => ({ ...f, contact: t }))}
+                icon="phone"
+                keyboardType="phone-pad"
+              />
+
+              <InputField
+                label="Email Address"
+                placeholder="e.g., john.doe@example.com"
+                value={form.email}
+                onChangeText={(t) => setForm((f) => ({ ...f, email: t }))}
+                icon="mail"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <InputField
+                label="Password"
+                placeholder="Enter password"
+                value={form.password}
+                onChangeText={(t) => setForm((f) => ({ ...f, password: t }))}
+                icon="lock"
+                secureTextEntry
+                showPasswordToggle
+                showPassword={showPassword}
+                setShowPassword={setShowPassword}
+              />
+
+              <InputField
+                label="Full Address"
+                placeholder="Enter full address"
+                value={form.address}
+                onChangeText={(t) => setForm((f) => ({ ...f, address: t }))}
+                icon="map-pin"
+                multiline
+              />
+
+              <View style={styles.uploadRow}>
+                <UploadBox
+                  label="Profile Photo"
+                  asset={image}
+                  onPress={() => pickImage("profile")}
+                  icon="camera"
+                />
+                <UploadBox
+                  label="Aadhar Card"
+                  asset={aadhar}
+                  onPress={() => pickImage("aadhar")}
+                  icon="file-text"
+                />
+              </View>
+
+              {errorMsg ? (
+                <View style={styles.errorBox}>
+                  <Feather name="alert-circle" size={20} color="#ef4444" />
+                  <Text style={styles.errorText}>{errorMsg}</Text>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                onPress={submit}
+                disabled={loading}
+                style={styles.submitWrapper}
+              >
+                <LinearGradient
+                  colors={["#c084fc", "#9333ea"]}
+                  style={styles.submitBtn}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.submitText}>
+                        {isPublicSignup
+                          ? "Complete Registration"
+                          : "Create Staff Member"}
+                      </Text>
+                      <Feather
+                        name="arrow-right"
+                        size={20}
+                        color="#fff"
+                        style={{ marginLeft: 8 }}
+                      />
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </SecureScreen>
   );
 }
@@ -325,7 +417,12 @@ const InputField = ({
   <View style={styles.inputGroup}>
     <Text style={styles.label}>{label}</Text>
     <View style={styles.inputContainer}>
-      <Feather name={icon} size={20} color="#94a3b8" style={{ marginRight: 12 }} />
+      <Feather
+        name={icon}
+        size={20}
+        color="#94a3b8"
+        style={{ marginRight: 12 }}
+      />
       <TextInput
         style={styles.input}
         placeholderTextColor="#94a3b8"
@@ -333,8 +430,15 @@ const InputField = ({
         {...props}
       />
       {showPasswordToggle ? (
-        <TouchableOpacity onPress={() => setShowPassword && setShowPassword(!showPassword)} style={styles.eyeButton}>
-          <Feather name={showPassword ? "eye" : "eye-off"} size={20} color="#94a3b8" />
+        <TouchableOpacity
+          onPress={() => setShowPassword && setShowPassword(!showPassword)}
+          style={styles.eyeButton}
+        >
+          <Feather
+            name={showPassword ? "eye" : "eye-off"}
+            size={20}
+            color="#94a3b8"
+          />
         </TouchableOpacity>
       ) : null}
     </View>
@@ -359,30 +463,130 @@ const UploadBox = ({ label, asset, onPress, icon }) => (
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#faf5ff" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
   loadingText: { marginTop: 12, color: "#64748b", fontWeight: "600" },
   scrollContent: { padding: 20 },
   header: { alignItems: "center", marginBottom: 32 },
-  iconBox: { width: 72, height: 72, borderRadius: 24, justifyContent: "center", alignItems: "center", marginBottom: 16, shadowColor: "#9333ea", shadowOpacity: 0.3, shadowRadius: 10, elevation: 8 },
-  title: { fontSize: 28, fontWeight: "900", color: "#1e293b", textAlign: "center" },
-  subtitle: { fontSize: 14, color: "#64748b", textAlign: "center", marginTop: 8, paddingHorizontal: 20 },
-  formCard: { backgroundColor: "#fff", borderRadius: 32, padding: 24, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 20, elevation: 4 },
+  iconBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#9333ea",
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#1e293b",
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+    marginTop: 8,
+    paddingHorizontal: 20,
+  },
+  formCard: {
+    backgroundColor: "#fff",
+    borderRadius: 32,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 4,
+  },
   inputGroup: { marginBottom: 20 },
-  label: { fontSize: 13, fontWeight: "700", color: "#475569", marginBottom: 8, marginLeft: 4 },
-  inputContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#f8fafc", borderRadius: 16, borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 16, minHeight: 56 },
+  label: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#475569",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 16,
+    minHeight: 56,
+  },
   input: { flex: 1, fontSize: 15, color: "#1e293b", fontWeight: "600" },
   eyeButton: { marginLeft: 8, padding: 4 },
-  selectBtnWrapper: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#f8fafc", borderRadius: 16, borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 16, minHeight: 56 },
+  selectBtnWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 16,
+    minHeight: 56,
+  },
   selectText: { fontSize: 15, fontWeight: "600", color: "#1e293b" },
   uploadRow: { flexDirection: "row", gap: 16, marginBottom: 24 },
-  uploadBtn: { height: 100, borderRadius: 16, borderWidth: 2, borderColor: "#e2e8f0", borderStyle: "dashed", justifyContent: "center", alignItems: "center", backgroundColor: "#f8fafc", overflow: "hidden" },
-  uploadPlaceholder: { fontSize: 12, fontWeight: "700", color: "#94a3b8", marginTop: 4 },
+  uploadBtn: {
+    height: 100,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#e2e8f0",
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    overflow: "hidden",
+  },
+  uploadPlaceholder: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#94a3b8",
+    marginTop: 4,
+  },
   previewImage: { width: "100%", height: "100%" },
   submitWrapper: { marginTop: 12 },
-  submitBtn: { height: 60, borderRadius: 18, flexDirection: "row", justifyContent: "center", alignItems: "center", shadowColor: "#9333ea", shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
+  submitBtn: {
+    height: 60,
+    borderRadius: 18,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#9333ea",
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
   submitText: { color: "#fff", fontSize: 17, fontWeight: "800" },
-  errorBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#fef2f2", padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: "#fecaca" },
-  errorText: { color: "#b91c1c", fontSize: 14, fontWeight: "600", marginLeft: 12, flex: 1 },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  errorText: {
+    color: "#b91c1c",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 12,
+    flex: 1,
+  },
   workTypeRow: { flexDirection: "row", gap: 10 },
   typeChip: {
     flex: 1,

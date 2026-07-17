@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,8 +17,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import TermsAgreement from "../../components/TermsAgreement";
 import { fetchJson, postForm, postJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import { hasViewedTerms, TERMS_VERSION } from "../../utils/terms";
 
 export default function PurchaserSignup() {
   const router = useRouter();
@@ -35,6 +37,9 @@ export default function PurchaserSignup() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [termsViewed, setTermsViewed] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [termsError, setTermsError] = useState("");
 
   const [previews, setPreviews] = useState({
     aadharImage: null,
@@ -145,6 +150,11 @@ export default function PurchaserSignup() {
       newErrors.stockists = "Please select at least 3 stockists";
     }
 
+    if (!termsChecked) {
+      newErrors.terms =
+        "Please read and accept the Terms and Conditions to continue.";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -162,8 +172,10 @@ export default function PurchaserSignup() {
       submitData.append("email", formData.email.trim());
       submitData.append("password", formData.password || "");
       submitData.append("contactNo", formData.contactNo.trim());
+      submitData.append("termsAccepted", "true");
+      submitData.append("termsVersion", TERMS_VERSION);
+      submitData.append("termsAcceptedAt", new Date().toISOString());
 
-      // On web, we need to convert the URI to a Blob for FormData to send it as a file
       if (Platform.OS === "web") {
         if (formData.aadharImage) {
           const aadharBlob = await (
@@ -173,16 +185,18 @@ export default function PurchaserSignup() {
             formData.aadharImage.name ||
             formData.aadharImage.fileName ||
             "aadhar.jpg";
-          if (!name.includes("."))
+          if (!name.includes(".")) {
             name += aadharBlob.type.includes("png") ? ".png" : ".jpg";
+          }
           submitData.append("aadharImage", aadharBlob, name);
         }
         if (formData.photo) {
           const photoBlob = await (await fetch(formData.photo.uri)).blob();
           let name =
             formData.photo.name || formData.photo.fileName || "photo.jpg";
-          if (!name.includes("."))
+          if (!name.includes(".")) {
             name += photoBlob.type.includes("png") ? ".png" : ".jpg";
+          }
           submitData.append("personalPhoto", photoBlob, name);
         }
       } else {
@@ -198,8 +212,9 @@ export default function PurchaserSignup() {
         );
         const accessToken = created?.accessToken || created?.token;
         if (accessToken) await secureStorage.setItem("token", accessToken);
-        if (created?.refreshToken)
+        if (created?.refreshToken) {
           await secureStorage.setItem("refreshToken", created.refreshToken);
+        }
         purchaserId = created?.purchaser?._id || created?.user?._id || null;
       } catch (signupErr) {
         if (signupErr?.status !== 409) throw signupErr;
@@ -273,6 +288,19 @@ export default function PurchaserSignup() {
       setLoadingStockists(false);
     }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const viewed = await hasViewedTerms();
+        if (active) setTermsViewed(viewed);
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   useEffect(() => {
     fetchStockists();
@@ -677,15 +705,22 @@ export default function PurchaserSignup() {
               {errors.stockists ? (
                 <Text style={styles.fieldError}>{errors.stockists}</Text>
               ) : null}
+              <TermsAgreement
+                enabled={termsViewed}
+                checked={termsChecked}
+                onToggle={setTermsChecked}
+                onOpenTerms={() => router.push("/terms-and-conditions")}
+                error={errors.terms}
+              />
             </View>
 
             <TouchableOpacity
               style={[
                 styles.submitBtn,
-                isSubmitting ? styles.submitBtnDisabled : null,
+                isSubmitting || !termsChecked ? styles.submitBtnDisabled : null,
               ]}
               onPress={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !termsChecked}
             >
               <LinearGradient
                 colors={

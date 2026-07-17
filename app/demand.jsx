@@ -1,21 +1,21 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-  Platform,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiUrl } from "../config/api";
-import { useRouter } from "expo-router";
 import SecureScreen from "../components/SecureScreen";
+import { apiUrl, fetchJson } from "../config/api";
 
 const normalize = (value) =>
   String(value || "")
@@ -36,33 +36,127 @@ const resolveMedicineFromCatalog = (catalog, inputName) => {
   return partial || null;
 };
 
+const resolveId = (item) => item?._id || item?.id || null;
+const getDisplayName = (item) =>
+  String(
+    item?.name ||
+      item?.companyName ||
+      item?.title ||
+      item?.contactPerson ||
+      item?.medicalName ||
+      item?.ownerName ||
+      item?.shopName ||
+      item?.email ||
+      "",
+  ).trim() || "Unknown";
+
 export default function Demand() {
   const router = useRouter();
-  const [lines, setLines] = useState([{ id: "1", name: "" }]);
+  const [lines, setLines] = useState([{ id: "1", name: "", quantity: "1" }]);
   const [medicines, setMedicines] = useState([]);
+  const [stockists, setStockists] = useState([]);
+  const [stockistQuery, setStockistQuery] = useState("");
+  const [selectedStockist, setSelectedStockist] = useState(null);
   const [loading, setLoading] = useState(false);
   const [focusedLineId, setFocusedLineId] = useState(null);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [sessionDemand, setSessionDemand] = useState(null);
+  const [stockistGroups, setStockistGroups] = useState([]);
+  const [groupSendingId, setGroupSendingId] = useState(null);
+
+  const buildStockistGroups = (inventory = [], itemsWithQty = []) => {
+    const groups = new Map();
+
+    if (!Array.isArray(inventory)) return [];
+
+    inventory.forEach((inv) => {
+      const requestedName = String(
+        inv.requestedAs || inv.medicineName || "",
+      ).trim();
+      const quantity =
+        itemsWithQty.find(
+          (item) => normalize(item.name) === normalize(requestedName),
+        )?.quantity || 1;
+
+      const stockistsForItem = Array.isArray(inv.stockists)
+        ? inv.stockists
+        : [];
+      if (stockistsForItem.length === 0) {
+        const key = "unassigned";
+        const existing = groups.get(key) || {
+          stockistId: key,
+          stockist: { name: "Unassigned" },
+          medicines: [],
+          status: "draft",
+        };
+        existing.medicines.push({
+          medicineName: inv.medicineName || requestedName,
+          requestedAs: requestedName,
+          quantity,
+        });
+        groups.set(key, existing);
+        return;
+      }
+
+      stockistsForItem.forEach((stockist) => {
+        const stockistId = resolveId(stockist) || getDisplayName(stockist);
+        if (!stockistId) return;
+        const existing = groups.get(stockistId) || {
+          stockistId,
+          stockist,
+          medicines: [],
+          status: "draft",
+        };
+        existing.medicines.push({
+          medicineName: inv.medicineName || requestedName,
+          requestedAs: requestedName,
+          quantity,
+        });
+        groups.set(stockistId, existing);
+      });
+    });
+
+    return Array.from(groups.values());
+  };
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(apiUrl("/medicine?limit=500"));
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-          const list = Array.isArray(data)
-            ? data
-            : Array.isArray(data?.data)
-              ? data.data
-              : Array.isArray(data?.data?.medicines)
-                ? data.data.medicines
-                : Array.isArray(data?.medicines)
-                  ? data.medicines
-                  : Array.isArray(data?.items)
-                    ? data.items
+        const [medicineRes, stockistRes] = await Promise.all([
+          fetch(apiUrl("/medicine?limit=500")),
+          fetch(apiUrl("/stockist?limit=1000")),
+        ]);
+
+        const medicineData = await medicineRes.json().catch(() => ({}));
+        const stockistData = await stockistRes.json().catch(() => ({}));
+
+        if (medicineRes.ok) {
+          const list = Array.isArray(medicineData)
+            ? medicineData
+            : Array.isArray(medicineData?.data)
+              ? medicineData.data
+              : Array.isArray(medicineData?.data?.medicines)
+                ? medicineData.data.medicines
+                : Array.isArray(medicineData?.medicines)
+                  ? medicineData.medicines
+                  : Array.isArray(medicineData?.items)
+                    ? medicineData.items
                     : [];
           setMedicines(list);
+        }
+
+        if (stockistRes.ok) {
+          const stockList = Array.isArray(stockistData)
+            ? stockistData
+            : Array.isArray(stockistData?.data)
+              ? stockistData.data
+              : Array.isArray(stockistData?.stockists)
+                ? stockistData.stockists
+                : Array.isArray(stockistData?.items)
+                  ? stockistData.items
+                  : [];
+          setStockists(stockList);
         }
       } catch (_) {}
     })();
@@ -82,7 +176,10 @@ export default function Demand() {
     setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
 
   const addLine = () =>
-    setLines((prev) => [...prev, { id: String(Date.now()), name: "" }]);
+    setLines((prev) => [
+      ...prev,
+      { id: String(Date.now()), name: "", quantity: "1" },
+    ]);
 
   const removeLine = (id) =>
     setLines((prev) => prev.filter((l) => l.id !== id));
@@ -95,10 +192,23 @@ export default function Demand() {
       const key = name.toLowerCase();
       if (!name || seen.has(key)) continue;
       seen.add(key);
-      out.push({ name });
+      out.push({ name, quantity: Number(l.quantity) || 1 });
     }
     return out;
   }, [lines]);
+
+  const stockistSuggestions = useMemo(() => {
+    const query = normalize(stockistQuery);
+    if (!query) return [];
+    return (stockists || [])
+      .filter((stockist) => normalize(getDisplayName(stockist)).includes(query))
+      .slice(0, 6);
+  }, [stockistQuery, stockists]);
+
+  const chooseStockist = (stockist) => {
+    setSelectedStockist(stockist);
+    setStockistQuery("");
+  };
 
   const loadOwnerDetails = async () => {
     const raw = await AsyncStorage.getItem("user").catch(() => null);
@@ -126,6 +236,9 @@ export default function Demand() {
     };
   };
 
+  const [draftDemandId, setDraftDemandId] = useState(null);
+  const [sending, setSending] = useState(false);
+
   const createDemand = async () => {
     if (payloadItems.length === 0) {
       setError("Please enter at least one medicine name.");
@@ -134,7 +247,9 @@ export default function Demand() {
 
     setLoading(true);
     setError("");
+    setSuccessMessage("");
     setSessionDemand(null);
+    setDraftDemandId(null);
 
     try {
       const medicalOwner = await loadOwnerDetails();
@@ -156,25 +271,35 @@ export default function Demand() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message || "Failed to create demand");
 
-      // The backend now returns 'inventory' which is Medicine -> Stockists mapping
+      const demandId =
+        data?.data?.originalDemandId ||
+        data?.data?._id ||
+        data?.data?.id ||
+        null;
+
+      setDraftDemandId(demandId);
+
+      const itemsWithQty = payloadItems.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+      }));
+
+      const inventory = Array.isArray(data?.data?.inventory)
+        ? data.data.inventory
+        : [];
+      const groups = buildStockistGroups(inventory, itemsWithQty);
+
       setSessionDemand({
         generatedAt: new Date().toISOString(),
         medicalOwner,
-        requestedMedicines: data.data.inventory.map((inv) => ({
-          inputName: inv.requestedAs,
-          medicineName: inv.medicineName,
-          medicineId: null, // IDs are in stockists
-          inCatalog: true, // Backend did the check
-        })),
-        medicineStockists: data.data.inventory.map((inv) => ({
-          medicineName: inv.medicineName,
-          requestedAs: inv.requestedAs,
-          stockists: inv.stockists,
-        })),
-        originalDemandId: data.data.originalDemandId,
+        items: itemsWithQty,
+        requestedMedicines: inventory,
+        medicineStockists: groups,
+        originalDemandId: demandId,
+        draft: true,
+        sent: false,
       });
-
-      // Show success alert or similar if needed
+      setStockistGroups(groups);
     } catch (e) {
       setError(e?.message || "Something went wrong while creating demand.");
     } finally {
@@ -182,144 +307,344 @@ export default function Demand() {
     }
   };
 
+  const sendGroupDemand = async (group) => {
+    if (!draftDemandId) {
+      setError("Please create the demand first before sending.");
+      return;
+    }
+    if (!group?.stockistId || !group?.stockist) {
+      setError("Invalid stockist group selected.");
+      return;
+    }
+    setError("");
+    setSuccessMessage("");
+    setGroupSendingId(group.stockistId);
+
+    const demandId = draftDemandId;
+    const endpoints = [
+      `/api/demand/${demandId}/send`,
+      `/api/demand/${demandId}/dispatch`,
+      `/api/demand/${demandId}`,
+    ];
+
+    const body = {
+      stockistId: group.stockistId,
+      stockistName: getDisplayName(group.stockist),
+      items: group.medicines.map((item) => ({
+        name: item.requestedAs || item.medicineName,
+        quantity: item.quantity || 1,
+      })),
+      status: "sent",
+    };
+
+    let lastError = null;
+
+    try {
+      for (const endpoint of endpoints) {
+        try {
+          if (endpoint.endsWith("/send") || endpoint.endsWith("/dispatch")) {
+            await fetchJson(endpoint, {
+              method: "POST",
+              body: JSON.stringify(body),
+            });
+          } else {
+            await fetchJson(endpoint, {
+              method: "PATCH",
+              body: JSON.stringify(body),
+            });
+          }
+          const updatedGroups = stockistGroups.map((g) =>
+            g.stockistId === group.stockistId ? { ...g, status: "sent" } : g,
+          );
+          setStockistGroups(updatedGroups);
+          setSuccessMessage(`Demand sent to ${getDisplayName(group.stockist)}`);
+          return;
+        } catch (err) {
+          lastError = err;
+          if ([404, 405].includes(err?.status)) continue;
+          throw err;
+        }
+      }
+      throw lastError || new Error("Unable to send demand.");
+    } catch (e) {
+      setError(e?.message || "Failed to send demand.");
+    } finally {
+      setGroupSendingId(null);
+    }
+  };
+
+  const removeStockistGroup = (groupId) => {
+    setStockistGroups((prev) =>
+      prev.filter((group) => group.stockistId !== groupId),
+    );
+  };
+
   return (
     <SecureScreen>
-    <SafeAreaView style={styles.safe}>
-      <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={20} color="#cbd5e1" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Demand</Text>
-        <View style={styles.backBtn} />
-      </LinearGradient>
+      <SafeAreaView style={styles.safe}>
+        <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
+            <Feather name="arrow-left" size={20} color="#cbd5e1" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Create Demand</Text>
+          <View style={styles.backBtn} />
+        </LinearGradient>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.card}>
-          <Text style={styles.label}>Medicines</Text>
-          {lines.map((line) => {
-            const suggestions =
-              focusedLineId === line.id ? getSuggestions(line.name) : [];
-            return (
-              <View key={line.id} style={styles.lineBlock}>
-                <View style={styles.lineRow}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter medicine name"
-                    placeholderTextColor="#94a3b8"
-                    value={line.name}
-                    onChangeText={(v) => updateLine(line.id, { name: v })}
-                    onFocus={() => setFocusedLineId(line.id)}
-                    onBlur={() => setTimeout(() => setFocusedLineId(null), 150)}
-                  />
-                  {lines.length > 1 ? (
-                    <TouchableOpacity
-                      onPress={() => removeLine(line.id)}
-                      style={styles.iconBtn}
-                    >
-                      <Feather name="x" size={16} color="#ef4444" />
-                    </TouchableOpacity>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.card}>
+            <Text style={styles.label}>Select Stockist</Text>
+            <TextInput
+              value={
+                selectedStockist
+                  ? getDisplayName(selectedStockist)
+                  : stockistQuery
+              }
+              onChangeText={(value) => {
+                setStockistQuery(value);
+                if (selectedStockist) setSelectedStockist(null);
+              }}
+              placeholder="Search stockist by name"
+              placeholderTextColor="#94a3b8"
+              style={styles.input}
+            />
+            {selectedStockist ? (
+              <View style={styles.selectedRow}>
+                <Text style={styles.selectedText}>
+                  Selected: {getDisplayName(selectedStockist)}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setSelectedStockist(null)}
+                  style={styles.clearBtn}
+                >
+                  <Feather name="x" size={16} color="#475569" />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            {stockistSuggestions.length > 0 && !selectedStockist ? (
+              <View style={styles.suggestions}>
+                {stockistSuggestions.map((stockist, idx) => (
+                  <TouchableOpacity
+                    key={`${resolveId(stockist) || getDisplayName(stockist)}-${idx}`}
+                    style={[
+                      styles.suggestionItem,
+                      idx === stockistSuggestions.length - 1 && {
+                        borderBottomWidth: 0,
+                      },
+                    ]}
+                    onPress={() => chooseStockist(stockist)}
+                  >
+                    <Text style={styles.suggestionText}>
+                      {getDisplayName(stockist)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+
+            <Text style={[styles.label, { marginTop: 16 }]}>Medicines</Text>
+            {lines.map((line) => {
+              const suggestions =
+                focusedLineId === line.id ? getSuggestions(line.name) : [];
+              return (
+                <View key={line.id} style={styles.lineBlock}>
+                  <View style={styles.lineRow}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter medicine name"
+                      placeholderTextColor="#94a3b8"
+                      value={line.name}
+                      onChangeText={(v) => updateLine(line.id, { name: v })}
+                      onFocus={() => setFocusedLineId(line.id)}
+                      onBlur={() =>
+                        setTimeout(() => setFocusedLineId(null), 150)
+                      }
+                    />
+                    <TextInput
+                      style={styles.quantityInput}
+                      placeholder="Qty"
+                      placeholderTextColor="#94a3b8"
+                      keyboardType="numeric"
+                      value={String(line.quantity || "")}
+                      onChangeText={(value) =>
+                        updateLine(line.id, {
+                          quantity: value.replace(/[^0-9]/g, ""),
+                        })
+                      }
+                    />
+                    {lines.length > 1 ? (
+                      <TouchableOpacity
+                        onPress={() => removeLine(line.id)}
+                        style={styles.iconBtn}
+                      >
+                        <Feather name="x" size={16} color="#ef4444" />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+
+                  {suggestions.length > 0 ? (
+                    <View style={styles.suggestions}>
+                      {suggestions.map((s, idx) => (
+                        <TouchableOpacity
+                          key={`${line.id}-${idx}`}
+                          style={[
+                            styles.suggestionItem,
+                            idx === suggestions.length - 1 && {
+                              borderBottomWidth: 0,
+                            },
+                          ]}
+                          onPress={() => {
+                            updateLine(line.id, { name: s });
+                            setFocusedLineId(null);
+                          }}
+                        >
+                          <Text style={styles.suggestionText}>{s}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   ) : null}
                 </View>
+              );
+            })}
 
-                {suggestions.length > 0 ? (
-                  <View style={styles.suggestions}>
-                    {suggestions.map((s, idx) => (
-                      <TouchableOpacity
-                        key={`${line.id}-${idx}`}
+            <TouchableOpacity style={styles.addBtn} onPress={addLine}>
+              <Feather name="plus-circle" size={16} color="#0ea5e9" />
+              <Text style={styles.addBtnText}>Add Item</Text>
+            </TouchableOpacity>
+
+            {error ? (
+              <View style={styles.errorRow}>
+                <Feather name="alert-circle" size={14} color="#dc2626" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+            {successMessage ? (
+              <View style={styles.successRow}>
+                <Feather name="check-circle" size={14} color="#0f766e" />
+                <Text style={styles.successText}>{successMessage}</Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              onPress={createDemand}
+              disabled={loading}
+              style={styles.submitWrap}
+            >
+              <LinearGradient
+                colors={["#06b6d4", "#0ea5e9"]}
+                style={styles.submitBtn}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Feather
+                      name="send"
+                      size={16}
+                      color="#fff"
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.submitText}>Create Demand</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+
+          {sessionDemand ? (
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>
+                Demand Preview (Session Only)
+              </Text>
+              <Text style={styles.summaryText}>
+                Medical Owner: {sessionDemand.medicalOwner.name}
+              </Text>
+              {selectedStockist ? (
+                <Text style={styles.summaryText}>
+                  Selected Stockist: {getDisplayName(selectedStockist)}
+                </Text>
+              ) : null}
+
+              {stockistGroups.map((group) => (
+                <View key={group.stockistId} style={styles.stockistGroupCard}>
+                  <View style={styles.groupHeader}>
+                    <Text style={styles.groupTitle} numberOfLines={1}>
+                      {getDisplayName(group.stockist)}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => removeStockistGroup(group.stockistId)}
+                      style={styles.removeGroupBtn}
+                    >
+                      <Feather name="x" size={18} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {group.medicines.map((item, idx) => (
+                    <View
+                      key={`${group.stockistId}-${idx}`}
+                      style={styles.groupMedicineRow}
+                    >
+                      <View style={styles.groupMedicineLabel}>
+                        <Text style={styles.medicineTitle}>
+                          {item.medicineName}
+                        </Text>
+                        <Text style={styles.summaryText}>
+                          Qty: {item.quantity || 1}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+
+                  <View style={styles.groupFooter}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        group.status === "sent"
+                          ? styles.statusBadgeSent
+                          : styles.statusBadgeDraft,
+                      ]}
+                    >
+                      <Text
                         style={[
-                          styles.suggestionItem,
-                          idx === suggestions.length - 1 && {
-                            borderBottomWidth: 0,
+                          styles.statusBadgeText,
+                          group.status === "sent"
+                            ? styles.statusBadgeTextSent
+                            : styles.statusBadgeTextDraft,
+                        ]}
+                      >
+                        {group.status === "sent" ? "Sent" : "Draft"}
+                      </Text>
+                    </View>
+                    {group.status !== "sent" ? (
+                      <TouchableOpacity
+                        onPress={() => sendGroupDemand(group)}
+                        disabled={groupSendingId === group.stockistId}
+                        style={[
+                          styles.groupSendBtn,
+                          groupSendingId === group.stockistId && {
+                            opacity: 0.55,
                           },
                         ]}
-                        onPress={() => {
-                          updateLine(line.id, { name: s });
-                          setFocusedLineId(null);
-                        }}
                       >
-                        <Text style={styles.suggestionText}>{s}</Text>
+                        {groupSendingId === group.stockistId ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={styles.groupSendText}>Send</Text>
+                        )}
                       </TouchableOpacity>
-                    ))}
+                    ) : null}
                   </View>
-                ) : null}
-              </View>
-            );
-          })}
-
-          <TouchableOpacity style={styles.addBtn} onPress={addLine}>
-            <Feather name="plus-circle" size={16} color="#0ea5e9" />
-            <Text style={styles.addBtnText}>Add Item</Text>
-          </TouchableOpacity>
-
-          {error ? (
-            <View style={styles.errorRow}>
-              <Feather name="alert-circle" size={14} color="#dc2626" />
-              <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ))}
             </View>
           ) : null}
-
-          <TouchableOpacity
-            onPress={createDemand}
-            disabled={loading}
-            style={styles.submitWrap}
-          >
-            <LinearGradient
-              colors={["#06b6d4", "#0ea5e9"]}
-              style={styles.submitBtn}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Feather
-                    name="send"
-                    size={16}
-                    color="#fff"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text style={styles.submitText}>Create Demand</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
-        {sessionDemand ? (
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>
-              Demand Preview (Session Only)
-            </Text>
-            <Text style={styles.summaryText}>
-              Medical Owner: {sessionDemand.medicalOwner.name}
-            </Text>
-
-            {sessionDemand.medicineStockists.map((entry, idx) => (
-              <View
-                key={`${entry.medicineName}-${idx}`}
-                style={styles.medicineCard}
-              >
-                <Text style={styles.medicineTitle}>{entry.medicineName}</Text>
-                {entry.stockists.length === 0 ? (
-                  <Text style={styles.notAvailableText}>Not Available</Text>
-                ) : (
-                  entry.stockists.map((stockist, sIdx) => (
-                    <View
-                      key={`${stockist.id || stockist.name}-${sIdx}`}
-                      style={styles.stockistRow}
-                    >
-                      <Text style={styles.stockistName}>{stockist.name}</Text>
-                    </View>
-                  ))
-                )}
-              </View>
-            ))}
-          </View>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
     </SecureScreen>
   );
 }
@@ -402,6 +727,36 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   addBtnText: { color: "#0369a1", fontWeight: "700", fontSize: 13 },
+  quantityInput: {
+    width: 76,
+    marginLeft: 10,
+    paddingVertical: Platform.OS === "web" ? 10 : 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    color: "#0f172a",
+    textAlign: "center",
+  },
+  selectedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 8,
+  },
+  selectedText: { color: "#334155", fontSize: 13, fontWeight: "600", flex: 1 },
+  clearBtn: {
+    marginLeft: 10,
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: "#e2e8f0",
+  },
   errorRow: {
     marginTop: 10,
     flexDirection: "row",
@@ -415,6 +770,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   errorText: { color: "#b91c1c", fontSize: 12, fontWeight: "600", flex: 1 },
+  successRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#ecfdf5",
+    borderWidth: 1,
+    borderColor: "#6ee7b7",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  successText: { color: "#0f766e", fontSize: 12, fontWeight: "600", flex: 1 },
   submitWrap: { marginTop: 12, borderRadius: 12, overflow: "hidden" },
   submitBtn: {
     minHeight: 50,
@@ -430,6 +798,81 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     gap: 10,
+  },
+  stockistGroupCard: {
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 12,
+    backgroundColor: "#fafafa",
+  },
+  groupHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  groupTitle: {
+    color: "#0f172a",
+    fontSize: 15,
+    fontWeight: "800",
+    flex: 1,
+    marginRight: 8,
+  },
+  removeGroupBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#fee2e2",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  groupMedicineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+  },
+  groupMedicineLabel: {
+    flex: 1,
+  },
+  groupFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  groupSendBtn: {
+    backgroundColor: "#0ea5e9",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    minWidth: 92,
+    alignItems: "center",
+  },
+  groupSendText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 14,
+  },
+  statusBadgeDraft: {
+    backgroundColor: "#e2e8f0",
+  },
+  statusBadgeSent: {
+    backgroundColor: "#d1fae5",
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  statusBadgeTextDraft: {
+    color: "#475569",
+  },
+  statusBadgeTextSent: {
+    color: "#047857",
   },
   summaryTitle: { fontSize: 14, fontWeight: "800", color: "#0f172a" },
   summaryText: { fontSize: 13, color: "#334155", fontWeight: "600" },

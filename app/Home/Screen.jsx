@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import AdsCarousel from "../../components/AdsCarousel";
+import DemandNotificationsButton from "../../components/DemandNotificationsButton";
 import SecureScreen from "../../components/SecureScreen";
 import { fetchJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
@@ -218,6 +219,7 @@ const Screen = ({ navigation: navProp }) => {
   const [selectedSection, setSelectedSection] = useState(null);
   const [fullscreenStockist, setFullscreenStockist] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState(null);
   const [sectionData, setSectionData] = useState([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -587,6 +589,7 @@ const Screen = ({ navigation: navProp }) => {
         if (!userStr) return;
         const user = JSON.parse(userStr);
         setIsAdmin(user && user.role === "admin");
+        setUserRole(user && user.role ? user.role : null);
       } catch (err) {}
     })();
   }, []);
@@ -679,9 +682,6 @@ const Screen = ({ navigation: navProp }) => {
           >
             <Text style={styles.emojiTextWhite}>❤</Text>
           </LinearGradient>
-          <View style={styles.outlinedIconBox}>
-            <Text style={styles.emojiText}>♡</Text>
-          </View>
         </View>
       </View>
 
@@ -692,7 +692,7 @@ const Screen = ({ navigation: navProp }) => {
         <View style={styles.bannerContent}>
           <Text style={styles.bannerTitle}>Find Your Medical Partners</Text>
           <Text style={styles.bannerSubtitle}>
-            Connect with trusted healthcare suppliers & stockists
+            Connect with trusted healthcare suppliers & <br /> stockists
           </Text>
           <View style={styles.bannerPillRow}>
             <View style={styles.bannerPill}>

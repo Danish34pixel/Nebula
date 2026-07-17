@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import PrivacyPolicyLink from "../../components/PrivacyPolicyLink";
 import SecureScreen from "../../components/SecureScreen";
 
 const AdminDashboard = () => {
@@ -174,6 +175,7 @@ const AdminDashboard = () => {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Logged in as Administrator</Text>
+            <PrivacyPolicyLink style={styles.adminPrivacyLink} />
           </View>
         </LinearGradient>
       </SafeAreaView>

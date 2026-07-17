@@ -2,8 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,7 +18,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import TermsAgreement from "../../components/TermsAgreement";
 import { postForm } from "../../config/api";
+import { hasViewedTerms, TERMS_VERSION } from "../../utils/terms";
 
 const InputField = ({
   icon,
@@ -74,6 +76,22 @@ export default function MedicalSignup() {
   const [licenseImage, setLicenseImage] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [termsViewed, setTermsViewed] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [termsError, setTermsError] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const viewed = await hasViewedTerms();
+        if (active) setTermsViewed(viewed);
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -116,6 +134,13 @@ export default function MedicalSignup() {
       return;
     }
 
+    if (!termsChecked) {
+      setTermsError(
+        "Please read and accept the Terms and Conditions to continue.",
+      );
+      return;
+    }
+
     setIsLoading(true);
     try {
       const formData = new FormData();
@@ -124,6 +149,9 @@ export default function MedicalSignup() {
       Object.entries(form).forEach(([key, value]) => {
         formData.append(key, value);
       });
+      formData.append("termsAccepted", "true");
+      formData.append("termsVersion", TERMS_VERSION);
+      formData.append("termsAcceptedAt", new Date().toISOString());
 
       // Append image
       if (licenseImage) {
@@ -305,11 +333,19 @@ export default function MedicalSignup() {
                 onToggleEye={() => setShowPassword(!showPassword)}
               />
 
+              <TermsAgreement
+                enabled={termsViewed}
+                checked={termsChecked}
+                onToggle={setTermsChecked}
+                onOpenTerms={() => router.push("/terms-and-conditions")}
+                error={termsError}
+              />
+
               {/* Submit Button */}
               <TouchableOpacity
                 style={styles.submitBtn}
                 onPress={handleSubmit}
-                disabled={isLoading}
+                disabled={isLoading || !termsChecked}
               >
                 <LinearGradient
                   colors={["#0891b2", "#0e7490"]}

@@ -1,27 +1,27 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  ActivityIndicator,
-  Platform,
-  TextInput,
-  Modal,
-  Linking,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { secureStorage } from "../../utils/secureStore";
-import { apiUrl, fetchJson } from "../../config/api";
-import SecureScreen from "../../components/SecureScreen";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AdsCarousel from "../../components/AdsCarousel";
 import AnnouncementPanel from "../../components/AnnouncementPanel";
+import PrivacyPolicyLink from "../../components/PrivacyPolicyLink";
+import SecureScreen from "../../components/SecureScreen";
+import { apiUrl, fetchJson } from "../../config/api";
+import { secureStorage } from "../../utils/secureStore";
 
 export default function PurchaserDashboard() {
   const { id } = useLocalSearchParams();
@@ -223,7 +223,7 @@ export default function PurchaserDashboard() {
     }
 
     return false;
-  };
+  }
 
   const medicinesList = Array.isArray(medicines) ? medicines : [];
   const filteredMedicines = medicinesList.filter((m) => {
@@ -355,565 +355,578 @@ export default function PurchaserDashboard() {
 
   return (
     <SecureScreen>
-    <SafeAreaView style={styles.safeArea}>
-      {/* Top Bar */}
-      <LinearGradient colors={["#1d4ed8", "#1e3a8a"]} style={styles.topBar}>
-        <View style={styles.topBarLeft}>
-          <View style={styles.avatarSmall}>
-            {purchaser.photo ? (
-              <Image
-                source={{ uri: getImageUrl(purchaser.photo) }}
-                style={styles.avatarImg}
-              />
-            ) : (
-              <Feather name="user" size={18} color="#fff" />
-            )}
+      <SafeAreaView style={styles.safeArea}>
+        {/* Top Bar */}
+        <LinearGradient colors={["#1d4ed8", "#1e3a8a"]} style={styles.topBar}>
+          <View style={styles.topBarLeft}>
+            <View style={styles.avatarSmall}>
+              {purchaser.photo ? (
+                <Image
+                  source={{ uri: getImageUrl(purchaser.photo) }}
+                  style={styles.avatarImg}
+                />
+              ) : (
+                <Feather name="user" size={18} color="#fff" />
+              )}
+            </View>
+            <View>
+              <Text style={styles.topBarName}>{purchaser.fullName}</Text>
+              <Text style={styles.topBarRole}>Authorized Purchaser</Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.topBarName}>{purchaser.fullName}</Text>
-            <Text style={styles.topBarRole}>Authorized Purchaser</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          onPress={() => setShowAnnouncements(true)}
-          style={styles.bellBtnTop}
-        >
-          <Feather name="bell" size={18} color="#bfdbfe" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Feather name="log-out" size={18} color="#bfdbfe" />
-        </TouchableOpacity>
-      </LinearGradient>
-
-      {/* Tab Bar */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "card" ? styles.tabActive : null]}
-          onPress={() => setActiveTab("card")}
-        >
-          <Feather
-            name="credit-card"
-            size={16}
-            color={activeTab === "card" ? "#1d4ed8" : "#94a3b8"}
-          />
-          <Text
-            style={[
-              styles.tabLabel,
-              activeTab === "card" ? styles.tabLabelActive : null,
-            ]}
+          <TouchableOpacity
+            onPress={() => setShowAnnouncements(true)}
+            style={styles.bellBtnTop}
           >
-            My Card
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === "medical" ? styles.tabActive : null,
-          ]}
-          onPress={() => setActiveTab("medical")}
-        >
-          <Feather
-            name="activity"
-            size={16}
-            color={activeTab === "medical" ? "#1d4ed8" : "#94a3b8"}
-          />
-          <Text
-            style={[
-              styles.tabLabel,
-              activeTab === "medical" ? styles.tabLabelActive : null,
-            ]}
-          >
-            Medical
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Feather name="bell" size={18} color="#bfdbfe" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+            <Feather name="log-out" size={18} color="#bfdbfe" />
+          </TouchableOpacity>
+        </LinearGradient>
 
-      {/* ── TAB: ID CARD ── */}
-      {activeTab === "card" ? (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.idCard}>
-            {/* Header */}
-            <LinearGradient
-              colors={["#1d4ed8", "#1e3a8a", "#312e81"]}
-              style={styles.cardHeader}
+        {/* Tab Bar */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "card" ? styles.tabActive : null]}
+            onPress={() => setActiveTab("card")}
+          >
+            <Feather
+              name="credit-card"
+              size={16}
+              color={activeTab === "card" ? "#1d4ed8" : "#94a3b8"}
+            />
+            <Text
+              style={[
+                styles.tabLabel,
+                activeTab === "card" ? styles.tabLabelActive : null,
+              ]}
             >
-              <View style={styles.headerDecoration}>
-                <View style={styles.decoCircle1} />
-                <View style={styles.decoCircle2} />
-              </View>
-              <View style={styles.headerContent}>
-                <View>
-                  <Text style={styles.headerTitle}>PURCHASER ID CARD</Text>
-                  <Text style={styles.headerSubtitle}>
-                    Authorized Purchaser
-                  </Text>
-                </View>
-                <View style={styles.idBadge}>
-                  <Text style={styles.idBadgeText}>
-                    ID: {id?.slice(-8).toUpperCase()}
-                  </Text>
-                </View>
-              </View>
-            </LinearGradient>
+              My Card
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === "medical" ? styles.tabActive : null,
+            ]}
+            onPress={() => setActiveTab("medical")}
+          >
+            <Feather
+              name="activity"
+              size={16}
+              color={activeTab === "medical" ? "#1d4ed8" : "#94a3b8"}
+            />
+            <Text
+              style={[
+                styles.tabLabel,
+                activeTab === "medical" ? styles.tabLabelActive : null,
+              ]}
+            >
+              Medical
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-            {/* Card Body */}
-            <View style={styles.cardBody}>
-              <View style={styles.mainRow}>
-                {/* Photo */}
-                <View style={styles.photoContainer}>
-                  <View style={styles.photoFrame}>
-                    {purchaser.photo ? (
+        {/* ── TAB: ID CARD ── */}
+        {activeTab === "card" ? (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.idCard}>
+              {/* Header */}
+              <LinearGradient
+                colors={["#1d4ed8", "#1e3a8a", "#312e81"]}
+                style={styles.cardHeader}
+              >
+                <View style={styles.headerDecoration}>
+                  <View style={styles.decoCircle1} />
+                  <View style={styles.decoCircle2} />
+                </View>
+                <View style={styles.headerContent}>
+                  <View>
+                    <Text style={styles.headerTitle}>PURCHASER ID CARD</Text>
+                    <Text style={styles.headerSubtitle}>
+                      Authorized Purchaser
+                    </Text>
+                  </View>
+                  <View style={styles.idBadge}>
+                    <Text style={styles.idBadgeText}>
+                      ID: {id?.slice(-8).toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
+
+              {/* Card Body */}
+              <View style={styles.cardBody}>
+                <View style={styles.mainRow}>
+                  {/* Photo */}
+                  <View style={styles.photoContainer}>
+                    <View style={styles.photoFrame}>
+                      {purchaser.photo ? (
+                        <Image
+                          source={{ uri: getImageUrl(purchaser.photo) }}
+                          style={styles.photo}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.photoPlaceholder}>
+                          <Feather name="user" size={48} color="#94a3b8" />
+                        </View>
+                      )}
+                      <View style={styles.verifiedBadge}>
+                        <Text style={styles.verifiedBadgeText}>VERIFIED</Text>
+                      </View>
+                    </View>
+                    <View style={styles.signatureLine} />
+                    <Text style={styles.signatureLabel}>Signature</Text>
+                  </View>
+
+                  {/* Info */}
+                  <View style={styles.infoSection}>
+                    <View style={styles.fieldBox}>
+                      <Text style={styles.fieldLabel}>FULL NAME</Text>
+                      <Text style={styles.fullName}>{purchaser.fullName}</Text>
+                    </View>
+                    <View style={styles.fieldBox}>
+                      <Text style={styles.fieldLabel}>CONTACT NUMBER</Text>
+                      <View style={styles.contactRow}>
+                        <Feather name="phone-call" size={14} color="#2563eb" />
+                        <Text style={styles.contactText}>
+                          {purchaser.contactNo}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.fieldBox}>
+                      <Text style={styles.fieldLabel}>ID NUMBER</Text>
+                      <Text style={styles.monoId}>{purchaser._id}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Address */}
+                <View style={styles.addressBox}>
+                  <Text style={styles.fieldLabel}>REGISTERED ADDRESS</Text>
+                  <View style={styles.addressRow}>
+                    <Feather name="map-pin" size={16} color="#2563eb" />
+                    <Text style={styles.addressText}>{purchaser.address}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                {/* Aadhar Section */}
+                <View style={styles.govSection}>
+                  <View style={styles.govHeader}>
+                    <Feather name="shield" size={18} color="#1e293b" />
+                    <Text style={styles.govTitle}>
+                      GOVERNMENT ID VERIFICATION
+                    </Text>
+                  </View>
+                  {purchaser.aadharImage ? (
+                    <View style={styles.aadharFrame}>
                       <Image
-                        source={{ uri: getImageUrl(purchaser.photo) }}
-                        style={styles.photo}
-                        resizeMode="cover"
+                        source={{ uri: getImageUrl(purchaser.aadharImage) }}
+                        style={styles.aadharImage}
+                        resizeMode="contain"
                       />
-                    ) : (
-                      <View style={styles.photoPlaceholder}>
-                        <Feather name="user" size={48} color="#94a3b8" />
+                      <View style={styles.aadharFooter}>
+                        <Text style={styles.aadharLabel}>
+                          Aadhar Card (Verified)
+                        </Text>
+                        <View style={styles.verifiedTag}>
+                          <Feather name="check" size={12} color="#065f46" />
+                          <Text style={styles.verifiedTagText}>Verified</Text>
+                        </View>
                       </View>
-                    )}
-                    <View style={styles.verifiedBadge}>
-                      <Text style={styles.verifiedBadgeText}>VERIFIED</Text>
                     </View>
-                  </View>
-                  <View style={styles.signatureLine} />
-                  <Text style={styles.signatureLabel}>Signature</Text>
-                </View>
-
-                {/* Info */}
-                <View style={styles.infoSection}>
-                  <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>FULL NAME</Text>
-                    <Text style={styles.fullName}>{purchaser.fullName}</Text>
-                  </View>
-                  <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>CONTACT NUMBER</Text>
-                    <View style={styles.contactRow}>
-                      <Feather name="phone-call" size={14} color="#2563eb" />
-                      <Text style={styles.contactText}>
-                        {purchaser.contactNo}
+                  ) : (
+                    <View style={styles.noGovId}>
+                      <Feather name="file-text" size={32} color="#94a3b8" />
+                      <Text style={styles.noGovIdText}>
+                        No Government ID Uploaded
                       </Text>
                     </View>
+                  )}
+                </View>
+
+                {/* Footer */}
+                <View style={styles.footer}>
+                  <View>
+                    <Text style={styles.footerLabel}>Issue Date</Text>
+                    <Text style={styles.footerValue}>
+                      {new Date().toLocaleDateString("en-IN")}
+                    </Text>
                   </View>
-                  <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>ID NUMBER</Text>
-                    <Text style={styles.monoId}>{purchaser._id}</Text>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={styles.footerLabel}>Valid Until</Text>
+                    <Text style={styles.footerValue}>Permanent</Text>
                   </View>
                 </View>
+                <Text style={styles.officialFootnote}>
+                  This is an official purchaser identification card
+                </Text>
               </View>
+              <LinearGradient
+                colors={["#60a5fa", "#a855f7", "#ec4899", "#60a5fa"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.hologram}
+              />
+            </View>
+          </ScrollView>
+        ) : null}
 
-              {/* Address */}
-              <View style={styles.addressBox}>
-                <Text style={styles.fieldLabel}>REGISTERED ADDRESS</Text>
-                <View style={styles.addressRow}>
-                  <Feather name="map-pin" size={16} color="#2563eb" />
-                  <Text style={styles.addressText}>{purchaser.address}</Text>
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              {/* Aadhar Section */}
-              <View style={styles.govSection}>
-                <View style={styles.govHeader}>
-                  <Feather name="shield" size={18} color="#1e293b" />
-                  <Text style={styles.govTitle}>
-                    GOVERNMENT ID VERIFICATION
+        {/* ── TAB: MEDICAL DASHBOARD ── */}
+        {activeTab === "medical" ? (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {/* Urgent Requests button */}
+            <TouchableOpacity
+              style={styles.urgentCard}
+              onPress={() => router.push("/Purchaser/urgent-requests")}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={["#ef4444", "#dc2626"]}
+                style={styles.urgentCardGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Feather name="alert-circle" size={22} color="#fff" />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.urgentCardTitle}>Urgent Requests</Text>
+                  <Text style={styles.urgentCardSub}>
+                    Medical owners need items fast — be first to accept
                   </Text>
                 </View>
-                {purchaser.aadharImage ? (
-                  <View style={styles.aadharFrame}>
-                    <Image
-                      source={{ uri: getImageUrl(purchaser.aadharImage) }}
-                      style={styles.aadharImage}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.aadharFooter}>
-                      <Text style={styles.aadharLabel}>
-                        Aadhar Card (Verified)
-                      </Text>
-                      <View style={styles.verifiedTag}>
-                        <Feather name="check" size={12} color="#065f46" />
-                        <Text style={styles.verifiedTagText}>Verified</Text>
-                      </View>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.noGovId}>
-                    <Feather name="file-text" size={32} color="#94a3b8" />
-                    <Text style={styles.noGovIdText}>
-                      No Government ID Uploaded
+                {pendingUrgentCount > 0 && (
+                  <View style={styles.urgentBadge}>
+                    <Text style={styles.urgentBadgeText}>
+                      {pendingUrgentCount}
                     </Text>
                   </View>
                 )}
-              </View>
-
-              {/* Footer */}
-              <View style={styles.footer}>
-                <View>
-                  <Text style={styles.footerLabel}>Issue Date</Text>
-                  <Text style={styles.footerValue}>
-                    {new Date().toLocaleDateString("en-IN")}
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={styles.footerLabel}>Valid Until</Text>
-                  <Text style={styles.footerValue}>Permanent</Text>
-                </View>
-              </View>
-              <Text style={styles.officialFootnote}>
-                This is an official purchaser identification card
-              </Text>
-            </View>
-            <LinearGradient
-              colors={["#60a5fa", "#a855f7", "#ec4899", "#60a5fa"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.hologram}
-            />
-          </View>
-        </ScrollView>
-      ) : null}
-
-      {/* ── TAB: MEDICAL DASHBOARD ── */}
-      {activeTab === "medical" ? (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Urgent Requests button */}
-          <TouchableOpacity
-            style={styles.urgentCard}
-            onPress={() => router.push("/Purchaser/urgent-requests")}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={["#ef4444", "#dc2626"]}
-              style={styles.urgentCardGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Feather name="alert-circle" size={22} color="#fff" />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.urgentCardTitle}>Urgent Requests</Text>
-                <Text style={styles.urgentCardSub}>
-                  Medical owners need items fast — be first to accept
-                </Text>
-              </View>
-              {pendingUrgentCount > 0 && (
-                <View style={styles.urgentBadge}>
-                  <Text style={styles.urgentBadgeText}>{pendingUrgentCount}</Text>
-                </View>
-              )}
-              <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.7)" />
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Summary Cards */}
-          <View style={styles.statsRow}>
-            <LinearGradient
-              colors={["#1d4ed8", "#2563eb"]}
-              style={styles.statCard}
-            >
-              <Feather name="package" size={22} color="#bfdbfe" />
-              <Text style={styles.statValue}>{medicines.length}</Text>
-              <Text style={styles.statLabel}>Medicines</Text>
-            </LinearGradient>
-            <LinearGradient
-              colors={["#0d9488", "#0f766e"]}
-              style={styles.statCard}
-            >
-              <Feather name="check-circle" size={22} color="#99f6e4" />
-              <Text style={styles.statValue}>Active</Text>
-              <Text style={styles.statLabel}>Card Status</Text>
-            </LinearGradient>
-            <LinearGradient
-              colors={["#7c3aed", "#6d28d9"]}
-              style={styles.statCard}
-            >
-              <Feather name="users" size={22} color="#ddd6fe" />
-              <Text style={styles.statValue}>{stockists.length}</Text>
-              <Text style={styles.statLabel}>Stockists</Text>
-            </LinearGradient>
-          </View>
-
-          <AdsCarousel />
-
-          {/* Stockist Browser */}
-          <View style={styles.sectionHeader}>
-            <Feather name="layers" size={18} color="#1d4ed8" />
-            <Text style={styles.sectionTitle}>Partner Stockists</Text>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.stockistScroll}
-          >
-            <TouchableOpacity
-              style={[
-                styles.stockistItem,
-                !selectedStockistId && styles.stockistItemActive,
-              ]}
-              onPress={() => setSelectedStockistId(null)}
-            >
-              <View
-                style={[styles.stockistIcon, { backgroundColor: "#f1f5f9" }]}
-              >
                 <Feather
-                  name="grid"
+                  name="chevron-right"
                   size={20}
-                  color={!selectedStockistId ? "#1d4ed8" : "#64748b"}
+                  color="rgba(255,255,255,0.7)"
                 />
-              </View>
-              <Text
-                style={[
-                  styles.stockistName,
-                  !selectedStockistId && styles.stockistNameActive,
-                ]}
-              >
-                All
-              </Text>
+              </LinearGradient>
             </TouchableOpacity>
 
-            {stockists.map((s, idx) => (
+            {/* Summary Cards */}
+            <View style={styles.statsRow}>
+              <LinearGradient
+                colors={["#1d4ed8", "#2563eb"]}
+                style={styles.statCard}
+              >
+                <Feather name="package" size={22} color="#bfdbfe" />
+                <Text style={styles.statValue}>{medicines.length}</Text>
+                <Text style={styles.statLabel}>Medicines</Text>
+              </LinearGradient>
+              <LinearGradient
+                colors={["#0d9488", "#0f766e"]}
+                style={styles.statCard}
+              >
+                <Feather name="check-circle" size={22} color="#99f6e4" />
+                <Text style={styles.statValue}>Active</Text>
+                <Text style={styles.statLabel}>Card Status</Text>
+              </LinearGradient>
+              <LinearGradient
+                colors={["#7c3aed", "#6d28d9"]}
+                style={styles.statCard}
+              >
+                <Feather name="users" size={22} color="#ddd6fe" />
+                <Text style={styles.statValue}>{stockists.length}</Text>
+                <Text style={styles.statLabel}>Stockists</Text>
+              </LinearGradient>
+            </View>
+
+            <AdsCarousel />
+
+            {/* Stockist Browser */}
+            <View style={styles.sectionHeader}>
+              <Feather name="layers" size={18} color="#1d4ed8" />
+              <Text style={styles.sectionTitle}>Partner Stockists</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.stockistScroll}
+            >
               <TouchableOpacity
-                key={s._id || idx}
                 style={[
                   styles.stockistItem,
-                  selectedStockistId === s._id && styles.stockistItemActive,
+                  !selectedStockistId && styles.stockistItemActive,
                 ]}
-                onPress={() =>
-                  setSelectedStockistId(
-                    selectedStockistId === s._id ? null : s._id,
-                  )
-                }
+                onPress={() => setSelectedStockistId(null)}
               >
                 <View
-                  style={[
-                    styles.stockistIcon,
-                    { backgroundColor: getStockistColor(idx) + "15" },
-                  ]}
+                  style={[styles.stockistIcon, { backgroundColor: "#f1f5f9" }]}
                 >
-                  {s.logo ? (
-                    <Image
-                      source={{ uri: getImageUrl(s.logo) }}
-                      style={styles.stockistImg}
-                    />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.stockistInitial,
-                        { color: getStockistColor(idx) },
-                      ]}
-                    >
-                      {(s.name || "S").charAt(0).toUpperCase()}
-                    </Text>
-                  )}
+                  <Feather
+                    name="grid"
+                    size={20}
+                    color={!selectedStockistId ? "#1d4ed8" : "#64748b"}
+                  />
                 </View>
                 <Text
                   style={[
                     styles.stockistName,
-                    selectedStockistId === s._id && styles.stockistNameActive,
+                    !selectedStockistId && styles.stockistNameActive,
                   ]}
-                  numberOfLines={1}
                 >
-                  {s.name}
+                  All
                 </Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
 
-          {/* Medicine Search */}
-          <View style={styles.sectionHeader}>
-            <Feather name="search" size={18} color="#1d4ed8" />
-            <Text style={styles.sectionTitle}>Search Medicines</Text>
-          </View>
-          <View style={styles.searchBox}>
-            <Feather
-              name="search"
-              size={16}
-              color="#94a3b8"
-              style={{ marginRight: 8 }}
-            />
-            <TextInput
-              style={styles.searchInput}
-              value={medSearch}
-              onChangeText={handleSearchChange}
-              onFocus={() => medSearch.length > 1 && setShowSuggestions(true)}
-              placeholder="Search by name or company..."
-              placeholderTextColor="#9ca3af"
-            />
-            {medSearch.length > 0 ? (
-              <TouchableOpacity
-                onPress={() => {
-                  setMedSearch("");
-                  setShowSuggestions(false);
-                }}
-              >
-                <Feather name="x" size={16} color="#94a3b8" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {/* Search Suggestions Overlay */}
-          {showSuggestions && suggestions.length > 0 && (
-            <View style={styles.suggestionsOverlay}>
-              {suggestions.map((s, idx) => (
+              {stockists.map((s, idx) => (
                 <TouchableOpacity
                   key={s._id || idx}
-                  style={styles.suggestionItem}
-                  onPress={() => selectSuggestion(s)}
+                  style={[
+                    styles.stockistItem,
+                    selectedStockistId === s._id && styles.stockistItemActive,
+                  ]}
+                  onPress={() =>
+                    setSelectedStockistId(
+                      selectedStockistId === s._id ? null : s._id,
+                    )
+                  }
                 >
-                  <Feather name="search" size={14} color="#94a3b8" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.suggestionText}>{s.name}</Text>
-                    {s.genericName ? (
-                      <Text style={styles.suggestionSubtext}>
-                        {s.genericName}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Feather name="arrow-up-left" size={14} color="#cbd5e1" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {medLoading ? (
-            <ActivityIndicator color="#1d4ed8" style={{ marginTop: 32 }} />
-          ) : filteredMedicines.length === 0 ? (
-            <View style={styles.emptyMed}>
-              <Feather name="inbox" size={40} color="#cbd5e1" />
-              <Text style={styles.emptyMedText}>
-                {medSearch
-                  ? "No medicines match your search"
-                  : "No medicines available"}
-              </Text>
-            </View>
-          ) : (
-            filteredMedicines.map((m, idx) => (
-              <TouchableOpacity
-                key={m._id || idx}
-                style={styles.medCard}
-                onPress={() => setSelectedMedicine(m)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.medIconBox}>
-                  <Feather name="box" size={20} color="#1d4ed8" />
-                </View>
-                <View style={styles.medInfo}>
-                  <Text style={styles.medName}>{m.name}</Text>
-                  <Text style={styles.medCompany}>{formatCompanyName(m)}</Text>
-                </View>
-                <View style={styles.medBadge}>
-                  <Text style={styles.medBadgeText}>Available</Text>
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
-      ) : null}
-
-      {/* Medicine Detail Modal */}
-      <Modal
-        visible={!!selectedMedicine}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={closeMedicineModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>{selectedMedicine?.name}</Text>
-                <Text style={styles.modalSubtitle}>
-                  {selectedMedicine?.manufacturer ||
-                    selectedMedicine?.company?.name ||
-                    "Manufacturer Details"}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={closeMedicineModal}
-                style={styles.modalCloseBtn}
-              >
-                <Feather name="x" size={24} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.modalScroll}>
-              <View style={styles.infoHighlight}>
-                <View style={styles.highlightItem}>
-                  <Feather name="info" size={16} color="#1d4ed8" />
-                  <Text style={styles.highlightLabel}>Generic Name:</Text>
-                  <Text style={styles.highlightValue}>
-                    {selectedMedicine?.genericName || "N/A"}
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={styles.availabilityTitle}>
-                Available at these Stockists
-              </Text>
-
-              {selectedMedicine &&
-              getAvailableStockists(selectedMedicine).length === 0 ? (
-                <View style={styles.noStockists}>
-                  <Feather name="info" size={24} color="#94a3b8" />
-                  <Text style={styles.noStockistsText}>
-                    No stockist information specifically linked yet.
-                  </Text>
-                </View>
-              ) : (
-                getAvailableStockists(selectedMedicine).map((s, idx) => (
-                  <View key={s._id || idx} style={styles.stockItem}>
-                    <View
-                      style={[
-                        styles.stockIconBox,
-                        { backgroundColor: getStockistColor(idx) + "15" },
-                      ]}
-                    >
+                  <View
+                    style={[
+                      styles.stockistIcon,
+                      { backgroundColor: getStockistColor(idx) + "15" },
+                    ]}
+                  >
+                    {s.logo ? (
+                      <Image
+                        source={{ uri: getImageUrl(s.logo) }}
+                        style={styles.stockistImg}
+                      />
+                    ) : (
                       <Text
                         style={[
-                          styles.stockInitial,
+                          styles.stockistInitial,
                           { color: getStockistColor(idx) },
                         ]}
                       >
                         {(s.name || "S").charAt(0).toUpperCase()}
                       </Text>
-                    </View>
-                    <View style={styles.stockInfo}>
-                      <Text style={styles.stockName}>{s.name}</Text>
-                      <Text style={styles.stockAddress} numberOfLines={1}>
-                        {typeof s.address === "string"
-                          ? s.address
-                          : s.address?.city || s.address?.street
-                            ? `${s.address.street || ""}${s.address.city ? (s.address.street ? ", " : "") + s.address.city : ""}`
-                            : "Location unavailable"}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.contactBtn}
-                      onPress={() => handleCall(s.phone)}
-                    >
-                      <Feather name="phone" size={16} color="#059669" />
-                    </TouchableOpacity>
+                    )}
                   </View>
-                ))
-              )}
-
-              <TouchableOpacity
-                style={styles.closeFullBtn}
-                onPress={closeMedicineModal}
-              >
-                <Text style={styles.closeFullBtnText}>Close Details</Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.stockistName,
+                      selectedStockistId === s._id && styles.stockistNameActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {s.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
+
+            {/* Medicine Search */}
+            <View style={styles.sectionHeader}>
+              <Feather name="search" size={18} color="#1d4ed8" />
+              <Text style={styles.sectionTitle}>Search Medicines</Text>
+            </View>
+            <View style={styles.searchBox}>
+              <Feather
+                name="search"
+                size={16}
+                color="#94a3b8"
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                style={styles.searchInput}
+                value={medSearch}
+                onChangeText={handleSearchChange}
+                onFocus={() => medSearch.length > 1 && setShowSuggestions(true)}
+                placeholder="Search by name or company..."
+                placeholderTextColor="#9ca3af"
+              />
+              {medSearch.length > 0 ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    setMedSearch("");
+                    setShowSuggestions(false);
+                  }}
+                >
+                  <Feather name="x" size={16} color="#94a3b8" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Search Suggestions Overlay */}
+            {showSuggestions && suggestions.length > 0 && (
+              <View style={styles.suggestionsOverlay}>
+                {suggestions.map((s, idx) => (
+                  <TouchableOpacity
+                    key={s._id || idx}
+                    style={styles.suggestionItem}
+                    onPress={() => selectSuggestion(s)}
+                  >
+                    <Feather name="search" size={14} color="#94a3b8" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.suggestionText}>{s.name}</Text>
+                      {s.genericName ? (
+                        <Text style={styles.suggestionSubtext}>
+                          {s.genericName}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Feather name="arrow-up-left" size={14} color="#cbd5e1" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {medLoading ? (
+              <ActivityIndicator color="#1d4ed8" style={{ marginTop: 32 }} />
+            ) : filteredMedicines.length === 0 ? (
+              <View style={styles.emptyMed}>
+                <Feather name="inbox" size={40} color="#cbd5e1" />
+                <Text style={styles.emptyMedText}>
+                  {medSearch
+                    ? "No medicines match your search"
+                    : "No medicines available"}
+                </Text>
+              </View>
+            ) : (
+              filteredMedicines.map((m, idx) => (
+                <TouchableOpacity
+                  key={m._id || idx}
+                  style={styles.medCard}
+                  onPress={() => setSelectedMedicine(m)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.medIconBox}>
+                    <Feather name="box" size={20} color="#1d4ed8" />
+                  </View>
+                  <View style={styles.medInfo}>
+                    <Text style={styles.medName}>{m.name}</Text>
+                    <Text style={styles.medCompany}>
+                      {formatCompanyName(m)}
+                    </Text>
+                  </View>
+                  <View style={styles.medBadge}>
+                    <Text style={styles.medBadgeText}>Available</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        ) : null}
+
+        {/* Medicine Detail Modal */}
+        <Modal
+          visible={!!selectedMedicine}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={closeMedicineModal}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>
+                    {selectedMedicine?.name}
+                  </Text>
+                  <Text style={styles.modalSubtitle}>
+                    {selectedMedicine?.manufacturer ||
+                      selectedMedicine?.company?.name ||
+                      "Manufacturer Details"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={closeMedicineModal}
+                  style={styles.modalCloseBtn}
+                >
+                  <Feather name="x" size={24} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={styles.modalScroll}>
+                <View style={styles.infoHighlight}>
+                  <View style={styles.highlightItem}>
+                    <Feather name="info" size={16} color="#1d4ed8" />
+                    <Text style={styles.highlightLabel}>Generic Name:</Text>
+                    <Text style={styles.highlightValue}>
+                      {selectedMedicine?.genericName || "N/A"}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.availabilityTitle}>
+                  Available at these Stockists
+                </Text>
+
+                {selectedMedicine &&
+                getAvailableStockists(selectedMedicine).length === 0 ? (
+                  <View style={styles.noStockists}>
+                    <Feather name="info" size={24} color="#94a3b8" />
+                    <Text style={styles.noStockistsText}>
+                      No stockist information specifically linked yet.
+                    </Text>
+                  </View>
+                ) : (
+                  getAvailableStockists(selectedMedicine).map((s, idx) => (
+                    <View key={s._id || idx} style={styles.stockItem}>
+                      <View
+                        style={[
+                          styles.stockIconBox,
+                          { backgroundColor: getStockistColor(idx) + "15" },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.stockInitial,
+                            { color: getStockistColor(idx) },
+                          ]}
+                        >
+                          {(s.name || "S").charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.stockInfo}>
+                        <Text style={styles.stockName}>{s.name}</Text>
+                        <Text style={styles.stockAddress} numberOfLines={1}>
+                          {typeof s.address === "string"
+                            ? s.address
+                            : s.address?.city || s.address?.street
+                              ? `${s.address.street || ""}${s.address.city ? (s.address.street ? ", " : "") + s.address.city : ""}`
+                              : "Location unavailable"}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.contactBtn}
+                        onPress={() => handleCall(s.phone)}
+                      >
+                        <Feather name="phone" size={16} color="#059669" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+
+                <TouchableOpacity
+                  style={styles.closeFullBtn}
+                  onPress={closeMedicineModal}
+                >
+                  <Text style={styles.closeFullBtnText}>Close Details</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
-      <AnnouncementPanel
-        isVisible={showAnnouncements}
-        onClose={() => setShowAnnouncements(false)}
-      />
-    </SafeAreaView>
+        </Modal>
+        <AnnouncementPanel
+          isVisible={showAnnouncements}
+          onClose={() => setShowAnnouncements(false)}
+        />
+        {/* <View style={styles.privacyPolicyFooter}>
+          <PrivacyPolicyLink />
+        </View> */}
+      </SafeAreaView>
     </SecureScreen>
   );
 }
@@ -1210,6 +1223,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   footerValue: { fontSize: 12, fontWeight: "bold", color: "#64748b" },
+  privacyPolicyFooter: { alignItems: "center", paddingVertical: 20 },
   officialFootnote: {
     textAlign: "center",
     fontSize: 10,

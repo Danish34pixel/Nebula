@@ -123,6 +123,7 @@ export default function Page() {
       >
         {/* Background Decorations */}
         <Animated.View
+          pointerEvents="none"
           style={[styles.bgDecoration1, { transform: [{ scale: pulseAnim }] }]}
         >
           <LinearGradient
@@ -131,6 +132,7 @@ export default function Page() {
           />
         </Animated.View>
         <Animated.View
+          pointerEvents="none"
           style={[styles.bgDecoration2, { transform: [{ scale: pulseAnim }] }]}
         >
           <LinearGradient

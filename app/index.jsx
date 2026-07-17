@@ -3,7 +3,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Dimensions,
   Image,
@@ -98,37 +97,24 @@ export default function Page() {
   ];
 
   const handleRoleSelect = async (roleId) => {
-    Alert.alert("Role tapped", `Role selected: ${roleId}`);
-
-    const navigateTo = async (route) => {
-      try {
-        Alert.alert("Navigating to", route);
-        await router.push(route);
-        Alert.alert("Navigation succeeded", route);
-      } catch (err) {
-        Alert.alert("Navigation failed", `${route} - ${err?.message || err}`);
-      }
-    };
-
     try {
-      AsyncStorage.setItem("selectedRole", roleId).catch((e) => {
-        Alert.alert("AsyncStorage.setItem failed", String(e));
-      });
-    } catch (e) {
-      Alert.alert("AsyncStorage exception", String(e));
+      AsyncStorage.setItem("selectedRole", roleId).catch(() => {});
+    } catch {
+      // ignore AsyncStorage failures — do not block navigation
     }
 
-    if (roleId === "Purchaser") {
-      await navigateTo("/Purchaser/purchaser-login");
-    } else if (roleId === "Stockist") {
-      await navigateTo("/Stockist/stockist-login");
-    } else if (roleId === "Medical Owner") {
-      await navigateTo("/login");
-    } else if (roleId === "Staff") {
-      await navigateTo("/Staff/staff-login");
-    } else {
-      await navigateTo("/Home");
-    }
+    const route =
+      roleId === "Purchaser"
+        ? "/Purchaser/purchaser-login"
+        : roleId === "Stockist"
+          ? "/Stockist/stockist-login"
+          : roleId === "Medical Owner"
+            ? "/login"
+            : roleId === "Staff"
+              ? "/Staff/staff-login"
+              : "/Home";
+
+    await router.push(route);
   };
 
   return (

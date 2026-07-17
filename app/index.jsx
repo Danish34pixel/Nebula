@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -97,21 +98,36 @@ export default function Page() {
   ];
 
   const handleRoleSelect = async (roleId) => {
-    try {
-      await AsyncStorage.setItem("selectedRole", roleId);
-      if (roleId === "Purchaser") {
-        router.push("/Purchaser/purchaser-login");
-      } else if (roleId === "Stockist") {
-        router.push("/Stockist/stockist-login");
-      } else if (roleId === "Medical Owner") {
-        router.push("/login");
-      } else if (roleId === "Staff") {
-        router.push("/Staff/staff-login");
-      } else {
-        router.push("/Home");
+    Alert.alert("Role tapped", `Role selected: ${roleId}`);
+
+    const navigateTo = async (route) => {
+      try {
+        Alert.alert("Navigating to", route);
+        await router.push(route);
+        Alert.alert("Navigation succeeded", route);
+      } catch (err) {
+        Alert.alert("Navigation failed", `${route} - ${err?.message || err}`);
       }
+    };
+
+    try {
+      AsyncStorage.setItem("selectedRole", roleId).catch((e) => {
+        Alert.alert("AsyncStorage.setItem failed", String(e));
+      });
     } catch (e) {
-      console.error("Failed to save role", e);
+      Alert.alert("AsyncStorage exception", String(e));
+    }
+
+    if (roleId === "Purchaser") {
+      await navigateTo("/Purchaser/purchaser-login");
+    } else if (roleId === "Stockist") {
+      await navigateTo("/Stockist/stockist-login");
+    } else if (roleId === "Medical Owner") {
+      await navigateTo("/login");
+    } else if (roleId === "Staff") {
+      await navigateTo("/Staff/staff-login");
+    } else {
+      await navigateTo("/Home");
     }
   };
 

@@ -204,55 +204,20 @@ export default function PurchaserSignup() {
         submitData.append("personalPhoto", formData.photo);
       }
 
-      let purchaserId = null;
-      try {
-        const created = await postForm(
-          "/api/auth/purchaser-signup",
-          submitData,
-        );
-        const accessToken = created?.accessToken || created?.token;
-        if (accessToken) await secureStorage.setItem("token", accessToken);
-        if (created?.refreshToken) {
-          await secureStorage.setItem("refreshToken", created.refreshToken);
-        }
-        purchaserId = created?.purchaser?._id || created?.user?._id || null;
-      } catch (signupErr) {
-        if (signupErr?.status !== 409) throw signupErr;
+      const created = await postForm("/api/auth/purchaser-signup", submitData);
+      const accessToken = created?.accessToken || created?.token;
+      if (accessToken) await secureStorage.setItem("token", accessToken);
+      if (created?.refreshToken)
+        await secureStorage.setItem("refreshToken", created.refreshToken);
 
-        const loginRes = await postJson("/api/purchaser/login", {
-          email: formData.email.trim(),
-          password: formData.password || "",
-        });
-        const loginData = loginRes?.data || {};
-        if (!loginData?.accessToken) {
-          throw new Error(
-            "Email already exists. Please login from purchaser login.",
-          );
-        }
-        await secureStorage.setItem("token", loginData.accessToken);
-        if (loginData?.refreshToken) {
-          await secureStorage.setItem("refreshToken", loginData.refreshToken);
-        }
-        purchaserId = loginData?.purchaser?._id || null;
+      if (created?.requiresPayment) {
+        router.replace("/SubscriptionPlans");
+        return;
       }
 
+      const purchaserId = created?.purchaser?._id || created?.user?._id || null;
       if (purchaserId) {
         await AsyncStorage.setItem("pendingPurchaserId", purchaserId);
-      }
-
-      const token = await AsyncStorage.getItem("token");
-      if (token) {
-        await postJson("/api/purchasing-card/request", {
-          stockistIds: selectedStockists,
-          purchaserId,
-          requester: { fullName: formData.fullName, email: formData.email },
-          purchaserData: {
-            fullName: formData.fullName,
-            address: formData.address,
-            contactNo: formData.contactNo,
-            email: formData.email,
-          },
-        });
       }
 
       router.push("/purchasermiddle");

@@ -11,15 +11,32 @@ export default function TermsAgreement({
 }) {
   const router = useRouter();
 
+  const handleCheckboxPress = () => {
+    if (!enabled) {
+      // Bring user to T&C so they can scroll through and unlock the checkbox
+      if (onOpenTerms) onOpenTerms();
+      return;
+    }
+    onToggle(!checked);
+  };
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.checkWrapper}>
         <TouchableOpacity
-          style={[styles.checkbox, checked && styles.checkboxChecked]}
-          onPress={() => enabled && onToggle(!checked)}
-          activeOpacity={enabled ? 0.75 : 1}
+          style={[
+            styles.checkbox,
+            checked && styles.checkboxChecked,
+            !enabled && styles.checkboxDisabled,
+          ]}
+          onPress={handleCheckboxPress}
+          activeOpacity={0.7}
         >
-          {checked ? <Feather name="check" size={16} color="#fff" /> : null}
+          {checked ? (
+            <Feather name="check" size={16} color="#fff" />
+          ) : !enabled ? (
+            <Feather name="lock" size={12} color="#94a3b8" />
+          ) : null}
         </TouchableOpacity>
 
         <View style={styles.textBlock}>
@@ -28,7 +45,9 @@ export default function TermsAgreement({
           </Text>
           <View style={styles.linksRow}>
             <TouchableOpacity onPress={onOpenTerms} disabled={!onOpenTerms}>
-              <Text style={styles.link}>Terms and Conditions</Text>
+              <Text style={[styles.link, !enabled && styles.linkHighlighted]}>
+                Terms and Conditions
+              </Text>
             </TouchableOpacity>
             <Text style={styles.separator}>and</Text>
             <TouchableOpacity
@@ -38,6 +57,11 @@ export default function TermsAgreement({
               <Text style={styles.link}>Privacy Policy</Text>
             </TouchableOpacity>
           </View>
+          {!enabled && (
+            <Text style={styles.hintText}>
+              Read Terms & Conditions to the end to enable this checkbox
+            </Text>
+          )}
         </View>
       </View>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -68,6 +92,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#0ea5e9",
     borderColor: "#0ea5e9",
   },
+  checkboxDisabled: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#cbd5e1",
+    borderStyle: "dashed",
+  },
   textBlock: {
     flex: 1,
   },
@@ -92,6 +121,16 @@ const styles = StyleSheet.create({
     color: "#0ea5e9",
     fontWeight: "700",
     textDecorationLine: "underline",
+  },
+  linkHighlighted: {
+    color: "#0369a1",
+    fontWeight: "800",
+  },
+  hintText: {
+    fontSize: 12,
+    color: "#64748b",
+    marginTop: 4,
+    fontStyle: "italic",
   },
   errorText: {
     color: "#dc2626",

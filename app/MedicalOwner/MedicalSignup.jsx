@@ -184,23 +184,18 @@ export default function MedicalSignup() {
       const res = await postForm("/api/auth/signup", formData);
 
       if (res.success) {
-        Alert.alert(
-          "Success",
-          "Registration successful! Your account is under review.",
-        );
-
-        // Store pending ID and credentials for auto-login if available
-        const id = res.user?._id || res.user?.id;
-        if (id) {
-          await AsyncStorage.setItem("pendingUserId", String(id));
-          await AsyncStorage.setItem(
-            "pendingUserCreds",
-            JSON.stringify({ email: form.email, password: form.password }),
-          );
+        // Store tokens so payment screen can call /api/payment/create-order
+        if (res.accessToken) {
+          const { secureStorage } = await import("../../utils/secureStore");
+          await secureStorage.setItem("token", res.accessToken);
+          if (res.refreshToken) await secureStorage.setItem("refreshToken", res.refreshToken);
         }
 
-        // Redirect
-        setTimeout(() => router.replace("/MedicalOwner/MedicalMiddle"), 2000);
+        if (res.requiresPayment) {
+          router.replace("/SubscriptionPlans");
+        } else {
+          setTimeout(() => router.replace("/MedicalOwner/MedicalMiddle"), 500);
+        }
       } else {
         throw new Error(res.message || "Signup failed");
       }

@@ -21,8 +21,7 @@ if (
 
 const getEnv = (key, fallback = "") => process.env[key] || fallback;
 const normalizeUrl = (value) => (value ? value.replace(/\/+$/, "") : value);
-// const DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
-const DEFAULT_API_BASE_URL = "http://localhost:5002";
+const DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
 module.exports = {
   expo: {
     name: "Meditrap",

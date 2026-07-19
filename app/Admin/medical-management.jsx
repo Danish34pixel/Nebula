@@ -26,29 +26,12 @@ const MedicalManagement = () => {
   const [isDev, setIsDev] = useState(__DEV__);
 
   const listEndpoints = [
-    "/api/auth/medical-owners?status=pending",
-    "/api/auth/medicalOwner?status=pending",
-    "/api/auth?role=medicalOwner&status=pending",
-    "/api/auth?role=medicalOwner",
-    "/api/auth/medical-owners",
-    "/api/auth/medicalOwner",
+    "/api/user?status=pending",
+    "/api/user",
   ];
 
   const actionEndpoints = (id, action) => [
     `/api/user/${id}/${action}`,
-    `/api/user/${id}?action=${action}`,
-    `/api/user/${action}/${id}`,
-    `/api/user?${action}=${id}`,
-    `/api/auth/medical-owner/${id}/${action}`,
-    `/api/auth/medicalOwner/${id}/${action}`,
-    `/api/auth/${id}/${action}`,
-    `/api/auth/medical-owner/${id}?action=${action}`,
-    `/api/auth/medicalOwner/${id}?action=${action}`,
-    `/api/auth/${id}?action=${action}`,
-    `/api/auth/approve/${id}`,
-    `/api/auth/decline/${id}`,
-    `/api/auth/${action}/${id}`,
-    `/api/auth?${action}=${id}`,
   ];
 
   const getAuthHeaders = async () => {

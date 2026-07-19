@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -11,13 +12,25 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import PrivacyPolicyLink from "../../components/PrivacyPolicyLink";
 import SecureScreen from "../../components/SecureScreen";
+import { fetchJson } from "../../config/api";
 
 const AdminDashboard = () => {
   const router = useRouter();
+  const [pendingCount, setPendingCount] = useState(null);
+
   const safeBack = () => {
     if (router.canGoBack()) return router.back();
     return router.replace("/");
   };
+
+  // Refresh count every time admin tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchJson("/admin/pending-users/count")
+        .then((res) => setPendingCount(res.count ?? 0))
+        .catch(() => setPendingCount(null));
+    }, [])
+  );
 
   return (
     <SecureScreen>
@@ -39,6 +52,35 @@ const AdminDashboard = () => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            {/* Payment Verification — top slot, time-sensitive */}
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemHighlight]}
+              onPress={() => router.push("/Admin/pending-payments")}
+            >
+              <LinearGradient
+                colors={["#10b981", "#059669"]}
+                style={styles.iconBox}
+              >
+                <Feather name="credit-card" size={32} color="#fff" />
+              </LinearGradient>
+              <View style={styles.menuText}>
+                <Text style={styles.menuTitle}>Payment Verification</Text>
+                <Text style={styles.menuSub}>
+                  Approve users who have completed payment
+                </Text>
+              </View>
+              <View style={styles.badgeRow}>
+                {pendingCount != null && pendingCount > 0 && (
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>
+                      {pendingCount > 99 ? "99+" : pendingCount}
+                    </Text>
+                  </View>
+                )}
+                <Feather name="chevron-right" size={24} color="#94a3b8" />
+              </View>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => router.push("/Admin/users")}
@@ -218,6 +260,30 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
     elevation: 3,
+  },
+  menuItemHighlight: {
+    borderWidth: 1.5,
+    borderColor: "#bbf7d0",
+    backgroundColor: "#f0fdf4",
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  countBadge: {
+    backgroundColor: "#ef4444",
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  countBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
   },
   iconBox: {
     width: 64,

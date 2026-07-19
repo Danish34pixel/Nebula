@@ -21,6 +21,7 @@ import {
   resetPassword,
   verifyOtp,
 } from "../../services/authService";
+import { getHomeRouteForRole } from "../../utils/getHomeRouteForRole";
 import LegalConsentText from "../LegalConsentText";
 import PrivacyPolicyLink from "../PrivacyPolicyLink";
 import { ForgotPassword } from "./ForgotPassword";
@@ -145,20 +146,7 @@ const AuthFlowScreen = ({
       await AsyncStorage.setItem("token", accessToken);
     }
 
-    if (role === "medicalOwner") {
-      const isApproved =
-        user?.approved === true ||
-        user?.status === "approved" ||
-        user?.status === "Approved";
-      if (!isApproved && user?._id) {
-        await AsyncStorage.setItem("pendingUserId", String(user._id));
-        router.replace("/MedicalOwner/MedicalMiddle");
-        return;
-      }
-      router.replace("/Home");
-      return;
-    }
-
+    // stockist still uses approved: boolean — keep its pending-verification gate
     if (role === "stockist") {
       const isApproved =
         user?.approved === true ||
@@ -169,20 +157,12 @@ const AuthFlowScreen = ({
         router.replace("/Stockist/stockist-verification");
         return;
       }
-      router.replace("/Stockist/stockist-dashboard");
-      return;
     }
 
-    if (role === "purchaser") {
-      const pId = user?.id || user?._id || "";
-      router.replace(`/Purchaser/${pId}`);
-      return;
-    }
-
-    if (role === "staff") {
-      router.replace(user?._id ? `/Staff/${user._id}` : "/profile");
-      return;
-    }
+    // Route by DB role (user.role) via single source of truth
+    const dbRole = user?.role || role;
+    const uid = user?._id || user?.id || "";
+    router.replace(getHomeRouteForRole(dbRole, uid));
   };
 
   const handlePasswordLogin = async () => {

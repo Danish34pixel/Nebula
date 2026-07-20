@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { Component, useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { secureStorage } from "../../utils/secureStore";
@@ -21,6 +21,7 @@ export default function Dashboard() {
   // with child components anticipating native navigation properties.
   const navigation = {
     navigate: (path) => {
+      if (__DEV__) console.log("[Home/index] navigation.navigate", path);
       if (typeof path === "string") {
         router.push(path);
       } else if (path && path.name) {
@@ -28,6 +29,7 @@ export default function Dashboard() {
       }
     },
     goBack: () => {
+      if (__DEV__) console.log("[Home/index] navigation.goBack");
       if (router.canGoBack()) {
         router.back();
       }
@@ -35,6 +37,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    if (__DEV__) console.log("[Home/index] auth check useEffect start");
     (async () => {
       try {
         const userStr = await AsyncStorage.getItem("user");
@@ -72,42 +75,75 @@ export default function Dashboard() {
   }
 
   return (
-    <SecureScreen>
-      <SafeAreaView style={styles.container}>
-        {/* Fallback Nav */}
-        <Nav navigation={navigation} />
+    <HomeErrorBoundary>
+      <SecureScreen>
+        <SafeAreaView style={styles.container}>
+          {/* Fallback Nav */}
+          <Nav navigation={navigation} />
 
-        {isAdminEmail && (
-          <View style={styles.adminBox}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("/Admin")}
-              style={styles.adminButton}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.adminButtonText}>Add Admin</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          {isAdminEmail && (
+            <View style={styles.adminBox}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("/Admin")}
+                style={styles.adminButton}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.adminButtonText}>Add Admin</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-        {/* Screen */}
-        <Screen navigation={navigation} />
+          {/* Screen */}
+          <Screen navigation={navigation} />
 
-        {/* Floating bell icon for announcements */}
-        <TouchableOpacity
-          style={styles.bellBtn}
-          onPress={() => setShowAnnouncements(true)}
-        >
-          <Feather name="bell" size={20} color="#6366f1" />
-        </TouchableOpacity>
+          {/* Floating bell icon for announcements */}
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => setShowAnnouncements(true)}
+          >
+            <Feather name="bell" size={20} color="#6366f1" />
+          </TouchableOpacity>
 
-        {/* Announcement panel */}
-        <AnnouncementPanel
-          isVisible={showAnnouncements}
-          onClose={() => setShowAnnouncements(false)}
-        />
-      </SafeAreaView>
-    </SecureScreen>
+          {/* Announcement panel */}
+          <AnnouncementPanel
+            isVisible={showAnnouncements}
+            onClose={() => setShowAnnouncements(false)}
+          />
+        </SafeAreaView>
+      </SecureScreen>
+    </HomeErrorBoundary>
   );
+}
+
+class HomeErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("[Home/index] ErrorBoundary caught:", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SafeAreaView style={styles.container}>
+          <View style={styles.errorWrapper}>
+            <Text style={styles.errorTitle}>An unexpected error occurred.</Text>
+            <Text style={styles.errorMessage}>
+              Please close the app and try again.
+            </Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -149,5 +185,24 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  errorWrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1f2937",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: "#475569",
+    textAlign: "center",
+    lineHeight: 22,
   },
 });

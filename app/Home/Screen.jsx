@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 import AdsCarousel from "../../components/AdsCarousel";
-import DemandNotificationsButton from "../../components/DemandNotificationsButton";
 import SecureScreen from "../../components/SecureScreen";
 import { fetchJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
@@ -228,11 +227,14 @@ const Screen = ({ navigation: navProp }) => {
   const [unmatchedMedicines, setUnmatchedMedicines] = useState([]);
 
   useEffect(() => {
+    if (__DEV__)
+      console.log("[Home/Screen] load useEffect start", { page, limit });
     let mounted = true;
     (async () => {
       try {
         setPageLoading(true);
 
+        if (__DEV__) console.log("[Home/Screen] fetching home data");
         const [jsonStockist, jsonMedicine, jsonCompany] = await Promise.all([
           fetchJson(`/stockist?page=${page}&limit=${limit}`),
           fetchJson("/medicine?limit=1000"),
@@ -692,7 +694,7 @@ const Screen = ({ navigation: navProp }) => {
         <View style={styles.bannerContent}>
           <Text style={styles.bannerTitle}>Find Your Medical Partners</Text>
           <Text style={styles.bannerSubtitle}>
-            Connect with trusted healthcare suppliers & <br /> stockists
+            Connect with trusted healthcare suppliers & stockists
           </Text>
           <View style={styles.bannerPillRow}>
             <View style={styles.bannerPill}>
@@ -792,7 +794,10 @@ const Screen = ({ navigation: navProp }) => {
           <View style={styles.servicesBox}>
             <Text style={styles.servicesTitle}>Company</Text>
             <View style={styles.servicesRow}>
-              {section.items.slice(0, 2).map((it, idx) => {
+              {(Array.isArray(section.items)
+                ? section.items.slice(0, 2)
+                : []
+              ).map((it, idx) => {
                 const itemName =
                   typeof it === "string"
                     ? it
@@ -806,7 +811,7 @@ const Screen = ({ navigation: navProp }) => {
                   </View>
                 );
               })}
-              {section.items.length > 2 && (
+              {Array.isArray(section.items) && section.items.length > 2 && (
                 <View style={styles.serviceMoreTag}>
                   <Text style={styles.serviceMoreText}>
                     +{section.items.length - 2} more
@@ -933,38 +938,41 @@ const Screen = ({ navigation: navProp }) => {
             )}
           </View>
 
-          {currentSection.Medicines && currentSection.Medicines.length > 0 && (
-            <View style={styles.detailSectionBox}>
-              <View style={styles.medHeaderRow}>
-                <Text style={styles.detailSectionTitle}>
-                  Medicines In Stock
-                </Text>
-                <View style={styles.medCountBadge}>
-                  <Text style={styles.medCountBadgeText}>
-                    {currentSection.Medicines.length} items
+          {Array.isArray(currentSection.Medicines) &&
+            currentSection.Medicines.length > 0 && (
+              <View style={styles.detailSectionBox}>
+                <View style={styles.medHeaderRow}>
+                  <Text style={styles.detailSectionTitle}>
+                    Medicines In Stock
                   </Text>
+                  <View style={styles.medCountBadge}>
+                    <Text style={styles.medCountBadgeText}>
+                      {currentSection.Medicines.length} items
+                    </Text>
+                  </View>
                 </View>
+                {(currentSection.Medicines || [])
+                  .slice(0, 5)
+                  .map((medicine, i) => (
+                    <View key={i} style={styles.medItemRow}>
+                      <View style={styles.medIconBox}>
+                        <Text style={styles.medIcon}>💊</Text>
+                      </View>
+                      <View style={styles.medItemTextCol}>
+                        <Text style={styles.medName}>{medicine}</Text>
+                        <Text style={styles.medStatus}>Available</Text>
+                      </View>
+                    </View>
+                  ))}
+                {currentSection.Medicines.length > 5 && (
+                  <TouchableOpacity style={styles.viewAllBtn}>
+                    <Text style={styles.viewAllText}>
+                      View All {currentSection.Medicines.length} Medicines
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              {currentSection.Medicines.slice(0, 5).map((medicine, i) => (
-                <View key={i} style={styles.medItemRow}>
-                  <View style={styles.medIconBox}>
-                    <Text style={styles.medIcon}>💊</Text>
-                  </View>
-                  <View style={styles.medItemTextCol}>
-                    <Text style={styles.medName}>{medicine}</Text>
-                    <Text style={styles.medStatus}>Available</Text>
-                  </View>
-                </View>
-              ))}
-              {currentSection.Medicines.length > 5 && (
-                <TouchableOpacity style={styles.viewAllBtn}>
-                  <Text style={styles.viewAllText}>
-                    View All {currentSection.Medicines.length} Medicines
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
+            )}
         </ScrollView>
       </View>
     );
@@ -975,7 +983,10 @@ const Screen = ({ navigation: navProp }) => {
       <View style={styles.bottomNavInner}>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => navigation.navigate("/Home")}
+          onPress={() => {
+            if (__DEV__) console.log("[Home/Screen] bottom nav navigate /Home");
+            navigation.navigate("/Home");
+          }}
         >
           <LinearGradient
             colors={["#cffafe", "#dbeafe"]}
@@ -987,7 +998,11 @@ const Screen = ({ navigation: navProp }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => navigation.navigate("/demand")}
+          onPress={() => {
+            if (__DEV__)
+              console.log("[Home/Screen] bottom nav navigate /demand");
+            navigation.navigate("/demand");
+          }}
           style={styles.navItem}
         >
           <View style={styles.navIconBoxInactive}>
@@ -997,7 +1012,11 @@ const Screen = ({ navigation: navProp }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => navigation.navigate("/profile")}
+          onPress={() => {
+            if (__DEV__)
+              console.log("[Home/Screen] bottom nav navigate /profile");
+            navigation.navigate("/profile");
+          }}
           style={styles.navItem}
         >
           <View style={styles.navIconBoxInactive}>

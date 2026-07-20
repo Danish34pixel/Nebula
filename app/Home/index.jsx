@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { secureStorage } from "../../utils/secureStore";
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { secureStorage } from "../../utils/secureStore";
 
+import AnnouncementPanel from "../../components/AnnouncementPanel";
+import SecureScreen from "../../components/SecureScreen";
 import Nav from "./Nav.jsx";
 import Screen from "./Screen.jsx";
-import SecureScreen from "../../components/SecureScreen";
-import AnnouncementPanel from "../../components/AnnouncementPanel";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -17,7 +17,7 @@ export default function Dashboard() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
 
-  // Provide a navigation-like object for backwards compatibility 
+  // Provide a navigation-like object for backwards compatibility
   // with child components anticipating native navigation properties.
   const navigation = {
     navigate: (path) => {
@@ -38,15 +38,17 @@ export default function Dashboard() {
     (async () => {
       try {
         const userStr = await AsyncStorage.getItem("user");
-        const tokenStr = await secureStorage.getItem("token");
+        const tokenStr =
+          (await secureStorage.getItem("token")) ||
+          (await AsyncStorage.getItem("token"));
         if (!userStr || !tokenStr) {
           router.replace("/");
           return;
         }
-        
+
         const user = JSON.parse(userStr);
         const email = (user && (user.email || "")).toString().toLowerCase();
-        
+
         if (email === "danishkhaannn34@gmail.com") {
           setIsAdminEmail(true);
         }
@@ -60,7 +62,9 @@ export default function Dashboard() {
   if (isAuthChecking) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <Text>Loading dashboard...</Text>
         </View>
       </SafeAreaView>
@@ -69,39 +73,39 @@ export default function Dashboard() {
 
   return (
     <SecureScreen>
-    <SafeAreaView style={styles.container}>
-      {/* Fallback Nav */}
-      <Nav navigation={navigation} />
-      
-      {isAdminEmail && (
-        <View style={styles.adminBox}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("/Admin")}
-            style={styles.adminButton}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.adminButtonText}>Add Admin</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <SafeAreaView style={styles.container}>
+        {/* Fallback Nav */}
+        <Nav navigation={navigation} />
 
-      {/* Screen */}
-      <Screen navigation={navigation} />
+        {isAdminEmail && (
+          <View style={styles.adminBox}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("/Admin")}
+              style={styles.adminButton}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.adminButtonText}>Add Admin</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* Floating bell icon for announcements */}
-      <TouchableOpacity
-        style={styles.bellBtn}
-        onPress={() => setShowAnnouncements(true)}
-      >
-        <Feather name="bell" size={20} color="#6366f1" />
-      </TouchableOpacity>
+        {/* Screen */}
+        <Screen navigation={navigation} />
 
-      {/* Announcement panel */}
-      <AnnouncementPanel
-        isVisible={showAnnouncements}
-        onClose={() => setShowAnnouncements(false)}
-      />
-    </SafeAreaView>
+        {/* Floating bell icon for announcements */}
+        <TouchableOpacity
+          style={styles.bellBtn}
+          onPress={() => setShowAnnouncements(true)}
+        >
+          <Feather name="bell" size={20} color="#6366f1" />
+        </TouchableOpacity>
+
+        {/* Announcement panel */}
+        <AnnouncementPanel
+          isVisible={showAnnouncements}
+          onClose={() => setShowAnnouncements(false)}
+        />
+      </SafeAreaView>
     </SecureScreen>
   );
 }
@@ -134,7 +138,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   adminButton: {
-    backgroundColor: "#10b981", 
+    backgroundColor: "#10b981",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,

@@ -162,7 +162,20 @@ const AuthFlowScreen = ({
     // Route by DB role (user.role) via single source of truth
     const dbRole = user?.role || role;
     const uid = user?._id || user?.id || "";
-    router.replace(getHomeRouteForRole(dbRole, uid));
+    const destination = getHomeRouteForRole(dbRole, uid);
+
+    if (__DEV__) {
+      console.log("[AuthFlowScreen] login success:", {
+        requestedRole: role,
+        returnedRole: user?.role,
+        dbRole,
+        uid,
+        destination,
+        user,
+      });
+    }
+
+    router.replace(destination);
   };
 
   const handlePasswordLogin = async () => {

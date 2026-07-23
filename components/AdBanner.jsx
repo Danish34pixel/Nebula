@@ -129,7 +129,6 @@ export default function AdBanner() {
       >
         {isVideoType(ad.mediaType) ? (
           Platform.OS === "web" ? (
-            // eslint-disable-next-line jsx-a11y/media-has-caption
             <video
               src={uri}
               autoPlay

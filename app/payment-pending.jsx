@@ -2,7 +2,13 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  AppState,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchJson } from "../config/api";
 import { getHomeRouteForRole } from "../utils/getHomeRouteForRole";
@@ -60,7 +66,9 @@ export default function PaymentPending() {
   useEffect(() => {
     secureStorage.getItem("lastSubscription").then((raw) => {
       if (raw) {
-        try { setSubInfo(JSON.parse(raw)); } catch {}
+        try {
+          setSubInfo(JSON.parse(raw));
+        } catch {}
       }
     });
   }, []);
@@ -107,13 +115,18 @@ export default function PaymentPending() {
   if (activated) {
     return (
       <SafeAreaView style={styles.safe}>
-        <LinearGradient colors={["#f0fdf4", "#dcfce7"]} style={styles.container}>
+        <LinearGradient
+          colors={["#f0fdf4", "#dcfce7"]}
+          style={styles.container}
+        >
           <View style={styles.card}>
             <View style={[styles.iconWrap, { backgroundColor: "#bbf7d0" }]}>
               <Feather name="check-circle" size={52} color="#16a34a" />
             </View>
-            <Text style={[styles.title, { color: "#15803d" }]}>Account Activated!</Text>
-            <Text style={styles.subtitle}>Taking you in…</Text>
+            <Text style={[styles.title, { color: "#15803d" }]}>
+              Account Activated!
+            </Text>
+            <Text style={styles.subtitle}>Taking you in...</Text>
           </View>
         </LinearGradient>
       </SafeAreaView>
@@ -123,16 +136,25 @@ export default function PaymentPending() {
   if (rejected) {
     return (
       <SafeAreaView style={styles.safe}>
-        <LinearGradient colors={["#fff1f2", "#fee2e2"]} style={styles.container}>
+        <LinearGradient
+          colors={["#fff1f2", "#fee2e2"]}
+          style={styles.container}
+        >
           <View style={styles.card}>
             <View style={[styles.iconWrap, { backgroundColor: "#fecaca" }]}>
               <Feather name="x-circle" size={52} color="#dc2626" />
             </View>
-            <Text style={[styles.title, { color: "#b91c1c" }]}>Account Rejected</Text>
-            <Text style={styles.subtitle}>
-              Your account was not approved. Please contact support for assistance.
+            <Text style={[styles.title, { color: "#b91c1c" }]}>
+              Account Rejected
             </Text>
-            <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: "#dc2626" }]} onPress={handleLogout}>
+            <Text style={styles.subtitle}>
+              Your account was not approved. Please contact support for
+              assistance.
+            </Text>
+            <TouchableOpacity
+              style={[styles.logoutBtn, { backgroundColor: "#dc2626" }]}
+              onPress={handleLogout}
+            >
               <Text style={styles.logoutText}>Back to Home</Text>
             </TouchableOpacity>
           </View>
@@ -174,7 +196,7 @@ export default function PaymentPending() {
           </View>
 
           <Text style={styles.note}>
-            Checking automatically every few seconds. You'll be taken in as
+            Checking automatically every few seconds. You&apos;ll be taken in as
             soon as your account is approved.
           </Text>
 
@@ -224,7 +246,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
   },
-  title: { fontSize: 24, fontWeight: "800", color: "#1e293b", marginBottom: 12 },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#1e293b",
+    marginBottom: 12,
+  },
   subtitle: {
     fontSize: 15,
     color: "#475569",
@@ -251,7 +278,12 @@ const styles = StyleSheet.create({
   step: { flexDirection: "row", alignItems: "center", gap: 12 },
   stepLabel: { fontSize: 14, color: "#94a3b8" },
   stepDone: { color: "#1e293b", fontWeight: "600" },
-  note: { fontSize: 13, color: "#64748b", textAlign: "center", marginBottom: 28 },
+  note: {
+    fontSize: 13,
+    color: "#64748b",
+    textAlign: "center",
+    marginBottom: 28,
+  },
   btnRow: { flexDirection: "row", gap: 12, width: "100%" },
   refreshBtn: {
     flex: 1,

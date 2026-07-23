@@ -63,6 +63,9 @@ function GlobalFullscreenAd() {
 }
 
 export default function RootLayout() {
+  const pathname = usePathname();
+  const shouldShowFooter = LEGAL_ROUTES.has(pathname);
+
   return (
     // SecurityProvider must be the outermost wrapper so every screen can
     // access globalEnabled, isRoleProtected, and logSecurityEvent via
@@ -109,12 +112,7 @@ export default function RootLayout() {
             <Stack.Screen name="contact-us" />
             <Stack.Screen name="login" />
           </Stack>
-          {(() => {
-            const pathname = usePathname();
-            const shouldShowFooter = LEGAL_ROUTES.has(pathname);
-
-            return shouldShowFooter ? <LegalFooter /> : null;
-          })()}
+          {shouldShowFooter ? <LegalFooter /> : null}
         </View>
         <GlobalFullscreenAd />
         <StatusBar style="auto" />

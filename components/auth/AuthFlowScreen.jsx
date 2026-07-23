@@ -22,6 +22,7 @@ import {
   verifyOtp,
 } from "../../services/authService";
 import { getHomeRouteForRole } from "../../utils/getHomeRouteForRole";
+import { secureStorage } from "../../utils/secureStore";
 import LegalConsentText from "../LegalConsentText";
 import PrivacyPolicyLink from "../PrivacyPolicyLink";
 import { ForgotPassword } from "./ForgotPassword";
@@ -143,7 +144,7 @@ const AuthFlowScreen = ({
       identifier,
     });
     if (accessToken) {
-      await AsyncStorage.setItem("token", accessToken);
+      await secureStorage.setItem("token", accessToken);
     }
 
     // stockist still uses approved: boolean — keep its pending-verification gate

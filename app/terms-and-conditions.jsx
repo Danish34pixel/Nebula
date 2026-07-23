@@ -77,7 +77,9 @@ export default function TermsAndConditions() {
         <Text style={styles.sectionText}>
           Meditrap is provided to help manage medical procurement and
           communication. You agree to use the service only for lawful purposes
-          and in compliance with applicable laws and industry standards.
+          and in compliance with applicable laws and industry standards. The app
+          provides informational data only and does not diagnose or prescribe
+          treatment.
         </Text>
       </View>
 
@@ -96,7 +98,8 @@ export default function TermsAndConditions() {
         <Text style={styles.sectionText}>
           Your use of Meditrap is also governed by our Privacy Policy. We may
           collect and process certain personal information as described in the
-          Privacy Policy, and you agree to the terms contained there.
+          Privacy Policy, including account data, uploaded verification files,
+          and usage information, and you agree to the terms contained there.
         </Text>
       </View>
 

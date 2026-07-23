@@ -22,7 +22,9 @@ export default function PrivacyPolicy() {
         <Text style={styles.sectionHeading}>2. Information We Collect</Text>
         <Text style={styles.sectionText}>
           We collect information necessary to authenticate accounts, deliver
-          subscription services, and support role-based access.
+          subscription services, and support role-based access. We only collect
+          details needed for account creation, identity verification, and
+          subscription management.
         </Text>
         <Text style={styles.bullet}>
           • Login and account credentials, including email, phone number, and
@@ -38,6 +40,10 @@ export default function PrivacyPolicy() {
         <Text style={styles.bullet}>
           • Usage data such as app interactions, search queries, and feature
           access patterns.
+        </Text>
+        <Text style={styles.bullet}>
+          • Identity verification documents, profile images, or uploaded files
+          where required for signup or account verification.
         </Text>
       </View>
 
@@ -81,6 +87,8 @@ export default function PrivacyPolicy() {
         <Text style={styles.sectionText}>
           We implement reasonable technical and organizational measures to
           protect your data from unauthorized access, disclosure, and loss.
+          Tokens are stored using secure storage on supported devices, and
+          sensitive data is transmitted over HTTPS.
         </Text>
       </View>
 

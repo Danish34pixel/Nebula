@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import LegalPageLayout from "../components/LegalPageLayout";
+import MedicalDisclaimer from "../components/MedicalDisclaimer";
 
 export default function AboutUs() {
   return (
@@ -64,6 +65,7 @@ export default function AboutUs() {
           latest availability updates based on their subscription level.
         </Text>
       </View>
+      <MedicalDisclaimer />
     </LegalPageLayout>
   );
 }

@@ -19,6 +19,7 @@
       "package": "com.meditrap.app",
       "versionCode": 72,
       "softwareKeyboardLayoutMode": "resize",
+      "permissions": [],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/final-logo.png"

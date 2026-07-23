@@ -41,9 +41,7 @@ export default function Dashboard() {
     (async () => {
       try {
         const userStr = await AsyncStorage.getItem("user");
-        const tokenStr =
-          (await secureStorage.getItem("token")) ||
-          (await AsyncStorage.getItem("token"));
+        const tokenStr = await secureStorage.getItem("token");
         if (!userStr || !tokenStr) {
           router.replace("/");
           return;

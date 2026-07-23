@@ -43,8 +43,7 @@ const server = http.createServer((req, res) => {
 
       const email = parsedBody.email || "";
       const password = parsedBody.password || "";
-      const isKnownUser =
-        email === "danishkhaannn34@gmail.com" && password === "Adibakhan@34";
+      const isKnownUser = Boolean(email && password);
 
       sendJson(res, 200, {
         success: true,
@@ -53,7 +52,7 @@ const server = http.createServer((req, res) => {
         user: {
           _id: isKnownUser ? "mock-user-id-1" : "mock-user-id",
           email: isKnownUser ? email : "demo@meditrap.test",
-          name: isKnownUser ? "Danish Khan" : "Mock Medical Owner",
+          name: isKnownUser ? "Mock User" : "Mock Medical Owner",
           approved: true,
           status: "approved",
           role: "medicalOwner",

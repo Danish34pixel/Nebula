@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -11,7 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { API_BASE, fetchJson, postJson } from "../config/api";
 
 const SHOW_DELAY = 1000;
@@ -62,15 +62,12 @@ export default function AdToast() {
     closeTimerRef.current = setTimeout(() => setCanClose(true), CLOSE_DELAY);
   }, []);
 
-  const closeFullscreenAd = useCallback(
-    async () => {
-      clearTimers();
-      setVisible(false);
-      setCanClose(false);
-      setIsClosed(true);
-    },
-    [clearTimers],
-  );
+  const closeFullscreenAd = useCallback(async () => {
+    clearTimers();
+    setVisible(false);
+    setCanClose(false);
+    setIsClosed(true);
+  }, [clearTimers]);
 
   useEffect(() => {
     let alive = true;
@@ -144,7 +141,6 @@ export default function AdToast() {
           <View style={styles.card}>
             {isVideoType(currentAd.mediaType) ? (
               Platform.OS === "web" ? (
-                // eslint-disable-next-line jsx-a11y/media-has-caption
                 <video
                   src={mediaUri}
                   autoPlay
@@ -155,7 +151,11 @@ export default function AdToast() {
                 />
               ) : (
                 <View style={[styles.media, styles.videoFallback]}>
-                  <Feather name="film" size={44} color="rgba(255,255,255,0.7)" />
+                  <Feather
+                    name="film"
+                    size={44}
+                    color="rgba(255,255,255,0.7)"
+                  />
                   <Text style={styles.videoTitle} numberOfLines={2}>
                     {currentAd.title}
                   </Text>

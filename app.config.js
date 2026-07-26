@@ -33,10 +33,17 @@ module.exports = {
     userInterfaceStyle: "automatic",
     ios: {
       bundleIdentifier: "com.danish.meditrap",
+      buildNumber: "11",
+      supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSCameraUsageDescription:
+          "Meditrap needs photo library access to upload license, identity, and business documents.",
+        NSPhotoLibraryUsageDescription:
+          "Meditrap needs access to your photo library to attach documents and profile images.",
+        NSPhotoLibraryAddUsageDescription:
+          "Meditrap may save images to your photo library for receipts and upload previews.",
       },
-      supportsTablet: true,
     },
     android: {
       package: "com.danish.meditrap",
@@ -54,6 +61,14 @@ module.exports = {
       output: "static",
       favicon: "./assets/images/app-icon.png",
     },
+    splash: {
+      image: "./assets/images/app-icon.png",
+      resizeMode: "contain",
+      backgroundColor: "#ffffff",
+      dark: {
+        backgroundColor: "#000000",
+      },
+    },
     plugins: [
       "expo-router",
       [
@@ -69,6 +84,7 @@ module.exports = {
         },
       ],
       "expo-secure-store",
+      "expo-notifications",
     ],
     experiments: {
       typedRoutes: true,

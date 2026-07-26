@@ -8,6 +8,7 @@ import AdToast from "../components/AdToast";
 import LegalFooter from "../components/LegalFooter";
 import { SecurityProvider } from "../context/SecurityContext";
 import { secureStorage } from "../utils/secureStore";
+import { setNotificationChannel } from "./utils/notifications";
 
 const AUTH_ROUTES = new Set([
   "/",
@@ -65,6 +66,10 @@ function GlobalFullscreenAd() {
 export default function RootLayout() {
   const pathname = usePathname();
   const shouldShowFooter = LEGAL_ROUTES.has(pathname);
+
+  useEffect(() => {
+    setNotificationChannel();
+  }, []);
 
   return (
     // SecurityProvider must be the outermost wrapper so every screen can

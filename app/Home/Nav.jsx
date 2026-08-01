@@ -1134,7 +1134,7 @@ export default function Nav({ navigation: navProp }) {
         <View style={styles.cardFooter}>
           <View style={styles.verifiedBox}>
             <View style={styles.verifiedDot} />
-            <Text style={styles.verifiedText}>Verified</Text>
+            <Text style={styles.verifiedText}>Stockist</Text>
           </View>
           <TouchableOpacity
             onPress={() => handleToggleCard(item._id)}
@@ -1355,6 +1355,16 @@ export default function Nav({ navigation: navProp }) {
               <Text style={styles.menuItemText}>Home</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setIsMenuOpen(false);
+                navigation.navigate("/MedicalOwner/demand-history");
+              }}
+            >
+              <Text style={styles.menuItemIcon}>📦</Text>
+              <Text style={styles.menuItemText}>My Orders</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {

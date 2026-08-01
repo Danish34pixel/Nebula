@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl } from "../../config/api";
 import { useRouter } from "expo-router";
 import SecureScreen from "../../components/SecureScreen";
+import MedicalDisclaimer from "../../components/MedicalDisclaimer";
 
 export default function InstantDemand() {
   const router = useRouter();
@@ -85,6 +86,8 @@ export default function InstantDemand() {
             </Text>
           </View>
         </LinearGradient>
+
+        <MedicalDisclaimer compact />
 
         {/* Input Card */}
         <View style={styles.card}>

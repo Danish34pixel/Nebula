@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SubscriptionExpiredModal } from "./SubscriptionExpiredModal";
 
 export const LoginForm = ({
   identifier,
@@ -20,6 +21,10 @@ export const LoginForm = ({
   accentColor,
   title,
   subtitle,
+  trialExpired,
+  onMakePayment,
+  onCloseSubscriptionModal,
+  paymentButtonLabel,
 }) => (
   <View style={styles.card}>
     <View style={styles.header}>
@@ -27,12 +32,22 @@ export const LoginForm = ({
       <Text style={styles.subtitle}>{subtitle}</Text>
     </View>
 
-    {error ? (
+    {error && !trialExpired ? (
       <View style={styles.messageBoxError}>
-        <Feather name="alert-circle" size={16} color="#ef4444" />
-        <Text style={styles.messageText}>{error}</Text>
+        <View style={styles.messageRow}>
+          <Feather name="alert-circle" size={16} color="#ef4444" />
+          <Text style={styles.messageText}>{error}</Text>
+        </View>
       </View>
     ) : null}
+
+    <SubscriptionExpiredModal
+      visible={trialExpired}
+      message={error}
+      onPayNow={onMakePayment}
+      onClose={onCloseSubscriptionModal}
+      payButtonLabel={paymentButtonLabel}
+    />
 
     {successMessage ? (
       <View style={styles.messageBoxSuccess}>
@@ -90,14 +105,33 @@ export const LoginForm = ({
       </TouchableOpacity>
     </View>
 
-    <TouchableOpacity style={styles.submitBtn} onPress={onSubmit} disabled={loading}>
-      <View style={[styles.submitGradient, { backgroundColor: accentColor }]}> 
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Sign In</Text>}
+    <TouchableOpacity
+      style={[styles.submitBtn, trialExpired && styles.submitBtnDisabled]}
+      onPress={onSubmit}
+      disabled={loading || trialExpired}
+    >
+      <View style={[styles.submitGradient, { backgroundColor: accentColor }]}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitText}>Sign In</Text>
+        )}
       </View>
     </TouchableOpacity>
 
-    <TouchableOpacity style={styles.secondaryBtn} onPress={onOtpSubmit} disabled={loading}>
-      <Text style={[styles.secondaryText, { color: accentColor }]}>Login with OTP</Text>
+    <TouchableOpacity
+      style={styles.secondaryBtn}
+      onPress={onOtpSubmit}
+      disabled={loading || trialExpired}
+    >
+      <Text
+        style={[
+          styles.secondaryText,
+          { color: trialExpired ? "#94a3b8" : accentColor },
+        ]}
+      >
+        Login with OTP
+      </Text>
     </TouchableOpacity>
   </View>
 );
@@ -107,7 +141,8 @@ const styles = StyleSheet.create({
   header: { marginBottom: 20 },
   title: { fontSize: 24, fontWeight: "800", color: "#0f172a", marginBottom: 6 },
   subtitle: { fontSize: 14, color: "#64748b" },
-  messageBoxError: { flexDirection: "row", alignItems: "center", backgroundColor: "#fef2f2", borderColor: "#fecaca", borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12, gap: 8 },
+  messageBoxError: { backgroundColor: "#fef2f2", borderColor: "#fecaca", borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12 },
+  messageRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   messageBoxSuccess: { flexDirection: "row", alignItems: "center", backgroundColor: "#ecfdf5", borderColor: "#a7f3d0", borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12, gap: 8 },
   messageText: { flex: 1, fontSize: 13, color: "#334155" },
   inputGroup: { marginBottom: 16 },
@@ -123,6 +158,7 @@ const styles = StyleSheet.create({
   rememberText: { fontSize: 13, color: "#64748b" },
   forgotText: { fontSize: 13, fontWeight: "600" },
   submitBtn: { borderRadius: 16, overflow: "hidden", marginBottom: 10 },
+  submitBtnDisabled: { opacity: 0.5 },
   submitGradient: { paddingVertical: 14, alignItems: "center" },
   submitText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   secondaryBtn: { alignItems: "center", paddingVertical: 8 },

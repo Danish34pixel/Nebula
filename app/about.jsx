@@ -13,8 +13,9 @@ export default function AboutUs() {
       <View style={{ marginBottom: 24 }}>
         <Text style={styles.heading}>What Meditrap Is</Text>
         <Text style={styles.paragraph}>
-          Meditrap is a digital platform that provides verified medicine
-          availability information to authorized users. We do not sell,
+          Meditrap is a digital platform that provides medicine
+          availability information, reported by registered stockists and admins,
+          to authorized users. We do not sell,
           dispense, or deliver medicines. Our service is built around
           subscription access and role-based permissions that help healthcare
           stakeholders manage stock, verify data, and make informed decisions.

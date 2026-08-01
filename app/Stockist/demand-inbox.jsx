@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -20,10 +21,8 @@ const normalizeStatus = (value) => {
   const status = String(value || "")
     .trim()
     .toLowerCase();
-  if (status === "received") return "Received";
-  if (status === "sent") return "Sent";
-  if (status === "pending") return "Pending";
-  return status ? status.charAt(0).toUpperCase() + status.slice(1) : "Sent";
+  if (!status) return "Sent";
+  return status.charAt(0).toUpperCase() + status.slice(1);
 };
 const formatTime = (date) => {
   if (!date) return "Unknown";
@@ -88,7 +87,7 @@ export default function StockistDemandInbox() {
         list.map((d) => ({
           id: resolveId(d) || d.demandId || d.id,
           ownerName: getOwnerName(d),
-          stockistName: d.stockistName || d.stockist?.name || "Your stockist",
+          ownerPhone: d.ownerPhone || null,
           status: normalizeStatus(d.status || d.state || d.statusText),
           createdAt: d.createdAt || d.sentAt || d.updatedAt,
           medicines:
@@ -111,8 +110,9 @@ export default function StockistDemandInbox() {
     loadDemands();
   }, [loadDemands]);
 
-  const markDemandReceived = async (demandIdToUpdate) => {
+  const updateDemandStatus = async (demandIdToUpdate, nextStatusLabel, action) => {
     setActionMessage("");
+    setError("");
     const original = demands.find(
       (d) => String(d.id) === String(demandIdToUpdate),
     );
@@ -121,44 +121,17 @@ export default function StockistDemandInbox() {
     setDemands((prev) =>
       prev.map((item) =>
         String(item.id) === String(demandIdToUpdate)
-          ? { ...item, status: "Received", optimistic: true }
+          ? { ...item, status: nextStatusLabel, optimistic: true }
           : item,
       ),
     );
 
-    const endpoints = [
-      `/api/demand/${demandIdToUpdate}/received`,
-      `/api/demand/${demandIdToUpdate}/receive`,
-      `/api/demand/${demandIdToUpdate}`,
-    ];
-
     try {
-      for (const path of endpoints) {
-        try {
-          if (path.endsWith("/received") || path.endsWith("/receive")) {
-            await fetchJson(path, { method: "PATCH" });
-          } else {
-            await fetchJson(path, {
-              method: "PATCH",
-              body: JSON.stringify({ status: "received" }),
-            });
-          }
-          setActionMessage("Demand marked as received.");
-          return;
-        } catch (innerErr) {
-          if (
-            innerErr?.status === 404 ||
-            innerErr?.status === 405 ||
-            innerErr?.status === 400
-          ) {
-            continue;
-          }
-          throw innerErr;
-        }
-      }
-      throw new Error("Unable to update demand status.");
+      await action();
+      setActionMessage(`Demand ${nextStatusLabel.toLowerCase()}.`);
+      await loadDemands();
     } catch (err) {
-      setError(err?.message || "Failed to mark demand received.");
+      setError(err?.message || `Failed to mark demand ${nextStatusLabel.toLowerCase()}.`);
       setDemands((prev) =>
         prev.map((item) =>
           String(item.id) === String(demandIdToUpdate)
@@ -167,6 +140,32 @@ export default function StockistDemandInbox() {
         ),
       );
     }
+  };
+
+  const acceptDemand = (demandId) =>
+    updateDemandStatus(demandId, "Accepted", () =>
+      fetchJson(`/api/demand/${demandId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "accepted" }),
+      }),
+    );
+
+  const rejectDemand = (demandId) =>
+    updateDemandStatus(demandId, "Rejected", () =>
+      fetchJson(`/api/demand/${demandId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "rejected" }),
+      }),
+    );
+
+  const dispatchDemand = (demandId) =>
+    updateDemandStatus(demandId, "Dispatched", () =>
+      fetchJson(`/api/demand/${demandId}/dispatch`, { method: "POST" }),
+    );
+
+  const handleCall = (phone) => {
+    if (!phone) return;
+    Linking.openURL(`tel:${String(phone).trim()}`);
   };
 
   return (
@@ -197,7 +196,10 @@ export default function StockistDemandInbox() {
           ) : (
             demands.map((demand) => {
               const isSelected = String(demand.id) === String(selectedDemandId);
-              const isReceived = demand.status.toLowerCase() === "received";
+              const statusLower = demand.status.toLowerCase();
+              const isSent = statusLower === "sent";
+              const isAccepted = statusLower === "accepted";
+              const isChatEligible = ["accepted", "dispatched", "completed"].includes(statusLower);
               return (
                 <View
                   key={demand.id}
@@ -213,7 +215,7 @@ export default function StockistDemandInbox() {
                     <View
                       style={[
                         styles.statusBadge,
-                        isReceived
+                        isChatEligible
                           ? styles.statusBadgeReceived
                           : styles.statusBadgeSent,
                       ]}
@@ -221,7 +223,7 @@ export default function StockistDemandInbox() {
                       <Text
                         style={[
                           styles.statusBadgeText,
-                          isReceived
+                          isChatEligible
                             ? styles.statusBadgeTextReceived
                             : styles.statusBadgeTextSent,
                         ]}
@@ -238,22 +240,44 @@ export default function StockistDemandInbox() {
                     </Text>
                   </View>
                   <View style={styles.actionsRow}>
-                    <TouchableOpacity
-                      style={styles.openBtn}
-                      onPress={() => {
-                        router.push(
-                          `/Stockist/demand-inbox?demandId=${encodeURIComponent(demand.id)}`,
-                        );
-                      }}
-                    >
-                      <Text style={styles.openBtnText}>View</Text>
-                    </TouchableOpacity>
-                    {!isReceived ? (
+                    {isSent ? (
+                      <>
+                        <TouchableOpacity
+                          style={styles.receiveBtn}
+                          onPress={() => acceptDemand(demand.id)}
+                        >
+                          <Text style={styles.receiveBtnText}>Accept</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.openBtn}
+                          onPress={() => rejectDemand(demand.id)}
+                        >
+                          <Text style={styles.openBtnText}>Reject</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : null}
+                    {isAccepted ? (
                       <TouchableOpacity
                         style={styles.receiveBtn}
-                        onPress={() => markDemandReceived(demand.id)}
+                        onPress={() => dispatchDemand(demand.id)}
                       >
-                        <Text style={styles.receiveBtnText}>Received</Text>
+                        <Text style={styles.receiveBtnText}>Dispatch</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    {isChatEligible ? (
+                      <TouchableOpacity
+                        style={styles.openBtn}
+                        onPress={() => router.push(`/demand-chat/${demand.id}`)}
+                      >
+                        <Text style={styles.openBtnText}>Chat</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    {isChatEligible && demand.ownerPhone ? (
+                      <TouchableOpacity
+                        style={styles.openBtn}
+                        onPress={() => handleCall(demand.ownerPhone)}
+                      >
+                        <Feather name="phone" size={14} color="#0f172a" />
                       </TouchableOpacity>
                     ) : null}
                   </View>

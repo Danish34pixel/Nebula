@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import SecureScreen from "../../components/SecureScreen";
+import MedicalDisclaimer from "../../components/MedicalDisclaimer";
 import { fetchJson } from "../../config/api";
 
 const normalizeText = (value) =>
@@ -234,6 +235,8 @@ export default function CreateDemand() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          <MedicalDisclaimer compact />
+
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>Select Stockist</Text>
             <TextInput

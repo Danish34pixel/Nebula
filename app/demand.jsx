@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SecureScreen from "../components/SecureScreen";
+import MedicalDisclaimer from "../components/MedicalDisclaimer";
 import { apiUrl, fetchJson } from "../config/api";
 
 const normalize = (value) =>
@@ -397,6 +398,8 @@ export default function Demand() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          <MedicalDisclaimer compact />
+
           <View style={styles.card}>
             <Text style={styles.label}>Select Stockist</Text>
             <TextInput
@@ -528,6 +531,16 @@ export default function Demand() {
                 <Feather name="check-circle" size={14} color="#0f766e" />
                 <Text style={styles.successText}>{successMessage}</Text>
               </View>
+            ) : null}
+            {successMessage ? (
+              <TouchableOpacity
+                style={styles.viewOrdersLink}
+                onPress={() => router.push("/MedicalOwner/demand-history")}
+              >
+                <Text style={styles.viewOrdersLinkText}>
+                  View in My Orders →
+                </Text>
+              </TouchableOpacity>
             ) : null}
 
             <TouchableOpacity
@@ -783,6 +796,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   successText: { color: "#0f766e", fontSize: 12, fontWeight: "600", flex: 1 },
+  viewOrdersLink: { marginTop: 6, alignItems: "center", paddingVertical: 4 },
+  viewOrdersLinkText: { color: "#0891b2", fontSize: 13, fontWeight: "700" },
   submitWrap: { marginTop: 12, borderRadius: 12, overflow: "hidden" },
   submitBtn: {
     minHeight: 50,

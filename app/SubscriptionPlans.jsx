@@ -11,38 +11,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { postJson } from "../config/api";
+import { PLANS } from "../constants/subscriptionPlans";
+import { createSubscriptionOrder } from "../services/payment";
 import { secureStorage } from "../utils/secureStore";
-
-const PLANS = [
-  {
-    key: "monthly",
-    label: "1 Month",
-    price: "₹300",
-    amount: 30000,
-    description: "Try it out",
-    gradient: ["#60a5fa", "#3b82f6"],
-    badge: null,
-  },
-  {
-    key: "quarterly",
-    label: "3 Months",
-    price: "₹600",
-    amount: 60000,
-    description: "₹200/month · Save 33%",
-    gradient: ["#34d399", "#10b981"],
-    badge: "Popular",
-  },
-  {
-    key: "yearly",
-    label: "12 Months",
-    price: "₹1200",
-    amount: 120000,
-    description: "₹100/month · Save 67%",
-    gradient: ["#f59e0b", "#f97316"],
-    badge: "Best Value",
-  },
-];
 
 export default function SubscriptionPlans() {
   const router = useRouter();
@@ -57,7 +28,7 @@ export default function SubscriptionPlans() {
 
     setLoading(true);
     try {
-      const res = await postJson("/payment/create-order", { planKey: selected });
+      const res = await createSubscriptionOrder(selected);
       if (!res.success) throw new Error(res.message || "Failed to create order");
 
       // Pass order data to payment screen via SecureStore (route params can't carry this safely)
@@ -175,6 +146,15 @@ export default function SubscriptionPlans() {
             )}
           </LinearGradient>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.refundLink}
+          onPress={() => router.push("/refund-policy")}
+        >
+          <Text style={styles.refundLinkText}>
+            View Refund & Cancellation Policy
+          </Text>
+        </TouchableOpacity>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -245,4 +225,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   ctaText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  refundLink: { alignItems: "center", marginTop: 16, paddingVertical: 8 },
+  refundLinkText: {
+    color: "#0891b2",
+    fontSize: 13,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
 });

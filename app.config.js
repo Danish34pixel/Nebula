@@ -21,19 +21,19 @@ if (
 
 const getEnv = (key, fallback = "") => process.env[key] || fallback;
 const normalizeUrl = (value) => (value ? value.replace(/\/+$/, "") : value);
-const DEFAULT_API_BASE_URL = "https://api.medi-trap.com";
+const DEFAULT_API_BASE_URL = "http://localhost:5002";
 module.exports = {
   expo: {
     name: "Meditrap",
-    slug: "Meditrap",
-    version: "55",
+    slug: "meditrap-app",
+    version: "1",
     orientation: "portrait",
     icon: "./assets/images/app-icon.png",
-    scheme: "meditrap",
+    scheme: "meditrapapp",
     userInterfaceStyle: "automatic",
     ios: {
-      bundleIdentifier: "com.danish.meditrap",
-      buildNumber: "11",
+      bundleIdentifier: "com.meditrap.app",
+      buildNumber: "1",
       supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -46,8 +46,8 @@ module.exports = {
       },
     },
     android: {
-      package: "com.danish.meditrap",
-      versionCode: 11,
+      package: "com.meditrap.app",
+      versionCode: 1,
       softwareKeyboardLayoutMode: "resize",
       permissions: [],
       adaptiveIcon: {
@@ -132,8 +132,10 @@ module.exports = {
         ),
       ),
       eas: {
-        projectId:
-          getEnv("EAS_PROJECT_ID") || "6f1cda02-86c4-49fc-9dbe-5990dbd9cac6",
+        // Old suspended app's project ID intentionally removed. Run `eas init`
+        // to generate a fresh EAS project, then set EAS_PROJECT_ID (or replace
+        // the placeholder below directly) — do not reuse the old ID.
+        projectId: getEnv("EAS_PROJECT_ID") || "NEW_PROJECT_ID_HERE",
       },
     },
   },

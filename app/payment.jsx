@@ -1,16 +1,15 @@
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import WebView from "react-native-webview";
-import { postJson } from "../config/api";
+import RazorpayCheckout from "../components/RazorpayCheckout";
+import { verifySubscriptionPayment } from "../services/payment";
 import { secureStorage } from "../utils/secureStore";
 
 export default function PaymentScreen() {
   const router = useRouter();
   const [orderData, setOrderData] = useState(null);
   const [error, setError] = useState(null);
-  const webViewRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -26,77 +25,39 @@ export default function PaymentScreen() {
     })();
   }, []);
 
-  const htmlContent = orderData
-    ? `<!DOCTYPE html>
-<html>
-<head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script>
-var options = {
-  key: "${orderData.keyId}",
-  amount: "${orderData.amount}",
-  currency: "${orderData.currency || "INR"}",
-  order_id: "${orderData.orderId}",
-  name: "MedTrap",
-  description: "${orderData.plan?.label || "Subscription"}",
-  handler: function(response) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ status: "success", ...response }));
-  },
-  modal: {
-    ondismiss: function() {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ status: "dismissed" }));
-    }
-  }
-};
-var rzp = new Razorpay(options);
-rzp.on("payment.failed", function(resp) {
-  window.ReactNativeWebView.postMessage(JSON.stringify({ status: "failed", error: resp.error }));
-});
-rzp.open();
-</script>
-</body>
-</html>`
-    : null;
-
-  const handleMessage = async (event) => {
+  const handleSuccess = async (response) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
+      const res = await verifySubscriptionPayment({
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_signature: response.razorpay_signature,
+      });
 
-      if (data.status === "success") {
-        try {
-          const res = await postJson("/payment/verify", {
-            razorpay_payment_id: data.razorpay_payment_id,
-            razorpay_order_id: data.razorpay_order_id,
-            razorpay_signature: data.razorpay_signature,
-          });
-
-          // Store plan info for the pending screen
-          await secureStorage.setItem(
-            "lastSubscription",
-            JSON.stringify({
-              plan: orderData?.plan,
-              subscriptionPlan: res.subscriptionPlan,
-              subscriptionEndDate: res.subscriptionEndDate,
-            })
-          );
-          await secureStorage.removeItem("pendingOrder");
-          router.replace("/payment-pending");
-        } catch (verifyErr) {
-          Alert.alert("Verification Failed", verifyErr.message || "Please contact support.");
-        }
-      } else if (data.status === "dismissed") {
-        Alert.alert("Payment Cancelled", "Complete payment to activate your account.", [
-          { text: "Go Back", onPress: () => router.back() },
-        ]);
-      } else {
-        Alert.alert("Payment Failed", data.error?.description || "Payment failed. Try again.", [
-          { text: "OK", onPress: () => router.back() },
-        ]);
-      }
-    } catch {
-      // ignore malformed messages
+      await secureStorage.setItem(
+        "lastSubscription",
+        JSON.stringify({
+          plan: orderData?.plan,
+          subscriptionPlan: res.subscriptionPlan,
+          subscriptionEndDate: res.subscriptionEndDate,
+        })
+      );
+      await secureStorage.removeItem("pendingOrder");
+      router.replace("/payment-pending");
+    } catch (verifyErr) {
+      Alert.alert("Verification Failed", verifyErr.message || "Please contact support.");
     }
+  };
+
+  const handleDismiss = () => {
+    Alert.alert("Payment Cancelled", "Complete payment to activate your account.", [
+      { text: "Go Back", onPress: () => router.back() },
+    ]);
+  };
+
+  const handleError = (message) => {
+    Alert.alert("Payment Failed", message || "Payment failed. Try again.", [
+      { text: "OK", onPress: () => router.back() },
+    ]);
   };
 
   if (error) {
@@ -107,34 +68,42 @@ rzp.open();
     );
   }
 
-  if (!htmlContent) {
+  if (!orderData) {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator size="large" color="#0891b2" />
         <Text style={styles.loadingText}>Preparing payment...</Text>
+        <TouchableOpacity
+          style={styles.refundLink}
+          onPress={() => router.push("/refund-policy")}
+        >
+          <Text style={styles.refundLinkText}>
+            View Refund & Cancellation Policy
+          </Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <WebView
-        ref={webViewRef}
-        originWhitelist={["*"]}
-        source={{ html: htmlContent }}
-        onMessage={handleMessage}
-        javaScriptEnabled
-        domStorageEnabled
-        style={styles.webview}
-      />
-    </View>
+    <RazorpayCheckout
+      orderData={orderData}
+      onSuccess={handleSuccess}
+      onError={handleError}
+      onDismiss={handleDismiss}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
-  webview: { flex: 1 },
   errorText: { color: "#ef4444", fontSize: 16, textAlign: "center" },
   loadingText: { marginTop: 12, color: "#64748b", fontSize: 15 },
+  refundLink: { marginTop: 20, paddingVertical: 8 },
+  refundLinkText: {
+    color: "#0891b2",
+    fontSize: 13,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
 });

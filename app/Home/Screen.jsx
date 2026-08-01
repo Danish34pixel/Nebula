@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import AdsCarousel from "../../components/AdsCarousel";
+import MedicalDisclaimer from "../../components/MedicalDisclaimer";
 import SecureScreen from "../../components/SecureScreen";
 import { fetchJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
@@ -673,7 +674,7 @@ const Screen = ({ navigation: navProp }) => {
           <View>
             <Text style={styles.headerTitle}>Your Stockists</Text>
             <Text style={styles.headerSubtitle}>
-              Trusted Healthcare Network
+              Medicine Supply Network
             </Text>
           </View>
         </View>
@@ -694,18 +695,8 @@ const Screen = ({ navigation: navProp }) => {
         <View style={styles.bannerContent}>
           <Text style={styles.bannerTitle}>Find Your Medical Partners</Text>
           <Text style={styles.bannerSubtitle}>
-            Connect with trusted healthcare suppliers & stockists
+            Connect with your stockists & suppliers
           </Text>
-          <View style={styles.bannerPillRow}>
-            <View style={styles.bannerPill}>
-              <View style={[styles.dot, { backgroundColor: "#4ade80" }]} />
-              <Text style={styles.bannerPillText}>24/7 Support</Text>
-            </View>
-            <View style={styles.bannerPill}>
-              <View style={[styles.dot, { backgroundColor: "#facc15" }]} />
-              <Text style={styles.bannerPillText}>Verified Partners</Text>
-            </View>
-          </View>
         </View>
         <Text style={styles.bannerIcon}>💊</Text>
       </LinearGradient>
@@ -739,11 +730,13 @@ const Screen = ({ navigation: navProp }) => {
 
       <AdsCarousel />
 
+      <MedicalDisclaimer compact />
+
       <View style={styles.subHeader}>
         <View>
           <Text style={styles.subHeaderTitle}>Medical Suppliers</Text>
           <Text style={styles.subHeaderSubtitle}>
-            {sectionData.length} trusted stockist
+            {sectionData.length} stockist
             {sectionData.length !== 1 ? "s" : ""} available
           </Text>
         </View>
@@ -884,15 +877,11 @@ const Screen = ({ navigation: navProp }) => {
                 <Text style={styles.detailSubtitle}>
                   {currentSection.address}
                 </Text>
-                <View style={styles.ratingRow}>
-                  <View style={styles.ratingBadge}>
-                    <Text style={{ fontSize: 12 }}>⭐ 4.8</Text>
-                  </View>
-                  <Text style={styles.reviewText}>(209 Reviews)</Text>
-                </View>
               </View>
             </View>
           </View>
+
+          <MedicalDisclaimer compact />
 
           <TouchableOpacity
             style={styles.callButton}
@@ -1009,6 +998,22 @@ const Screen = ({ navigation: navProp }) => {
             <Text style={{ fontSize: 24 }}>📋</Text>
           </View>
           <Text style={styles.navItemTextInactive}>Demand</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            if (__DEV__)
+              console.log(
+                "[Home/Screen] bottom nav navigate /MedicalOwner/demand-history",
+              );
+            navigation.navigate("/MedicalOwner/demand-history");
+          }}
+          style={styles.navItem}
+        >
+          <View style={styles.navIconBoxInactive}>
+            <Text style={{ fontSize: 24 }}>📦</Text>
+          </View>
+          <Text style={styles.navItemTextInactive}>My Orders</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

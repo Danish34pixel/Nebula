@@ -20,6 +20,7 @@ import AdsCarousel from "../../components/AdsCarousel";
 import AnnouncementPanel from "../../components/AnnouncementPanel";
 import PrivacyPolicyLink from "../../components/PrivacyPolicyLink";
 import SecureScreen from "../../components/SecureScreen";
+import MedicalDisclaimer from "../../components/MedicalDisclaimer";
 import { apiUrl, fetchJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 
@@ -474,7 +475,7 @@ export default function PurchaserDashboard() {
                         </View>
                       )}
                       <View style={styles.verifiedBadge}>
-                        <Text style={styles.verifiedBadgeText}>VERIFIED</Text>
+                        <Text style={styles.verifiedBadgeText}>PURCHASER ID</Text>
                       </View>
                     </View>
                     <View style={styles.signatureLine} />
@@ -531,11 +532,11 @@ export default function PurchaserDashboard() {
                       />
                       <View style={styles.aadharFooter}>
                         <Text style={styles.aadharLabel}>
-                          Aadhar Card (Verified)
+                          Aadhar Card
                         </Text>
                         <View style={styles.verifiedTag}>
-                          <Feather name="check" size={12} color="#065f46" />
-                          <Text style={styles.verifiedTagText}>Verified</Text>
+                          <Feather name="file-text" size={12} color="#065f46" />
+                          <Text style={styles.verifiedTagText}>On File</Text>
                         </View>
                       </View>
                     </View>
@@ -612,6 +613,8 @@ export default function PurchaserDashboard() {
                 />
               </LinearGradient>
             </TouchableOpacity>
+
+            <MedicalDisclaimer compact />
 
             {/* Summary Cards */}
             <View style={styles.statsRow}>

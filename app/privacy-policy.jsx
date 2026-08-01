@@ -107,8 +107,8 @@ export default function PrivacyPolicy() {
         <Text style={styles.sectionText}>
           Data access depends on your role. Admins manage platform settings.
           Stockists manage company and medicine availability details. Staff
-          support verification workflows. Purchasers access verified medicine
-          availability information.
+          support verification workflows. Purchasers access medicine
+          availability information reported by stockists and admins.
         </Text>
       </View>
 

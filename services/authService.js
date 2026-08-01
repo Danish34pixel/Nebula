@@ -164,10 +164,18 @@ const requestWithFallback = async (candidates = [], payloadVariants = []) => {
           body?.message || body?.error || `Request failed (${response.status})`;
         if (response.status === 404 || response.status === 405) {
           lastError = new Error(message);
+          lastError.status = response.status;
+          lastError.body = body;
           continue;
         }
 
-        throw new Error(message);
+        // Keep the parsed body on the error even for non-2xx responses —
+        // callers may still need fields like accessToken/paymentStatus that
+        // travel alongside a success:false status (e.g. trial-expired logins).
+        const err = new Error(message);
+        err.status = response.status;
+        err.body = body;
+        throw err;
       } catch (error) {
         lastError = error;
         if (error?.message?.includes("Failed to fetch")) {

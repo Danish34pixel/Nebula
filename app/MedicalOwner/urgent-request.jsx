@@ -18,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useFocusEffect } from "expo-router";
 import { fetchJson, postJson } from "../../config/api";
 import SecureScreen from "../../components/SecureScreen";
+import MedicalDisclaimer from "../../components/MedicalDisclaimer";
 
 const STATUS_COLOR = {
   pending: "#f59e0b",
@@ -228,6 +229,8 @@ export default function UrgentRequestScreen() {
               </Text>
             </View>
           </LinearGradient>
+
+          <MedicalDisclaimer compact />
 
           {/* Create form */}
           <View style={styles.card}>

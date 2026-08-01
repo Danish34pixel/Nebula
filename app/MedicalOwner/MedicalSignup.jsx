@@ -184,18 +184,13 @@ export default function MedicalSignup() {
       const res = await postForm("/api/auth/signup", formData);
 
       if (res.success) {
-        // Store tokens so payment screen can call /api/payment/create-order
         if (res.accessToken) {
           const { secureStorage } = await import("../../utils/secureStore");
           await secureStorage.setItem("token", res.accessToken);
           if (res.refreshToken) await secureStorage.setItem("refreshToken", res.refreshToken);
         }
 
-        if (res.requiresPayment) {
-          router.replace("/SubscriptionPlans");
-        } else {
-          setTimeout(() => router.replace("/MedicalOwner/MedicalMiddle"), 500);
-        }
+        setTimeout(() => router.replace("/MedicalOwner/MedicalMiddle"), 500);
       } else {
         throw new Error(res.message || "Signup failed");
       }

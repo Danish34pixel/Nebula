@@ -210,11 +210,6 @@ export default function PurchaserSignup() {
       if (created?.refreshToken)
         await secureStorage.setItem("refreshToken", created.refreshToken);
 
-      if (created?.requiresPayment) {
-        router.replace("/SubscriptionPlans");
-        return;
-      }
-
       const purchaserId = created?.purchaser?._id || created?.user?._id || null;
       if (purchaserId) {
         await AsyncStorage.setItem("pendingPurchaserId", purchaserId);

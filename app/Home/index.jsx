@@ -7,7 +7,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { secureStorage } from "../../utils/secureStore";
 
 import AnnouncementPanel from "../../components/AnnouncementPanel";
+import PaymentRequiredGate from "../../components/PaymentRequiredGate";
 import SecureScreen from "../../components/SecureScreen";
+import TrialBanner from "../../components/TrialBanner";
+import {
+  daysRemaining,
+  fetchSubscriptionStatus,
+} from "../../utils/subscriptionStatus";
 import Nav from "./Nav.jsx";
 import Screen from "./Screen.jsx";
 
@@ -16,6 +22,8 @@ export default function Dashboard() {
   const [isAdminEmail, setIsAdminEmail] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(null);
 
   // Provide a navigation-like object for backwards compatibility
   // with child components anticipating native navigation properties.
@@ -54,6 +62,15 @@ export default function Dashboard() {
           setIsAdminEmail(true);
         }
         setIsAuthChecking(false);
+
+        try {
+          const { paymentStatus: status, subscriptionEndDate } =
+            await fetchSubscriptionStatus();
+          setPaymentStatus(status || null);
+          setTrialDaysLeft(daysRemaining(subscriptionEndDate));
+        } catch (e) {
+          // Silent — network hiccup, don't block the dashboard on this
+        }
       } catch (e) {
         router.replace("/");
       }
@@ -72,10 +89,22 @@ export default function Dashboard() {
     );
   }
 
+  if (paymentStatus === "payment_due") {
+    return (
+      <HomeErrorBoundary>
+        <PaymentRequiredGate />
+      </HomeErrorBoundary>
+    );
+  }
+
   return (
     <HomeErrorBoundary>
       <SecureScreen>
         <SafeAreaView style={styles.container}>
+          {paymentStatus === "trial" && (
+            <TrialBanner daysLeft={trialDaysLeft} />
+          )}
+
           {/* Fallback Nav */}
           <Nav navigation={navigation} />
 

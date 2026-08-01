@@ -230,8 +230,6 @@ export default function StockistSignup() {
               });
             }
           }
-        } else if (key === "phone") {
-          formData.append("contactNo", value); // Sync with Purchaser the use of contactNo
         } else if (value && typeof value === "string") {
           formData.append(key, value.trim());
         } else if (value !== null && value !== undefined) {

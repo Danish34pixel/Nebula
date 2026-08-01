@@ -31,6 +31,28 @@ import { OTPInput } from "./OTPInput";
 import { ResendTimer } from "./ResendTimer";
 import { ResetPassword } from "./ResetPassword";
 
+const extractAuthPayload = (data) => {
+  const accessToken =
+    data?.accessToken ||
+    data?.token ||
+    data?.access_token ||
+    data?.data?.accessToken ||
+    data?.data?.token;
+  const refreshToken =
+    data?.refreshToken ||
+    data?.refresh_token ||
+    data?.data?.refreshToken ||
+    data?.data?.refresh_token;
+  const user =
+    data?.user ||
+    data?.data?.user ||
+    data?.purchaser ||
+    data?.data?.purchaser ||
+    data?.profile ||
+    data?.data?.profile;
+  return { accessToken, refreshToken, user };
+};
+
 const AuthFlowScreen = ({
   role,
   accentColor,
@@ -57,6 +79,8 @@ const AuthFlowScreen = ({
   const [step, setStep] = useState("login");
   const [secondsLeft, setSecondsLeft] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const [trialExpired, setTrialExpired] = useState(false);
+  const [blockedAccountStatus, setBlockedAccountStatus] = useState(null);
 
   useEffect(() => {
     const loadRememberedIdentifier = async () => {
@@ -116,24 +140,7 @@ const AuthFlowScreen = ({
   };
 
   const applyAuthResult = async (data) => {
-    const accessToken =
-      data?.accessToken ||
-      data?.token ||
-      data?.access_token ||
-      data?.data?.accessToken ||
-      data?.data?.token;
-    const refreshToken =
-      data?.refreshToken ||
-      data?.refresh_token ||
-      data?.data?.refreshToken ||
-      data?.data?.refresh_token;
-    const user =
-      data?.user ||
-      data?.data?.user ||
-      data?.purchaser ||
-      data?.data?.purchaser ||
-      data?.profile ||
-      data?.data?.profile;
+    const { accessToken, refreshToken, user } = extractAuthPayload(data);
 
     await persistAuthState({
       accessToken,
@@ -179,6 +186,39 @@ const AuthFlowScreen = ({
     router.replace(destination);
   };
 
+  // A normal failed login (wrong password, invalid OTP, etc.) never carries
+  // a token. A token alongside success:false is specifically the
+  // payment-required/trial-expired case, regardless of the exact message
+  // text or paymentStatus value the backend sends — matching on message
+  // text would be brittle since it isn't a fixed enum. Returns true if this
+  // response was the trial-expired case (and state has been updated).
+  const applyTrialExpiredIfNeeded = async (data, fallbackMessage) => {
+    const { accessToken, refreshToken, user } = extractAuthPayload(data);
+
+    if (__DEV__) {
+      console.log("[AuthFlowScreen] applyTrialExpiredIfNeeded check:", {
+        hasAccessToken: Boolean(accessToken),
+        hasUser: Boolean(user),
+        rawData: data,
+      });
+    }
+
+    if (!accessToken) return false;
+
+    await persistAuthState({
+      accessToken,
+      refreshToken,
+      user,
+      role,
+      rememberMe,
+      identifier,
+    });
+    setTrialExpired(true);
+    setBlockedAccountStatus(data?.accountStatus || null);
+    setError(data?.message || fallbackMessage);
+    return true;
+  };
+
   const handlePasswordLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
       setError("Please enter your credentials to continue.");
@@ -187,21 +227,85 @@ const AuthFlowScreen = ({
 
     setLoading(true);
     setError("");
+    setTrialExpired(false);
+    setBlockedAccountStatus(null);
     try {
       const data = await authenticateWithPassword({
         identifier,
         password,
         role,
       });
-      if (data?.success === false && data?.message) {
-        throw new Error(data.message);
+
+      if (__DEV__) {
+        console.log("[AuthFlowScreen] login response resolved:", data);
       }
+
+      if (data?.success === false) {
+        if (
+          await applyTrialExpiredIfNeeded(
+            data,
+            "Please complete your subscription payment to access your account.",
+          )
+        ) {
+          return;
+        }
+
+        throw new Error(data.message || "Login failed. Please try again.");
+      }
+
       await saveRememberedIdentifier();
       await applyAuthResult(data);
     } catch (err) {
+      if (__DEV__) {
+        console.log("[AuthFlowScreen] login error:", {
+          message: err?.message,
+          status: err?.status,
+          body: err?.body,
+        });
+      }
+
+      // The backend may reject with a non-2xx status (rather than resolving
+      // with success:false) — the payload with the token/paymentStatus still
+      // arrives on err.body in that case, so check it before giving up.
+      if (
+        err?.body &&
+        (await applyTrialExpiredIfNeeded(
+          err.body,
+          "Please complete your subscription payment to access your account.",
+        ))
+      ) {
+        return;
+      }
+
       setError(err?.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // The token was already persisted when the trial-expired response came
+  // in, so /SubscriptionPlans -> /payment(.web) can call the authenticated
+  // create-order/verify endpoints without the user logging in again.
+  // pending_admin_verification means payment already went through — send
+  // them to the status screen instead of the plan picker to avoid a
+  // duplicate charge.
+  const handleGoToPayment = () => {
+    // Modal renders as a global overlay outside the navigator's screen
+    // stack, so it stays visible over whatever gets pushed on top unless
+    // explicitly closed first.
+    setTrialExpired(false);
+    if (blockedAccountStatus === "pending_admin_verification") {
+      router.push("/payment-pending");
+    } else {
+      router.push("/SubscriptionPlans");
+    }
+  };
+
+  const handleCloseSubscriptionModal = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/");
     }
   };
 
@@ -449,6 +553,14 @@ const AuthFlowScreen = ({
           accentColor={accentColor}
           title={title}
           subtitle={subtitle}
+          trialExpired={trialExpired}
+          onMakePayment={handleGoToPayment}
+          onCloseSubscriptionModal={handleCloseSubscriptionModal}
+          paymentButtonLabel={
+            blockedAccountStatus === "pending_admin_verification"
+              ? "Check Status"
+              : "Pay Now"
+          }
         />
         <LegalConsentText style={{ marginTop: 16 }} />
       </>

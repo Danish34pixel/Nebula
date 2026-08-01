@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -18,8 +18,10 @@ import {
   View,
 } from "react-native";
 import SecureScreen from "../../components/SecureScreen";
+import TermsAgreement from "../../components/TermsAgreement";
 import { apiUrl } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import { hasViewedTerms, TERMS_VERSION } from "../../utils/terms";
 
 export default function CreateStaff() {
   const router = useRouter();
@@ -41,6 +43,22 @@ export default function CreateStaff() {
   const [aadhar, setAadhar] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [termsViewed, setTermsViewed] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [termsError, setTermsError] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const viewed = await hasViewedTerms();
+        if (active) setTermsViewed(viewed);
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const loadData = useCallback(async () => {
     try {
@@ -121,6 +139,12 @@ export default function CreateStaff() {
       setErrorMsg("Password is required to create a staff member.");
       return;
     }
+    if (!termsChecked) {
+      setTermsError(
+        "Please read and accept the Terms and Conditions to continue.",
+      );
+      return;
+    }
     setLoading(true);
     try {
       const token = await secureStorage.getItem("token");
@@ -135,6 +159,9 @@ export default function CreateStaff() {
         fd.append("workForId", String(user._id));
 
       if (form.password) fd.append("password", form.password);
+      fd.append("termsAccepted", "true");
+      fd.append("termsVersion", TERMS_VERSION);
+      fd.append("termsAcceptedAt", new Date().toISOString());
 
       const createFormDataImage = async (asset, fieldName) => {
         const uri = asset.uri;
@@ -369,9 +396,17 @@ export default function CreateStaff() {
                 </View>
               ) : null}
 
+              <TermsAgreement
+                enabled={termsViewed}
+                checked={termsChecked}
+                onToggle={setTermsChecked}
+                onOpenTerms={() => router.push("/terms-and-conditions")}
+                error={termsError}
+              />
+
               <TouchableOpacity
                 onPress={submit}
-                disabled={loading}
+                disabled={loading || !termsChecked}
                 style={styles.submitWrapper}
               >
                 <LinearGradient

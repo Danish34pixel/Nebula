@@ -30,7 +30,7 @@ export default function LegalFooter() {
       </View>
       <Text style={styles.copy} numberOfLines={1}>
         © {new Date().getFullYear()} Meditrap. Secure subscription access to
-        healthcare information for verified healthcare professionals.
+        medicine availability information for registered trade professionals.
       </Text>
     </View>
   );

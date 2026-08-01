@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { apiUrl, fetchJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 import SecureScreen from "../../components/SecureScreen";
+import MedicalDisclaimer from "../../components/MedicalDisclaimer";
 
 export default function StockistDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -251,6 +252,8 @@ export default function StockistDetailScreen() {
           </View>
         </View>
 
+        <MedicalDisclaimer compact />
+
         {/* Medicines Section */}
         {medicines && medicines.length > 0 && (
           <View style={styles.card}>
@@ -297,7 +300,7 @@ export default function StockistDetailScreen() {
         <View style={styles.card}>
           <View style={styles.verifiedBox}>
             <View style={styles.verifiedDot} />
-            <Text style={styles.verifiedText}>Verified Stockist</Text>
+            <Text style={styles.verifiedText}>Registered Stockist</Text>
           </View>
         </View>
       </ScrollView>

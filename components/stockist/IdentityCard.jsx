@@ -138,7 +138,7 @@ export default function IdentityCard({ stockist, qrDataUrl, onPrint }) {
               <Logo />
               <View style={styles.statusBadge}>
                 <View style={styles.statusDot} />
-                <Text style={styles.statusText}>VERIFIED</Text>
+                <Text style={styles.statusText}>STOCKIST ID</Text>
               </View>
             </View>
 

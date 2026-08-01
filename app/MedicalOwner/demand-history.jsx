@@ -1,10 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -27,10 +28,7 @@ const formatStatus = (value) => {
   const status = String(value || "")
     .trim()
     .toLowerCase();
-  if (status === "received") return "Received";
-  if (status === "sent") return "Sent";
-  if (status === "pending") return "Pending";
-  return status ? status.charAt(0).toUpperCase() + status.slice(1) : "Sent";
+  return status ? status.charAt(0).toUpperCase() + status.slice(1) : "Pending";
 };
 const formatTime = (date) => {
   if (!date) return "Unknown";
@@ -56,64 +54,65 @@ export default function DemandHistory() {
     setSelectedDemandId(demandId || null);
   }, [demandId]);
 
-  useEffect(() => {
-    let active = true;
-    const loadDemands = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const raw = await AsyncStorage.getItem("user");
-        const user = raw ? JSON.parse(raw) : null;
-        const owner = user?.user || user;
-        const ownerId = resolveId(owner);
-        if (!ownerId) {
-          setError("Unable to determine your account.");
-          setDemands([]);
-          return;
-        }
-        const data = await fetchJson(
-          `/api/demand?ownerId=${encodeURIComponent(ownerId)}`,
-        );
-        const items = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.data)
-            ? data.data
-            : Array.isArray(data?.demands)
-              ? data.demands
-              : Array.isArray(data?.items)
-                ? data.items
-                : [];
-        if (!active) return;
-        setDemands(
-          items.map((d) => ({
-            id: resolveId(d) || d.demandId || d.id,
-            title:
-              d.stockistName ||
-              d.stockist?.name ||
-              d.stockist?.companyName ||
-              "Assigned Stockist",
-            ownerName: getName(d.purchaser || d.medicalOwner || owner),
-            status: formatStatus(d.status || d.state || d.statusText),
-            createdAt: d.createdAt || d.sentAt || d.updatedAt,
-            items:
-              Array.isArray(d.items) && d.items.length > 0
-                ? d.items
-                : Array.isArray(d.medicines)
-                  ? d.medicines
-                  : [],
-          })),
-        );
-      } catch (err) {
-        setError(err?.message || "Failed to load demand history.");
-      } finally {
-        if (active) setLoading(false);
+  const loadDemands = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const raw = await AsyncStorage.getItem("user");
+      const user = raw ? JSON.parse(raw) : null;
+      const owner = user?.user || user;
+      const ownerId = resolveId(owner);
+      if (!ownerId) {
+        setError("Unable to determine your account.");
+        setDemands([]);
+        return;
       }
-    };
-    loadDemands();
-    return () => {
-      active = false;
-    };
+      const data = await fetchJson(
+        `/api/demand?ownerId=${encodeURIComponent(ownerId)}`,
+      );
+      const items = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.demands)
+            ? data.demands
+            : Array.isArray(data?.items)
+              ? data.items
+              : [];
+      setDemands(
+        items.map((d) => ({
+          id: resolveId(d) || d.demandId || d.id,
+          ownerName: getName(d.purchaser || d.medicalOwner || owner),
+          createdAt: d.createdAt || d.sentAt || d.updatedAt,
+          items:
+            Array.isArray(d.items) && d.items.length > 0
+              ? d.items
+              : Array.isArray(d.medicines)
+                ? d.medicines
+                : [],
+          supplierDemands: Array.isArray(d.supplierDemands)
+            ? d.supplierDemands.map((sd) => ({
+                id: resolveId(sd),
+                stockistName: sd.stockistName || "Stockist",
+                stockistPhone: sd.stockistPhone || null,
+                status: formatStatus(sd.status),
+                items: sd.items || [],
+              }))
+            : [],
+        })),
+      );
+    } catch (err) {
+      setError(err?.message || "Failed to load demand history.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDemands();
+    }, [loadDemands]),
+  );
 
   return (
     <SecureScreen>
@@ -154,19 +153,8 @@ export default function DemandHistory() {
                   key={demand.id}
                   style={[styles.card, isSelected && styles.highlightedCard]}
                 >
-                  <View style={styles.cardHeader}>
-                    <View>
-                      <Text style={styles.cardTitle}>{demand.title}</Text>
-                      <Text style={styles.cardSubtitle}>
-                        {demand.ownerName}
-                      </Text>
-                    </View>
-                    <View style={styles.statusPill}>
-                      <Text style={styles.statusText}>{demand.status}</Text>
-                    </View>
-                  </View>
                   <Text style={styles.timestamp}>
-                    {formatTime(demand.createdAt)}
+                    Created {formatTime(demand.createdAt)}
                   </Text>
                   {demand.items && demand.items.length > 0 ? (
                     demand.items.map((item, index) => (
@@ -183,6 +171,50 @@ export default function DemandHistory() {
                     <Text style={styles.emptyText}>
                       No medicine details available.
                     </Text>
+                  )}
+
+                  {demand.supplierDemands.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      Not yet sent to any stockist.
+                    </Text>
+                  ) : (
+                    demand.supplierDemands.map((sd) => {
+                      const statusLower = sd.status.toLowerCase();
+                      const isChatEligible = ["accepted", "dispatched", "completed"].includes(
+                        statusLower,
+                      );
+                      return (
+                        <View key={sd.id} style={styles.stockistRow}>
+                          <View style={styles.cardHeader}>
+                            <Text style={styles.cardTitle}>{sd.stockistName}</Text>
+                            <View style={styles.statusPill}>
+                              <Text style={styles.statusText}>{sd.status}</Text>
+                            </View>
+                          </View>
+                          {isChatEligible ? (
+                            <View style={styles.actionsRow}>
+                              <TouchableOpacity
+                                style={styles.chatBtn}
+                                onPress={() => router.push(`/demand-chat/${sd.id}`)}
+                              >
+                                <Feather name="message-circle" size={14} color="#0f172a" />
+                                <Text style={styles.chatBtnText}>Chat</Text>
+                              </TouchableOpacity>
+                              {sd.stockistPhone ? (
+                                <TouchableOpacity
+                                  style={styles.chatBtn}
+                                  onPress={() =>
+                                    Linking.openURL(`tel:${String(sd.stockistPhone).trim()}`)
+                                  }
+                                >
+                                  <Feather name="phone" size={14} color="#0f172a" />
+                                </TouchableOpacity>
+                              ) : null}
+                            </View>
+                          ) : null}
+                        </View>
+                      );
+                    })
                   )}
                 </View>
               );
@@ -286,6 +318,27 @@ const styles = StyleSheet.create({
     color: "#475569",
     fontSize: 14,
   },
+  stockistRow: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8,
+  },
+  chatBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chatBtnText: { color: "#0f172a", fontSize: 13, fontWeight: "700" },
   emptyTitle: {
     color: "#0f172a",
     marginTop: 16,

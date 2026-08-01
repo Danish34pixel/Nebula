@@ -22,7 +22,7 @@ import AnnouncementPanel from "../../components/AnnouncementPanel";
 import SecureScreen from "../../components/SecureScreen";
 import IdentityCard from "../../components/stockist/IdentityCard";
 import StockistApprovals from "../../components/stockist/StockistApprovals";
-import { apiUrl } from "../../config/api";
+import { apiUrl, fetchJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
 import StaffModel from "../Staff/StaffModel";
 
@@ -329,6 +329,7 @@ export default function StockistDashboard() {
   const routeId = params.id || null;
 
   const [stockist, setStockist] = useState(null);
+  const [ordersCount, setOrdersCount] = useState(0);
   const [companiesList, setCompaniesList] = useState([]);
   const [medicinesList, setMedicinesList] = useState([]);
   const [staffs, setStaffs] = useState([]);
@@ -846,6 +847,36 @@ export default function StockistDashboard() {
     }, [loadStockistData]),
   );
 
+  // Orders badge count — only "sent" (no response given yet) counts.
+  // Accepting an order clears it from the badge immediately; it still shows
+  // up in the Orders list (and needs a Dispatch action there), it just no
+  // longer needs to be flagged as "unanswered" on the dashboard icon.
+  // No socket/push mechanism exists in this app (confirmed no socket.io
+  // dependency anywhere), so — same as every other list screen here — this
+  // just refetches whenever the dashboard regains focus, including right
+  // after returning from the Orders screen.
+  const loadOrdersCount = useCallback(async () => {
+    if (!stockist?._id) return;
+    try {
+      const res = await fetchJson(
+        `/demand?stockistId=${encodeURIComponent(stockist._id)}`,
+      );
+      const list = Array.isArray(res?.data) ? res.data : [];
+      const activeCount = list.filter(
+        (o) => String(o.status || "").toLowerCase() === "sent",
+      ).length;
+      setOrdersCount(activeCount);
+    } catch {
+      // silent — badge just stays at its last known value
+    }
+  }, [stockist?._id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOrdersCount();
+    }, [loadOrdersCount]),
+  );
+
   useEffect(() => {
     if (!authError) return;
     secureStorage.multiRemove(["token", "refreshToken", "user"]).finally(() => {
@@ -970,6 +1001,20 @@ export default function StockistDashboard() {
             </View>
             <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
               <Feather name="log-out" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/Stockist/orders")}
+              style={styles.ordersBtnTop}
+              accessibilityLabel="Open orders"
+            >
+              <Feather name="package" size={20} color="#fff" />
+              {ordersCount > 0 ? (
+                <View style={styles.ordersBadge}>
+                  <Text style={styles.ordersBadgeText}>
+                    {ordersCount > 99 ? "99+" : ordersCount}
+                  </Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
             <TouchableOpacity
               onPress={openAnnouncements}
@@ -1184,6 +1229,35 @@ const styles = StyleSheet.create({
     color: "#64748b",
     fontWeight: "600",
     marginTop: 2,
+  },
+  ordersBtnTop: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#10b981",
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 12,
+    position: "relative",
+  },
+  ordersBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: "#ef4444",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  ordersBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
   },
   bellBtnTop: {
     width: 40,

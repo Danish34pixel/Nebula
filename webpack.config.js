@@ -26,7 +26,7 @@ module.exports = async function (env, argv) {
     process.env.EXPO_PUBLIC_API_BASE_URL_WEB ||
     process.env.EXPO_PUBLIC_API_BASE_URL ||
     process.env.EXPO_PUBLIC_API_URL ||
-    "https://api.medi-trap.com/";
+    "https://api.medi-trap.com";
 
   const proxyTarget = proxyCandidate.replace(/\/+$/, "");
   const normalizedProxyTarget = proxyTarget.replace(

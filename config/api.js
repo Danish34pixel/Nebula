@@ -82,7 +82,8 @@ const rewriteLocalhostForDevice = (url) => {
   }
 };
 
-const DEFAULT_API_BASE_URL = "https://api.medi-trap.com/";
+export const API_BASE_URL = "https://api.medi-trap.com";
+const DEFAULT_API_BASE_URL = API_BASE_URL;
 const getResolvedBase = () => {
   const envDefault =
     getEnvValue("API_URL") ||

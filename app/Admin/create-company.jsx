@@ -12,15 +12,16 @@ import {
   Alert,
   Dimensions,
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { apiUrl, fetchJson, requestJson, postJson } from "../../config/api";
+import { requestJson, postJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import { matchesSearchText } from "../../utils/search";
 import SecureScreen from "../../components/SecureScreen";
 
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
 // Memoized helper for empty states
 const EmptyState = ({ icon, text, color = "#94a3b8" }) => (
@@ -128,12 +129,12 @@ export default function AdminCreateCompany() {
   };
 
   const filteredStockists = useMemo(() => {
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery;
     return stockistsList.filter(
       (s) =>
-        (s.name || "").toLowerCase().includes(q) ||
-        (s.email || "").toLowerCase().includes(q) ||
-        (s.location || "").toLowerCase().includes(q),
+        matchesSearchText(s.name || s.contactPerson, q) ||
+        matchesSearchText(s.email, q) ||
+        matchesSearchText(s.location, q),
     );
   }, [stockistsList, searchQuery]);
 

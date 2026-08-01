@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,21 +18,44 @@ import { apiUrl } from "../../config/api";
 export default function MedicalMiddle() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
+  const [pendingUser, setPendingUser] = useState(null);
   const [message, setMessage] = useState(
     "Thanks for registering. Your documents are under verification. We will notify you once your account is approved.",
   );
 
   const timerRef = useRef(null);
 
+  const normalizeImageUrl = (url) => {
+    if (!url || typeof url !== "string") return null;
+    if (url.startsWith("//")) return `https:${url}`;
+    if (/^https?:\/\//i.test(url)) return url;
+    return apiUrl(url.startsWith("/") ? url : `/${url}`);
+  };
+
   useEffect(() => {
     let cancelled = false;
 
     const checkStatus = async () => {
       try {
-        const stockistId = await AsyncStorage.getItem("pendingStockistId");
-        const userId = await AsyncStorage.getItem("pendingUserId");
+        const [stockistId, userId, pendingCredsRaw, storedUserRaw] =
+          await Promise.all([
+            AsyncStorage.getItem("pendingStockistId"),
+            AsyncStorage.getItem("pendingUserId"),
+            AsyncStorage.getItem("pendingUserCreds"),
+            AsyncStorage.getItem("user"),
+          ]);
 
-        if (!stockistId && !userId) {
+        const pendingCreds = pendingCredsRaw ? JSON.parse(pendingCredsRaw) : null;
+        const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+        const resolvedUser = pendingCreds || storedUser || null;
+        const resolvedUserId =
+          userId || resolvedUser?._id || resolvedUser?.id || null;
+
+        if (resolvedUser && !pendingUser) {
+          setPendingUser(resolvedUser);
+        }
+
+        if (!stockistId && !resolvedUserId) {
           if (!cancelled) {
             setChecking(false);
             setMessage(
@@ -50,7 +74,8 @@ export default function MedicalMiddle() {
               await AsyncStorage.removeItem("pendingStockistId");
               if (!cancelled) router.replace("/Stockist/stockist-login");
               return;
-            } else if (
+            }
+            if (
               json.data.declined ||
               json.data.status === "declined" ||
               json.data.status === "rejected"
@@ -62,23 +87,20 @@ export default function MedicalMiddle() {
               return;
             }
           }
-        } else if (userId) {
-          const res = await fetch(apiUrl(`/api/auth/status/${userId}`));
+        } else if (resolvedUserId) {
+          const res = await fetch(apiUrl(`/api/auth/status/${resolvedUserId}`));
           const json = await res.json().catch(() => ({}));
 
           if (res.ok && json && json.data) {
             if (json.data.approved || json.data.status === "approved") {
-              await AsyncStorage.removeItem("pendingUserId");
-
               await AsyncStorage.multiRemove([
                 "pendingUserId",
                 "pendingUserCreds",
               ]);
-
-              // Navigate to normal medical owner login after approval
               if (!cancelled) router.replace("/login");
               return;
-            } else if (
+            }
+            if (
               json.data.declined ||
               json.data.status === "declined" ||
               json.data.status === "rejected"
@@ -91,7 +113,7 @@ export default function MedicalMiddle() {
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // ignore network errors and continue polling
       }
 
@@ -106,7 +128,7 @@ export default function MedicalMiddle() {
       cancelled = true;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, []);
+  }, [pendingUser, router]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -138,6 +160,17 @@ export default function MedicalMiddle() {
             </Text>
 
             <Text style={styles.messageText}>{message}</Text>
+
+            {pendingUser?.drugLicenseImage ? (
+              <View style={styles.documentCard}>
+                <Text style={styles.documentLabel}>Uploaded License</Text>
+                <Image
+                  source={{ uri: normalizeImageUrl(pendingUser.drugLicenseImage) }}
+                  style={styles.documentImage}
+                  resizeMode="contain"
+                />
+              </View>
+            ) : null}
 
             {message !== "Document verification failed" && (
               <Text style={styles.subtext}>
@@ -206,6 +239,27 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 16,
+  },
+  documentCard: {
+    width: "100%",
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "rgba(14, 116, 144, 0.12)",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+  },
+  documentLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: 10,
+  },
+  documentImage: {
+    width: "100%",
+    height: 220,
+    backgroundColor: "#fff",
+    borderRadius: 14,
   },
   subtext: {
     fontSize: 14,

@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import SecureScreen from "../../components/SecureScreen";
 import { API_BASE, fetchJson, postForm } from "../../config/api";
+import { matchesSearchText } from "../../utils/search";
 
 function mediaFullUrl(url) {
   if (!url) return null;
@@ -31,12 +32,6 @@ function isImageType(type) {
   return String(type || "")
     .toLowerCase()
     .startsWith("image");
-}
-
-function isVideoType(type) {
-  return String(type || "")
-    .toLowerCase()
-    .startsWith("video");
 }
 
 export default function AdminAds() {
@@ -99,6 +94,64 @@ export default function AdminAds() {
     }
   };
 
+  const buildUploadFile = async (asset, fieldName) => {
+    const rawUri = asset?.uri || "";
+    const extFromName = String(asset?.fileName || asset?.name || "")
+      .split(".")
+      .pop()
+      .toLowerCase();
+    const extFromUri = rawUri.split("?")[0].split(".").pop().toLowerCase();
+    const mimeMap = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      mp4: "video/mp4",
+      mov: "video/quicktime",
+    };
+
+    const normalizedMime = String(asset?.mimeType || "").toLowerCase();
+    const mimeType = normalizedMime || mimeMap[extFromName] || mimeMap[extFromUri] || "image/jpeg";
+    const ext =
+      extFromName ||
+      (mimeType === "video/mp4"
+        ? "mp4"
+        : mimeType === "video/quicktime"
+          ? "mov"
+          : mimeType === "image/png"
+            ? "png"
+            : mimeType === "image/webp"
+              ? "webp"
+              : "jpg");
+
+    const fileName = String(asset?.fileName || asset?.name || `${fieldName}.${ext}`);
+
+    if (Platform.OS === "web") {
+      const response = await fetch(rawUri);
+      const blob = await response.blob();
+      const blobExt =
+        (blob.type || "").includes("quicktime")
+          ? "mov"
+          : (blob.type || "").includes("mp4")
+            ? "mp4"
+            : (blob.type || "").includes("webp")
+              ? "webp"
+              : (blob.type || "").includes("png")
+                ? "png"
+                : "jpg";
+      const finalName = fileName.includes(".") ? fileName : `${fieldName}.${blobExt}`;
+      return { file: blob, name: finalName, type: blob.type || mimeType };
+    }
+
+    return {
+      file: {
+        uri: rawUri,
+        type: mimeType,
+        name: fileName.includes(".") ? fileName : `${fieldName}.${ext}`,
+      },
+    };
+  };
+
   const handleSubmit = async () => {
     setFormError("");
     if (!title.trim()) {
@@ -128,34 +181,13 @@ export default function AdminAds() {
 
     setUploading(true);
     try {
-      const rawUri = media.uri || "";
-      const extFromUri = rawUri.split("?")[0].split(".").pop().toLowerCase();
-      const extFromName = (media.fileName || "").split(".").pop().toLowerCase();
-      const ext = extFromName || extFromUri || "jpg";
-      const mimeMap = {
-        jpg: "image/jpeg",
-        jpeg: "image/jpeg",
-        png: "image/png",
-        webp: "image/webp",
-        mp4: "video/mp4",
-        mov: "video/quicktime",
-      };
-      const mimeType = media.mimeType || mimeMap[ext] || "image/jpeg";
-      const fileName = media.fileName || `ad.${ext}`;
+      const uploadFile = await buildUploadFile(media, "ad");
 
       const formData = new FormData();
-
       if (Platform.OS === "web") {
-        // On web, fetch the URI and convert to Blob — { uri, type, name } is not a File
-        const blob = await fetch(rawUri).then((r) => r.blob());
-        formData.append("media", blob, fileName);
+        formData.append("media", uploadFile.file, uploadFile.name);
       } else {
-        // On native, { uri, type, name } is the React Native FormData file shape
-        formData.append("media", {
-          uri: rawUri,
-          type: mimeType,
-          name: fileName,
-        });
+        formData.append("media", uploadFile.file);
       }
 
       formData.append("title", title.trim());
@@ -163,13 +195,15 @@ export default function AdminAds() {
       if (expiresAt.trim()) formData.append("expiresAt", expiresAt.trim());
 
       const res = await postForm("/ads", formData);
-      if (res.success) {
-        setTitle("");
-        setSelectedStockist(null);
-        setMedia(null);
-        setExpiresAt("");
-        await loadAds();
+      if (!res?.success) {
+        throw new Error(res?.message || "Upload failed.");
       }
+
+      setTitle("");
+      setSelectedStockist(null);
+      setMedia(null);
+      setExpiresAt("");
+      await loadAds();
     } catch (err) {
       setFormError(err?.message || "Upload failed.");
     } finally {
@@ -208,8 +242,12 @@ export default function AdminAds() {
   };
 
   const filteredStockists = stockists.filter((s) => {
-    const q = stockistSearch.toLowerCase();
-    return !q || (s.name || s.contactPerson || "").toLowerCase().includes(q);
+    return (
+      !stockistSearch ||
+      matchesSearchText(s.name || s.contactPerson, stockistSearch) ||
+      matchesSearchText(s.email, stockistSearch) ||
+      matchesSearchText(s.location, stockistSearch)
+    );
   });
 
   return (

@@ -184,10 +184,24 @@ export default function MedicalSignup() {
       const res = await postForm("/api/auth/signup", formData);
 
       if (res.success) {
+        const createdUser = res.user || null;
+        const createdUserId = createdUser?._id || createdUser?.id || null;
+
         if (res.accessToken) {
           const { secureStorage } = await import("../../utils/secureStore");
           await secureStorage.setItem("token", res.accessToken);
           if (res.refreshToken) await secureStorage.setItem("refreshToken", res.refreshToken);
+        }
+
+        if (createdUserId) {
+          await AsyncStorage.multiRemove(["pendingStockistId"]);
+          await AsyncStorage.setItem("pendingUserId", String(createdUserId));
+          if (createdUser) {
+            await AsyncStorage.setItem(
+              "pendingUserCreds",
+              JSON.stringify(createdUser),
+            );
+          }
         }
 
         setTimeout(() => router.replace("/MedicalOwner/MedicalMiddle"), 500);

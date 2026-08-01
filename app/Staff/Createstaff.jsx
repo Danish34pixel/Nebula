@@ -208,7 +208,11 @@ export default function CreateStaff() {
           : "Registration successful! Please login.",
       );
       if (user) {
-        router.replace("/Stockist/stockist-dashboard");
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/Staff/staff-login");
+        }
       } else {
         router.replace("/Staff/staff-login");
       }

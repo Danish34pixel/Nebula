@@ -20,8 +20,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { postJson, requestJson } from "../../config/api";
 import { secureStorage } from "../../utils/secureStore";
+import { matchesSearchText } from "../../utils/search";
 
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
 // Memoized helper for empty states
 const EmptyState = ({ icon, text, color = "#94a3b8" }) => (
@@ -116,21 +117,21 @@ export default function AdminCreateMedicine() {
 
   // Optimized filtering
   const filteredCompanies = useMemo(() => {
-    const q = companySearch.toLowerCase();
+    const q = companySearch;
     return companies.filter(
       (c) =>
-        (c.name || "").toLowerCase().includes(q) ||
-        (c.email || "").toLowerCase().includes(q),
+        matchesSearchText(c.name || c.shortName || c.companyName, q) ||
+        matchesSearchText(c.email, q),
     );
   }, [companies, companySearch]);
 
   const filteredStockists = useMemo(() => {
-    const q = stockistSearch.toLowerCase();
+    const q = stockistSearch;
     return stockistsList.filter(
       (s) =>
-        (s.name || "").toLowerCase().includes(q) ||
-        (s.email || "").toLowerCase().includes(q) ||
-        (s.location || "").toLowerCase().includes(q),
+        matchesSearchText(s.name || s.contactPerson, q) ||
+        matchesSearchText(s.email, q) ||
+        matchesSearchText(s.location, q),
     );
   }, [stockistsList, stockistSearch]);
 

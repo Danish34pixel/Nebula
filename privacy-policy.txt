@@ -1,0 +1,47 @@
+Meditrap Privacy Policy
+
+Effective Date: August 2, 2026
+
+Thank you for using Meditrap. This Privacy Policy explains how we collect, use, store, and protect your information when you use our mobile application and related services.
+
+1. Information We Collect
+We may collect the following types of information:
+- Account information such as name, email address, phone number, and password.
+- Profile and verification information, including uploaded documents, profile images, and identity data when required for signup or verification.
+- Subscription and payment-related information such as transaction references and service access records.
+- Usage information such as app interactions, feature usage, search activity, and device-related technical information.
+- Support communications that you send to us.
+
+2. How We Use Your Information
+We use your information to:
+- Create and manage your account.
+- Provide access to the Meditrap platform and its services.
+- Verify identity and maintain secure access.
+- Process subscriptions and service-related requests.
+- Improve features, performance, and reliability.
+- Respond to support requests and comply with legal obligations.
+
+3. Sharing of Information
+We do not sell your personal information. We may share your information only in limited circumstances, such as:
+- With trusted service providers that help us operate the app, process payments, store files, or provide support.
+- When required by law, court order, or regulatory request.
+- To protect the rights, safety, or security of our users and platform.
+
+4. Data Security
+We take reasonable technical and organizational precautions to protect your information from unauthorized access, loss, misuse, or disclosure. However, no internet-based service is completely secure, and you should use strong passwords and keep your device secure.
+
+5. Data Retention
+We retain your information only as long as necessary to provide the services, meet legal obligations, resolve disputes, and enforce our agreements.
+
+6. Your Rights
+You may request access to, correction of, or deletion of your personal information where applicable. You may also contact us if you have questions about how your data is handled.
+
+7. Children’s Privacy
+Meditrap is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13 without appropriate parental consent.
+
+8. Changes to This Policy
+We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date.
+
+9. Contact Us
+If you have any questions about this Privacy Policy or your personal information, please contact us at:
+Email: meditrap1@gmail.com

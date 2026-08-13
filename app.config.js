@@ -131,12 +131,7 @@ module.exports = {
           getEnv("API_URL", DEFAULT_API_BASE_URL),
         ),
       ),
-      eas: {
-        // Old suspended app's project ID intentionally removed. Run `eas init`
-        // to generate a fresh EAS project, then set EAS_PROJECT_ID (or replace
-        // the placeholder below directly) — do not reuse the old ID.
-        projectId: getEnv("EAS_PROJECT_ID") || "NEW_PROJECT_ID_HERE",
-      },
+      eas: { projectId: "17d948a5-9679-4bc5-bb49-481d96992e23" },
     },
   },
 };

@@ -38,20 +38,12 @@ const dedupePayloads = (payloads = []) => {
   });
 };
 
-const buildIdentifierPayloads = ({
-  role,
-  identifier,
-  password,
-  otp,
-  purpose,
-}) => {
+const buildIdentifierPayloads = ({ role, identifier, password }) => {
   const normalizedIdentifier = String(identifier || "").trim();
   const { type, value } = detectIdentifierType(identifier);
   const commonBase = {
     role,
     ...(password !== undefined ? { password } : {}),
-    ...(otp !== undefined ? { otp } : {}),
-    ...(purpose ? { purpose } : {}),
   };
 
   const identifierValue = normalizedIdentifier.replace(/\s+/g, "");
@@ -211,59 +203,52 @@ export const authenticateWithPassword = async ({
   return requestWithFallback(endpoints, payloads);
 };
 
-export const requestOtp = async ({ identifier, role, purpose = "login" }) => {
-  const { type, value } = detectIdentifierType(identifier);
-  if (type === "invalid") {
-    throw new Error("Please enter a valid email or mobile number.");
+// Link-based password reset — a single canonical endpoint, no fallback
+// guessing needed since this is the real, documented backend contract.
+export const requestPasswordReset = async ({ email }) => {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    throw new Error("Please enter a valid email address.");
   }
 
-  const payloads = buildIdentifierPayloads({ role, identifier, purpose });
-
-  const endpoints = [
-    "/api/auth/send-otp",
-    "/api/auth/request-otp",
-    "/api/auth/forgot-password",
-    "/api/auth/otp/send",
-  ];
-
-  return requestWithFallback(endpoints, payloads);
+  const response = await fetch(apiUrl("/api/auth/forgot-password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: normalized }),
+  });
+  const body = await parseResponseBody(response);
+  if (!response.ok) {
+    const err = new Error(body?.message || `Request failed (${response.status})`);
+    err.status = response.status;
+    err.body = body;
+    throw err;
+  }
+  return body;
 };
 
-export const verifyOtp = async ({
-  identifier,
-  role,
-  otp,
-  purpose = "login",
-}) => {
-  const { type, value } = detectIdentifierType(identifier);
-  if (type === "invalid") {
-    throw new Error("Please enter a valid email or mobile number.");
+// Submits the new password for the emailed reset link — token travels in
+// the URL, matching POST /api/auth/reset-password/:token.
+export const resetPasswordWithToken = async ({ token, password, confirmPassword }) => {
+  if (!token) {
+    throw new Error("This reset link is invalid or missing a token.");
   }
 
-  const payloads = buildIdentifierPayloads({ role, identifier, otp, purpose });
-
-  const endpoints = [
-    "/api/auth/verify-otp",
-    "/api/auth/otp/verify",
-    "/api/auth/otp/validate",
-  ];
-  return requestWithFallback(endpoints, payloads);
-};
-
-export const resetPassword = async ({ identifier, role, otp, password }) => {
-  const { type, value } = detectIdentifierType(identifier);
-  if (type === "invalid") {
-    throw new Error("Please enter a valid email or mobile number.");
+  const response = await fetch(
+    apiUrl(`/api/auth/reset-password/${encodeURIComponent(token)}`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, confirmPassword }),
+    },
+  );
+  const body = await parseResponseBody(response);
+  if (!response.ok) {
+    const err = new Error(body?.message || `Request failed (${response.status})`);
+    err.status = response.status;
+    err.body = body;
+    throw err;
   }
-
-  const payloads = buildIdentifierPayloads({ role, identifier, otp, password });
-
-  const endpoints = [
-    "/api/auth/reset-password",
-    "/api/auth/password/reset",
-    "/api/auth/otp/reset",
-  ];
-  return requestWithFallback(endpoints, payloads);
+  return body;
 };
 
 export const persistAuthState = async ({

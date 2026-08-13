@@ -2,7 +2,7 @@
   "expo": {
     "name": "Meditrap",
     "slug": "meditrap-app",
-    "version": "1",
+    "version": "18",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
     "scheme": "meditrapapp",
@@ -39,7 +39,9 @@
       "image": "./assets/images/app-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff",
-      "dark": { "backgroundColor": "#000000" }
+      "dark": {
+        "backgroundColor": "#000000"
+      }
     },
     "plugins": [
       "expo-router",
@@ -50,16 +52,20 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
-          "dark": { "backgroundColor": "#000000" }
+          "dark": {
+            "backgroundColor": "#000000"
+          }
         }
       ],
       "expo-secure-store",
       "expo-notifications"
     ],
-    "experiments": { "typedRoutes": true, "reactCompiler": true },
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
     "extra": {
-      "router": {},
-      "eas": { "projectId": "NEW_PROJECT_ID_HERE" }
+      "router": {}
     }
   }
 }

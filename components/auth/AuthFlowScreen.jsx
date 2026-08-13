@@ -4,7 +4,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,19 +16,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   authenticateWithPassword,
   persistAuthState,
-  requestOtp,
-  resetPassword,
-  verifyOtp,
 } from "../../services/authService";
 import { getHomeRouteForRole } from "../../utils/getHomeRouteForRole";
 import { secureStorage } from "../../utils/secureStore";
 import LegalConsentText from "../LegalConsentText";
 import PrivacyPolicyLink from "../PrivacyPolicyLink";
-import { ForgotPassword } from "./ForgotPassword";
 import { LoginForm } from "./LoginForm";
-import { OTPInput } from "./OTPInput";
-import { ResendTimer } from "./ResendTimer";
-import { ResetPassword } from "./ResetPassword";
 
 const extractAuthPayload = (data) => {
   const accessToken =
@@ -53,6 +45,8 @@ const extractAuthPayload = (data) => {
   return { accessToken, refreshToken, user };
 };
 
+// Email + Password login only. Forgot Password lives at its own route
+// (/forgot-password); there is no OTP login/verification step here.
 const AuthFlowScreen = ({
   role,
   accentColor,
@@ -68,17 +62,10 @@ const AuthFlowScreen = ({
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState("login");
-  const [secondsLeft, setSecondsLeft] = useState(60);
-  const [canResend, setCanResend] = useState(false);
   const [trialExpired, setTrialExpired] = useState(false);
   const [blockedAccountStatus, setBlockedAccountStatus] = useState(null);
 
@@ -105,19 +92,6 @@ const AuthFlowScreen = ({
 
     loadRememberedIdentifier();
   }, [role]);
-
-  useEffect(() => {
-    if (step !== "otp" || canResend || secondsLeft <= 0) return;
-
-    const timer = setTimeout(() => setSecondsLeft((prev) => prev - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [step, secondsLeft, canResend]);
-
-  useEffect(() => {
-    if (step === "otp" && secondsLeft <= 0) {
-      setCanResend(true);
-    }
-  }, [step, secondsLeft]);
 
   const handleRememberToggle = async () => {
     const nextValue = !rememberMe;
@@ -186,12 +160,12 @@ const AuthFlowScreen = ({
     router.replace(destination);
   };
 
-  // A normal failed login (wrong password, invalid OTP, etc.) never carries
-  // a token. A token alongside success:false is specifically the
-  // payment-required/trial-expired case, regardless of the exact message
-  // text or paymentStatus value the backend sends — matching on message
-  // text would be brittle since it isn't a fixed enum. Returns true if this
-  // response was the trial-expired case (and state has been updated).
+  // A normal failed login (wrong password, etc.) never carries a token. A
+  // token alongside success:false is specifically the payment-required/
+  // trial-expired case, regardless of the exact message text or
+  // paymentStatus value the backend sends — matching on message text would
+  // be brittle since it isn't a fixed enum. Returns true if this response
+  // was the trial-expired case (and state has been updated).
   const applyTrialExpiredIfNeeded = async (data, fallbackMessage) => {
     const { accessToken, refreshToken, user } = extractAuthPayload(data);
 
@@ -309,262 +283,11 @@ const AuthFlowScreen = ({
     }
   };
 
-  const handleOtpRequest = async () => {
-    if (!identifier.trim()) {
-      setError("Please enter your email or mobile number.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    try {
-      await requestOtp({
-        identifier,
-        role,
-        purpose: step === "forgot" ? "forgot_password" : "login",
-      });
-      setSuccessMessage(
-        "OTP sent successfully. Please check your inbox or phone.",
-      );
-      setStep("otp");
-      setOtp("");
-      setSecondsLeft(60);
-      setCanResend(false);
-      await saveRememberedIdentifier();
-    } catch (err) {
-      setError(err?.message || "OTP request failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOtpVerify = async () => {
-    if (otp.length !== 6) {
-      setError("Enter the full 6-digit OTP.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    try {
-      const data = await verifyOtp({
-        identifier,
-        role,
-        otp,
-        purpose: step === "forgot" ? "forgot_password" : "login",
-      });
-      if (data?.success === false && data?.message) {
-        throw new Error(data.message);
-      }
-
-      if (step === "forgot") {
-        setSuccessMessage("OTP verified. Please choose a new password.");
-        setStep("reset");
-      } else {
-        await applyAuthResult(data);
-      }
-    } catch (err) {
-      setError(err?.message || "Verification failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async () => {
-    if (!newPassword.trim() || !confirmPassword.trim()) {
-      setError("Please enter and confirm your new password.");
-      return;
-    }
-
-    if (newPassword.trim().length < 6) {
-      setError("Password must be at least 6 characters long.");
-      return;
-    }
-
-    if (newPassword.trim() !== confirmPassword.trim()) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    try {
-      const data = await resetPassword({
-        identifier,
-        role,
-        otp,
-        password: newPassword.trim(),
-      });
-      if (data?.success === false && data?.message) {
-        throw new Error(data.message);
-      }
-      setSuccessMessage(
-        "Password reset successfully. Please sign in with your new password.",
-      );
-      setStep("login");
-      setPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setOtp("");
-    } catch (err) {
-      setError(err?.message || "Password reset failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const switchToForgotPassword = () => {
-    setError("");
-    setSuccessMessage("");
-    setStep("forgot");
-  };
-
-  const switchToLogin = () => {
-    setError("");
-    setSuccessMessage("");
-    setStep("login");
-    setOtp("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setPassword("");
-  };
-
-  const renderActiveStep = () => {
-    if (step === "forgot") {
-      return (
-        <ForgotPassword
-          identifier={identifier}
-          onIdentifierChange={setIdentifier}
-          loading={loading}
-          onSubmit={handleOtpRequest}
-          onBack={switchToLogin}
-          error={error}
-          successMessage={successMessage}
-          accentColor={accentColor}
-        />
-      );
-    }
-
-    if (step === "otp") {
-      return (
-        <View style={styles.otpCard}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Verify OTP</Text>
-            <Text style={styles.subtitle}>
-              Enter the 6-digit code sent to {identifier}.
-            </Text>
-          </View>
-
-          {error ? (
-            <View style={styles.messageBoxError}>
-              <Feather name="alert-circle" size={16} color="#ef4444" />
-              <Text style={styles.messageText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {successMessage ? (
-            <View style={styles.messageBoxSuccess}>
-              <Feather name="check-circle" size={16} color="#059669" />
-              <Text style={styles.messageText}>{successMessage}</Text>
-            </View>
-          ) : null}
-
-          <OTPInput
-            value={otp}
-            onChange={setOtp}
-            accentColor={accentColor}
-            loading={loading}
-          />
-
-          <ResendTimer
-            secondsLeft={secondsLeft}
-            canResend={canResend}
-            onResend={handleOtpRequest}
-            accentColor={accentColor}
-            loading={loading}
-          />
-
-          <TouchableOpacity
-            style={styles.submitBtn}
-            onPress={handleOtpVerify}
-            disabled={loading}
-          >
-            <View
-              style={[styles.submitGradient, { backgroundColor: accentColor }]}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitText}>Verify OTP</Text>
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryLink}
-            onPress={switchToLogin}
-          >
-            <Text style={[styles.secondaryText, { color: accentColor }]}>
-              Back to login
-            </Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    if (step === "reset") {
-      return (
-        <ResetPassword
-          password={newPassword}
-          confirmPassword={confirmPassword}
-          onPasswordChange={setNewPassword}
-          onConfirmPasswordChange={setConfirmPassword}
-          loading={loading}
-          onSubmit={handleResetPassword}
-          onBack={switchToLogin}
-          error={error}
-          successMessage={successMessage}
-          accentColor={accentColor}
-        />
-      );
-    }
-
-    return (
-      <>
-        <LoginForm
-          identifier={identifier}
-          password={password}
-          onIdentifierChange={setIdentifier}
-          onPasswordChange={setPassword}
-          rememberMe={rememberMe}
-          onRememberMeChange={handleRememberToggle}
-          showPassword={showPassword}
-          onTogglePassword={() => setShowPassword((prev) => !prev)}
-          loading={loading}
-          onSubmit={handlePasswordLogin}
-          onOtpSubmit={() => {
-            setError("");
-            setSuccessMessage("");
-            handleOtpRequest();
-          }}
-          onForgotPassword={switchToForgotPassword}
-          error={error}
-          successMessage={successMessage}
-          accentColor={accentColor}
-          title={title}
-          subtitle={subtitle}
-          trialExpired={trialExpired}
-          onMakePayment={handleGoToPayment}
-          onCloseSubscriptionModal={handleCloseSubscriptionModal}
-          paymentButtonLabel={
-            blockedAccountStatus === "pending_admin_verification"
-              ? "Check Status"
-              : "Pay Now"
-          }
-        />
-        <LegalConsentText style={{ marginTop: 16 }} />
-      </>
-    );
+  // Forgot Password lives at its own route (/forgot-password) rather than
+  // as an inline step here — it's a standalone, role-agnostic flow since the
+  // backend looks accounts up by email across every role.
+  const goToForgotPassword = () => {
+    router.push("/forgot-password");
   };
 
   return (
@@ -593,7 +316,33 @@ const AuthFlowScreen = ({
                 resizeMode="contain"
               />
             </View>
-            {renderActiveStep()}
+
+            <LoginForm
+              identifier={identifier}
+              password={password}
+              onIdentifierChange={setIdentifier}
+              onPasswordChange={setPassword}
+              rememberMe={rememberMe}
+              onRememberMeChange={handleRememberToggle}
+              showPassword={showPassword}
+              onTogglePassword={() => setShowPassword((prev) => !prev)}
+              loading={loading}
+              onSubmit={handlePasswordLogin}
+              onForgotPassword={goToForgotPassword}
+              error={error}
+              accentColor={accentColor}
+              title={title}
+              subtitle={subtitle}
+              trialExpired={trialExpired}
+              onMakePayment={handleGoToPayment}
+              onCloseSubscriptionModal={handleCloseSubscriptionModal}
+              paymentButtonLabel={
+                blockedAccountStatus === "pending_admin_verification"
+                  ? "Check Status"
+                  : "Pay Now"
+              }
+            />
+            <LegalConsentText style={{ marginTop: 16 }} />
 
             {signupRoute ? (
               <View style={styles.footer}>
@@ -644,48 +393,6 @@ const styles = StyleSheet.create({
   },
   logoContainer: { alignItems: "center", marginBottom: 24 },
   logoImage: { width: 120, height: 80 },
-  otpCard: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  header: { marginBottom: 8 },
-  title: { fontSize: 24, fontWeight: "800", color: "#0f172a", marginBottom: 6 },
-  subtitle: { fontSize: 14, color: "#64748b" },
-  messageBoxError: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fef2f2",
-    borderColor: "#fecaca",
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 12,
-    marginBottom: 12,
-    gap: 8,
-  },
-  messageBoxSuccess: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ecfdf5",
-    borderColor: "#a7f3d0",
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 12,
-    marginBottom: 12,
-    gap: 8,
-  },
-  messageText: { flex: 1, fontSize: 13, color: "#334155" },
-  submitBtn: { borderRadius: 16, overflow: "hidden", marginTop: 20 },
-  submitGradient: { paddingVertical: 14, alignItems: "center" },
-  submitText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  secondaryLink: { alignItems: "center", marginTop: 12 },
-  secondaryText: { fontSize: 14, fontWeight: "700" },
   footer: { marginTop: 24, alignItems: "center" },
   footerText: { fontSize: 14, color: "#64748b", marginBottom: 6 },
   authLink: { marginTop: 10 },

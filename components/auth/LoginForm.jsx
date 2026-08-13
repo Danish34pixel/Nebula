@@ -14,10 +14,8 @@ export const LoginForm = ({
   onTogglePassword,
   loading,
   onSubmit,
-  onOtpSubmit,
   onForgotPassword,
   error,
-  successMessage,
   accentColor,
   title,
   subtitle,
@@ -49,25 +47,18 @@ export const LoginForm = ({
       payButtonLabel={paymentButtonLabel}
     />
 
-    {successMessage ? (
-      <View style={styles.messageBoxSuccess}>
-        <Feather name="check-circle" size={16} color="#059669" />
-        <Text style={styles.messageText}>{successMessage}</Text>
-      </View>
-    ) : null}
-
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>Email or Mobile Number</Text>
+      <Text style={styles.label}>Email</Text>
       <View style={styles.inputWrapper}>
-        <Feather name="user" size={18} color="#94a3b8" style={styles.inputIcon} />
+        <Feather name="mail" size={18} color="#94a3b8" style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={identifier}
           onChangeText={onIdentifierChange}
-          placeholder="Enter email or mobile number"
+          placeholder="Enter your email"
           placeholderTextColor="#94a3b8"
           autoCapitalize="none"
-          keyboardType="default"
+          keyboardType="email-address"
           editable={!loading}
         />
       </View>
@@ -118,21 +109,6 @@ export const LoginForm = ({
         )}
       </View>
     </TouchableOpacity>
-
-    <TouchableOpacity
-      style={styles.secondaryBtn}
-      onPress={onOtpSubmit}
-      disabled={loading || trialExpired}
-    >
-      <Text
-        style={[
-          styles.secondaryText,
-          { color: trialExpired ? "#94a3b8" : accentColor },
-        ]}
-      >
-        Login with OTP
-      </Text>
-    </TouchableOpacity>
   </View>
 );
 
@@ -143,7 +119,6 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: "#64748b" },
   messageBoxError: { backgroundColor: "#fef2f2", borderColor: "#fecaca", borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12 },
   messageRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  messageBoxSuccess: { flexDirection: "row", alignItems: "center", backgroundColor: "#ecfdf5", borderColor: "#a7f3d0", borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12, gap: 8 },
   messageText: { flex: 1, fontSize: 13, color: "#334155" },
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
@@ -161,6 +136,4 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.5 },
   submitGradient: { paddingVertical: 14, alignItems: "center" },
   submitText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  secondaryBtn: { alignItems: "center", paddingVertical: 8 },
-  secondaryText: { fontSize: 14, fontWeight: "700" },
 });

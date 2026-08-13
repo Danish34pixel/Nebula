@@ -13,6 +13,7 @@ import { setNotificationChannel } from "./utils/notifications";
 const AUTH_ROUTES = new Set([
   "/",
   "/login",
+  "/forgot-password",
   "/MedicalOwner/MedicalSignup",
   "/MedicalOwner/MedicalMiddle",
   "/Purchaser/purchaser-login",

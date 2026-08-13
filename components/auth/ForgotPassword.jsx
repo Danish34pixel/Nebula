@@ -2,7 +2,7 @@ import React from "react";
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
-export const ForgotPassword = ({ identifier, onIdentifierChange, loading, onSubmit, onBack, error, successMessage, accentColor }) => (
+export const ForgotPassword = ({ identifier, onIdentifierChange, loading, onSubmit, onBack, error, successMessage, accentColor, sent }) => (
   <View style={styles.card}>
     <TouchableOpacity style={styles.backRow} onPress={onBack}>
       <Feather name="arrow-left" size={18} color={accentColor} />
@@ -11,7 +11,7 @@ export const ForgotPassword = ({ identifier, onIdentifierChange, loading, onSubm
 
     <View style={styles.header}>
       <Text style={styles.title}>Reset your password</Text>
-      <Text style={styles.subtitle}>We will send a verification code to your email or mobile number.</Text>
+      <Text style={styles.subtitle}>Enter your registered email address and we&apos;ll send you a link to reset your password.</Text>
     </View>
 
     {error ? (
@@ -29,25 +29,29 @@ export const ForgotPassword = ({ identifier, onIdentifierChange, loading, onSubm
     ) : null}
 
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>Email or Mobile Number</Text>
+      <Text style={styles.label}>Email Address</Text>
       <View style={styles.inputWrapper}>
         <Feather name="mail" size={18} color="#94a3b8" style={styles.inputIcon} />
         <TextInput
           style={styles.input}
           value={identifier}
           onChangeText={onIdentifierChange}
-          placeholder="Enter email or mobile number"
+          placeholder="Enter your registered email"
           placeholderTextColor="#94a3b8"
           autoCapitalize="none"
-          keyboardType="default"
+          keyboardType="email-address"
           editable={!loading}
         />
       </View>
     </View>
 
     <TouchableOpacity style={styles.submitBtn} onPress={onSubmit} disabled={loading}>
-      <View style={[styles.submitGradient, { backgroundColor: accentColor }]}> 
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Send OTP</Text>}
+      <View style={[styles.submitGradient, { backgroundColor: accentColor }]}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitText}>{sent ? "Resend Reset Link" : "Send Reset Link"}</Text>
+        )}
       </View>
     </TouchableOpacity>
   </View>
